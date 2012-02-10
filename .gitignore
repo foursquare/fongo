@@ -10,3 +10,4 @@ target
 .classpath
 .cache
 .settings
+test-output
