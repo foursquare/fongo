@@ -34,7 +34,11 @@ public class ExpressionParser {
   public final static String EXISTS = "$exists";
   public final static String MOD = "$mod";
   public final static String IN = "$in";
+  public final static String NIN = "$nin";
+  public final static String NOT = "$not";
   
+
+
   interface FilterFactory {
     public boolean matchesCommand(DBObject refExpression);
     public Filter createFilter(String key, DBObject refExpression);
@@ -51,14 +55,9 @@ public class ExpressionParser {
     public boolean matchesCommand(DBObject refExpression) {
       return refExpression.containsField(command);
     }
-    
-
-    
   }
   
   abstract class BasicFilterFactory extends BasicCommandFilterFactory {
-
-    
     public BasicFilterFactory(final String command) {
       super(command);
     }
@@ -77,6 +76,38 @@ public class ExpressionParser {
     
     abstract boolean compare(Object queryValue, Object storedValue);
     
+  }
+  @SuppressWarnings("all")
+  private final class InFilterFactory extends BasicFilterFactory {
+    private Set querySet;
+    private final boolean direction;
+    
+    public InFilterFactory(String command, boolean direction) {
+      super(command);
+      this.direction = direction;
+    }
+
+    @Override
+    public boolean matchesCommand(DBObject ref) {
+      Object commandValue = ref.get(command);
+      if (commandValue != null){
+        List queryList = typecast(command + " clause", commandValue, List.class);
+        this.querySet = new HashSet(queryList);
+        return true;
+      }
+      return false;
+    }
+
+    boolean compare(Object queryValueIgnored, Object storedValue) {
+      if (storedValue instanceof List){
+        for (Object valueItem : (List)storedValue){
+          if (querySet.contains(valueItem)) return direction;
+        }
+        return !direction;
+      } else {
+        return !(direction ^ querySet.contains(storedValue));
+      }
+   }
   }
   
   private <T> T typecast(String fieldName, Object obj, Class<T> clazz) {
@@ -137,28 +168,8 @@ public class ExpressionParser {
           int expectedValue = queryList.get(1);
           return (storedValue != null) && (typecast("value", storedValue, Number.class).longValue()) % modulus == expectedValue;
       }},
-      new BasicFilterFactory(IN){
-        private Set querySet;
-        @Override
-        public boolean matchesCommand(DBObject ref) {
-          Object commandValue = ref.get(command);
-          if (commandValue != null){
-            List queryList = typecast(command + " clause", commandValue, List.class);
-            this.querySet = new HashSet(queryList);
-            return true;
-          }
-          return false;
-        }
-        boolean compare(Object queryValueIgnored, Object storedValue) {
-          if (storedValue instanceof List){
-            for (Object valueItem : (List)storedValue){
-              if (querySet.contains(valueItem)) return true;
-            }
-            return false;
-          } else {
-            return querySet.contains(storedValue);
-          }
-      }}
+      new InFilterFactory(IN, true),
+      new InFilterFactory(NIN, false)
   );
 
   private Filter buildExpressionFilter(final String key, final Object expression) {

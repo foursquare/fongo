@@ -124,20 +124,21 @@ public class ExpressionParserTest {
   }
   
   @Test
-  public void testNorOperator(){
-    fail("implement me");
+  public void testNinOperator(){
+    DBObject query = new BasicDBObjectBuilder().push("a").add("$nin", Arrays.asList(2,3)).pop().get();
+    List<DBObject> results = doFilter(
+        query,
+        new BasicDBObject("a", Arrays.asList(1,4)),
+        new BasicDBObject("a", Arrays.asList(1,3)),
+        new BasicDBObject("a", 1),
+        new BasicDBObject("a", 3)
+    );
+    assertEquals(Arrays.<DBObject>asList(
+        new BasicDBObject("a", Arrays.asList(1,4)),
+        new BasicDBObject("a", 1)
+    ), results);
   }
-  
-  @Test
-  public void testOrOperator(){
-    fail("implement me");
-  }
-  
-  @Test
-  public void testSizeOperator(){
-    fail("implement me");
-  }
-  
+
   @Test
   public void testNotOperator(){
     fail("implement me");
