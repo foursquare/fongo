@@ -51,6 +51,7 @@ public class ExpressionParserTest {
         new BasicDBObject("n","stu").append("a", 4)
     ));
     assertQuery(new BasicDBObject("a", new BasicDBObject("$ne", 3)), Arrays.<DBObject>asList(
+        new BasicDBObject("a", null),
         new BasicDBObject("n","neil").append("a", 1),
         new BasicDBObject("n","fred").append("a", 2),
         new BasicDBObject("n","stu").append("a", 4),
@@ -64,6 +65,7 @@ public class ExpressionParserTest {
     List<DBObject> results = doFilter(
         query,
         new BasicDBObject("a", Arrays.asList(2,3)),
+        new BasicDBObject("a", null),
         new BasicDBObject("a", Arrays.asList(1,3,4)),
         new BasicDBObject("a", Arrays.asList(1,2,3)),
         new BasicDBObject("a", Arrays.asList(1,3,4))
@@ -92,12 +94,33 @@ public class ExpressionParserTest {
   
   @Test
   public void testModOperator(){
-    fail("implement me");
+    DBObject query = new BasicDBObjectBuilder().push("a").add("$mod", Arrays.asList(10,1)).pop().get();
+    List<DBObject> results = doFilter(
+        query,
+        new BasicDBObject("a", 1),
+        new BasicDBObject("a", null),
+        new BasicDBObject("a", 21),
+        new BasicDBObject("a", 22)
+    );
+    assertEquals(Arrays.<DBObject>asList(
+        new BasicDBObject("a", 1),
+        new BasicDBObject("a", 21)
+    ), results);
   }
   
   @Test
   public void testInOperator(){
-    fail("implement me");
+    DBObject query = new BasicDBObjectBuilder().push("a").add("$in", Arrays.asList(2,3)).pop().get();
+    List<DBObject> results = doFilter(
+        query,
+        new BasicDBObject("a", Arrays.asList(1,3)),
+        new BasicDBObject("a", 1),
+        new BasicDBObject("a", 3)
+    );
+    assertEquals(Arrays.<DBObject>asList(
+        new BasicDBObject("a", Arrays.asList(1,3)),
+        new BasicDBObject("a", 3)
+    ), results);
   }
   
   @Test
@@ -128,6 +151,7 @@ public class ExpressionParserTest {
   private void assertQuery(BasicDBObject query, List<DBObject> expected) {
     List<DBObject> results = doFilter(
         query,
+        new BasicDBObject("a", null),
         new BasicDBObject("n","neil").append("a", 1),
         new BasicDBObject("n","fred").append("a", 2),
         new BasicDBObject("n","ted").append("a", 3),
