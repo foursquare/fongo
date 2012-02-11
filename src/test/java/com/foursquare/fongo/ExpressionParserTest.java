@@ -177,7 +177,21 @@ public class ExpressionParserTest {
   
   @Test
   public void testEmbeddedMatch(){
-    fail("implement me");
+    DBObject query = new BasicDBObject("a.b", 1);
+    List<DBObject> results = doFilter(
+        query,
+        new BasicDBObject("a", 1),
+        new BasicDBObject("b", 1),
+        new BasicDBObject("a",new BasicDBObject("b", 1))
+    );
+    assertEquals(Arrays.<DBObject>asList(
+        new BasicDBObject("a",new BasicDBObject("b", 1))
+    ), results);
+  }
+  
+  @Test
+  public void testOrOperator(){
+    fail("not implemented");
   }
 
   private void assertQuery(BasicDBObject query, List<DBObject> expected) {

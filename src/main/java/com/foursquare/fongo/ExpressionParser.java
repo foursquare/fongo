@@ -5,11 +5,14 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 import com.mongodb.DBObject;
 
 public class ExpressionParser {
 
+  private final static Pattern DOT_PATTERN = Pattern.compile("\\.");
+  
   public Filter buildFilter(DBObject ref){
     return buildFilter(ref, new AndFilter());
   }
@@ -70,7 +73,12 @@ public class ExpressionParser {
     public Filter createFilter(final String key, final DBObject refExpression) {
       return new Filter(){
         public boolean apply(DBObject o) {
-          return compare(refExpression.get(command), o.get(key));
+          Option<Object> storedOption = getEmbeddedValue(key, o);
+          if (storedOption.isEmpty()) {
+            return false;
+          } else {
+            return compare(refExpression.get(command), storedOption.get());            
+          }
         }};
     }
     
@@ -156,7 +164,8 @@ public class ExpressionParser {
         public Filter createFilter(final String key, final DBObject refExpression) {
           return new Filter(){
             public boolean apply(DBObject o) {
-              return typecast(command + " clause", refExpression.get(command), Boolean.class) == o.containsField(key) ;
+              Option<Object> storedOption = getEmbeddedValue(key, o);
+              return typecast(command + " clause", refExpression.get(command), Boolean.class) == storedOption.isFull();
           }};
       }},
       new BasicFilterFactory(MOD){
@@ -171,6 +180,25 @@ public class ExpressionParser {
       new InFilterFactory(IN, true),
       new InFilterFactory(NIN, false)
   );
+  
+  private Option<Object> getEmbeddedValue(String key, DBObject dbo) {
+    String[] path = DOT_PATTERN.split(key);
+    String subKey = path[0];
+    for (int i = 0; i < path.length - 1; i++){
+      Object value = dbo.get(subKey);
+      if (value instanceof DBObject){
+        dbo = (DBObject) value;
+      } else {
+        return Option.None;
+      }
+      subKey = path[i + 1];
+    }
+    if (dbo.containsField(subKey)) {
+      return new Some<Object>(dbo.get(subKey));      
+    } else {
+      return Option.None;
+    }
+  }
 
   private Filter buildExpressionFilter(final String key, final Object expression) {
     if (expression instanceof DBObject) {
@@ -195,15 +223,22 @@ public class ExpressionParser {
     } else {
       return new Filter(){
         public boolean apply(DBObject o) {
-          Object storedValue = o.get(key);
-          if (storedValue instanceof List) {
-            return ((List)storedValue).contains(expression);
+          Option<Object> storedOption = getEmbeddedValue(key, o);
+          if (storedOption.isEmpty()){
+            return false;
           } else {
-            return expression.equals(storedValue);            
+            Object storedValue = storedOption.get();
+            if (storedValue instanceof List) {
+              return ((List)storedValue).contains(expression);
+            } else {
+              return expression.equals(storedValue);            
+            }
           }
+
         }};
     }
   }
+
 
   @SuppressWarnings("all")
   private int compareObjects(Object queryValue, Object storedValue) {
