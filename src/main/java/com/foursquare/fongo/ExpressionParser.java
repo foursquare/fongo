@@ -175,6 +175,10 @@ public class ExpressionParser {
   private Filter buildExpressionFilter(final String key, final Object expression) {
     if (expression instanceof DBObject) {
       DBObject ref = (DBObject) expression;
+      Object notExpression = ref.get(NOT);
+      if (notExpression != null) {
+        return new NotFilter(buildExpressionFilter(key, notExpression));
+      } else {
         AndFilter andFilter = new AndFilter();
         int matchCount = 0;
         for (FilterFactory filterFactory : filterFactories){
@@ -187,10 +191,16 @@ public class ExpressionParser {
           throw new FongoException("Invalid expression for key " + key + ": " + expression);
         }
         return andFilter;
+      }
     } else {
       return new Filter(){
         public boolean apply(DBObject o) {
-          return expression.equals(o.get(key));
+          Object storedValue = o.get(key);
+          if (storedValue instanceof List) {
+            return ((List)storedValue).contains(expression);
+          } else {
+            return expression.equals(storedValue);            
+          }
         }};
     }
   }
@@ -200,6 +210,17 @@ public class ExpressionParser {
     Comparable queryComp = typecast("query value", queryValue, Comparable.class);
     Comparable storedComp = typecast("stored value", storedValue, Comparable.class);
     return queryComp.compareTo(storedComp);
+  }
+  
+  static class NotFilter implements Filter {
+    private final Filter filter;
+    public NotFilter(Filter filter) {
+      this.filter = filter;
+    }
+    public boolean apply(DBObject o) {
+      return !filter.apply(o);
+    }
+    
   }
 
   static class AndFilter implements Filter {

@@ -7,7 +7,6 @@ import java.util.List;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
-import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
 import com.mongodb.BasicDBObjectBuilder;
 import com.mongodb.DBObject;
@@ -17,16 +16,18 @@ public class ExpressionParserTest {
 
   @Test
   public void testSimpleAndFilter() {
+    DBObject query = new BasicDBObject("a", 3).append("n", "j");
     List<DBObject> results = doFilter(
-        newMe(), // the example to filter
-        newMe(),
-        new BasicDBObject("n","jon").append("a", "29"),
-        new BasicDBObject("n","notjon").append("a", "31"),
-        new BasicDBObject("n","jon").append("a", "31"),
-        newMe().append("extradata", 1),
-        new BasicDBObject("n","notjon").append("a", "29")
+        query,
+        new BasicDBObject("a", 3),
+        new BasicDBObject("a", Arrays.asList(1,3)).append("n","j"),
+        new BasicDBObject("a", 3).append("n", "j"),
+        new BasicDBObject("n", "j")
     );
-    assertEquals(Arrays.<DBObject>asList(newMe(), newMe().append("extradata", 1)), results);
+    assertEquals(Arrays.<DBObject>asList(
+        new BasicDBObject("a", Arrays.asList(1,3)).append("n", "j"),
+        new BasicDBObject("a", 3).append("n", "j")
+    ), results);
   }
   
   @Test
@@ -140,8 +141,38 @@ public class ExpressionParserTest {
   }
 
   @Test
-  public void testNotOperator(){
-    fail("implement me");
+  public void testNotComplexOperator(){
+    DBObject query = new BasicDBObjectBuilder().push("a")
+        .push("$not").add("$nin", Arrays.asList(2,3)).pop().pop().get();
+    List<DBObject> results = doFilter(
+        query,
+        new BasicDBObject("a", Arrays.asList(1,4)),
+        new BasicDBObject("a", Arrays.asList(1,3)),
+        new BasicDBObject("a", 1),
+        new BasicDBObject("a", 3)
+    );
+    assertEquals(Arrays.<DBObject>asList(
+        new BasicDBObject("a", Arrays.asList(1,3)),
+        new BasicDBObject("a", 3)
+    ), results);
+    
+
+  }
+  
+  @Test
+  public void testNotSimpleOperator() {
+    DBObject query = new BasicDBObjectBuilder().push("a").add("$not", 3).pop().get();
+    List<DBObject> results = doFilter(
+        query,
+        new BasicDBObject("a", Arrays.asList(1,4)),
+        new BasicDBObject("a", Arrays.asList(1,3)),
+        new BasicDBObject("a", 1),
+        new BasicDBObject("a", 3)
+    );
+    assertEquals(Arrays.<DBObject>asList(
+        new BasicDBObject("a", Arrays.asList(1,4)),
+        new BasicDBObject("a", 1)
+    ), results);
   }
   
   @Test
@@ -162,10 +193,6 @@ public class ExpressionParserTest {
     assertEquals(expected, results);
   }
 
-  private BasicDBObject newMe() {
-    return new BasicDBObject("n","jon").append("a", 31);
-  }
-  
   public List<DBObject> doFilter(DBObject ref, BasicDBObject ... input) {
     ExpressionParser ep = new ExpressionParser();
     Filter filter = ep.buildFilter(ref);
