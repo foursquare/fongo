@@ -28,18 +28,35 @@ public class ExpressionParser {
   public final static String GT = "$gt";
   public final static String GTE = "$gte";
   public final static String NE = "$ne";
+  public final static String ALL = "$all";
+  public final static String EXISTS = "$exists";
   
   interface FilterFactory {
     public boolean matchesCommand(DBObject refExpression);
     public Filter createFilter(String key, DBObject refExpression);
   }
   
-  abstract class BasicFilterFactory implements FilterFactory {
+  abstract class BasicCommandFilterFactory implements FilterFactory {
 
-    private final String command;
+    public final String command;
+    
+    public BasicCommandFilterFactory(final String command) {
+      this.command = command;
+    }
+    
+    public boolean matchesCommand(DBObject refExpression) {
+      return refExpression.containsField(command);
+    }
+    
+
+    
+  }
+  
+  abstract class BasicFilterFactory extends BasicCommandFilterFactory {
+
     
     public BasicFilterFactory(final String command) {
-      this.command = command;
+      super(command);
     }
     
     public boolean matchesCommand(DBObject refExpression) {
@@ -78,6 +95,25 @@ public class ExpressionParser {
       new BasicFilterFactory(NE){
         boolean compare(Object queryValue, Object storedValue) {
           return !queryValue.equals(storedValue);
+      }},
+      new BasicFilterFactory(ALL){
+        boolean compare(Object queryValue, Object storedValue) {
+          if (queryValue instanceof List && storedValue instanceof List){
+            List queryList = (List)queryValue;
+            List storedList = (List)storedValue;
+            
+            return storedList != null && storedList.containsAll(queryList);
+          } else {
+            throw new FongoException(ALL + " only operates on lists");
+          }
+          
+      }},
+      new BasicCommandFilterFactory(EXISTS){
+        public Filter createFilter(final String key, final DBObject refExpression) {
+          return new Filter(){
+            public boolean apply(DBObject o) {
+              return Boolean.class.cast(refExpression.get(command)) == o.containsField(key) ;
+          }};
       }}
   );
 
