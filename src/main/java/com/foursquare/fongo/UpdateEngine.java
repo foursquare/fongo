@@ -32,15 +32,25 @@ public class UpdateEngine {
       DBObject updateObject = (DBObject) update.get(command);
       for (String updateKey : updateObject.keySet()) {
         keyCheck(updateKey, seenKeys);
-        merge(updateKey, obj, updateObject.get(updateKey));
+        doSingleKeyUpdate(updateKey, obj, updateObject.get(updateKey));
       }
       return obj;
     }
-    
+
+    abstract void doSingleKeyUpdate(String updateKey, DBObject obj, Object object);
+  }
+  
+  abstract class BasicMergeUpdate extends BasicUpdate {
+
+    public BasicMergeUpdate(String command) {
+      super(command);
+    }
+     
     abstract void mergeAction(String subKey, DBObject subObject, Object object);
     
-    void merge(final String updateKey, final DBObject objOriginal, Object object) {
-      String[] path = updateKey.split("\\.");
+    @Override
+    void doSingleKeyUpdate(final String updateKey, final DBObject objOriginal, Object object) {
+      String[] path = ExpressionParser.DOT_PATTERN.split(updateKey);
       String subKey = path[0];
       
       DBObject obj = objOriginal;
@@ -60,24 +70,24 @@ public class UpdateEngine {
     }
   }
   
-  Number genericAdd(Number left, Number right, int rightMultiplier) { 
+  Number genericAdd(Number left, Number right) { 
     if (left instanceof Float || left instanceof Double || right instanceof Float || right instanceof Double) {
-      return left.doubleValue() + (right.doubleValue() * rightMultiplier);
+      return left.doubleValue() + (right.doubleValue());
     } else if  (left instanceof Integer) {
-      return left.intValue() + (right.intValue() * rightMultiplier);
+      return left.intValue() + (right.intValue());
     } else {
-      return left.longValue() + (right.intValue() * rightMultiplier);
+      return left.longValue() + (right.intValue());
     }
   }
   
   final List<BasicUpdate> commands = Arrays.<BasicUpdate>asList(
-      new BasicUpdate("$set") {
+      new BasicMergeUpdate("$set") {
         @Override
         void mergeAction(String subKey, DBObject subObject, Object object) {
           subObject.put(subKey, object);
         }
       },
-      new BasicUpdate("$inc") {
+      new BasicMergeUpdate("$inc") {
         @Override
         void mergeAction(String subKey, DBObject subObject, Object object) {
           Number updateNumber = expressionParser.typecast(command + " value", object, Number.class);
@@ -86,8 +96,30 @@ public class UpdateEngine {
             subObject.put(subKey, updateNumber);
           } else {
             Number oldNumber = expressionParser.typecast(subKey + " value", oldValue, Number.class);
-            subObject.put(subKey, genericAdd(oldNumber, updateNumber, 1));
+            subObject.put(subKey, genericAdd(oldNumber, updateNumber));
           }
+        }
+      },
+      new BasicUpdate("$unset") {
+        @Override
+        void doSingleKeyUpdate(final String updateKey, final DBObject objOriginal, Object object) {
+          String[] path = ExpressionParser.DOT_PATTERN.split(updateKey);
+          String subKey = path[0];
+          
+          DBObject obj = objOriginal;
+          for (int i = 0; i < path.length - 1; i++){
+            if (!obj.containsField(subKey)){
+              return;
+            }
+            Object value = obj.get(subKey);
+            if (value instanceof DBObject){
+              obj = (DBObject) value;
+            } else {
+              throw new FongoException("subfield must be object. " + updateKey + " not in " + objOriginal);
+            }
+            subKey = path[i + 1];
+          }
+          obj.removeField(subKey);
         }
       }
   );

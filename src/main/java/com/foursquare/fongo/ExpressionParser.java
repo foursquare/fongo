@@ -11,7 +11,7 @@ import com.mongodb.DBObject;
 
 public class ExpressionParser {
 
-  private final static Pattern DOT_PATTERN = Pattern.compile("\\.");
+  public final static Pattern DOT_PATTERN = Pattern.compile("\\.");
   
 
   public Filter buildFilter(DBObject ref){

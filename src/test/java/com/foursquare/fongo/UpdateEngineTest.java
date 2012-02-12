@@ -50,6 +50,24 @@ public class UpdateEngineTest {
   }
   
   @Test
+  public void testUnSetOperation() {
+    UpdateEngine updateEngine = new UpdateEngine();
+    DBObject update = new BasicDBObjectBuilder().push("$unset").append("a", 1).pop().get();
+    
+    assertEquals(new BasicDBObject("_id", 1).append("b", 1),
+        updateEngine.doUpdate(new BasicDBObject("_id", 1).append("a", 1).append("b", 1), update));
+  }
+  
+  @Test
+  public void testEmbeddedUnSetOperation() {
+    UpdateEngine updateEngine = new UpdateEngine();
+    DBObject update = new BasicDBObjectBuilder().push("$unset").append("a.b", 1).pop().get();
+    
+    assertEquals(new BasicDBObject("_id", 1).append("a", new BasicDBObject()),
+        updateEngine.doUpdate(new BasicDBObject("_id", 1).append("a", new BasicDBObject("b",1)), update));
+  }
+  
+  @Test
   public void testIncOperation() {
     UpdateEngine updateEngine = new UpdateEngine();
     DBObject update = new BasicDBObjectBuilder().push("$inc").append("a", 5).pop().get();
