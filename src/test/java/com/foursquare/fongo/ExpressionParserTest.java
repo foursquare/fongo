@@ -34,12 +34,14 @@ public class ExpressionParserTest {
   public void testBasicOperators() {
     assertQuery(new BasicDBObject("a", new BasicDBObject("$gte", 4)), Arrays.<DBObject>asList(
         new BasicDBObject("n","stu").append("a", 4),
-        new BasicDBObject("n","tim").append("a", 5)
+        new BasicDBObject("n","tim").append("a", 5),
+        new BasicDBObject("a", Arrays.asList(3,4))
     ));
     assertQuery(new BasicDBObject("a", new BasicDBObject("$lte", 3)), Arrays.<DBObject>asList(
         new BasicDBObject("n","neil").append("a", 1),
         new BasicDBObject("n","fred").append("a", 2),
-        new BasicDBObject("n","ted").append("a", 3)
+        new BasicDBObject("n","ted").append("a", 3),
+        new BasicDBObject("a", Arrays.asList(3,4))
     ));
     assertQuery(new BasicDBObject("a", new BasicDBObject("$gt", 4)), Arrays.<DBObject>asList(
         new BasicDBObject("n","tim").append("a", 5)
@@ -49,15 +51,28 @@ public class ExpressionParserTest {
         new BasicDBObject("n","fred").append("a", 2)
     ));
     assertQuery(new BasicDBObject("a", new BasicDBObject("$gt", 3).append("$lt", 5)), Arrays.<DBObject>asList(
-        new BasicDBObject("n","stu").append("a", 4)
-    ));
-    assertQuery(new BasicDBObject("a", new BasicDBObject("$ne", 3)), Arrays.<DBObject>asList(
-        new BasicDBObject("a", null),
-        new BasicDBObject("n","neil").append("a", 1),
-        new BasicDBObject("n","fred").append("a", 2),
         new BasicDBObject("n","stu").append("a", 4),
-        new BasicDBObject("n","tim").append("a", 5)
+        new BasicDBObject("a", Arrays.asList(3,4))
     ));
+
+  }
+  
+  @Test
+  public void testNeOperator(){
+    DBObject query = new BasicDBObjectBuilder().push("a").add("$ne", 3).pop().get();
+    List<DBObject> results = doFilter(
+        query,
+        new BasicDBObject("a", Arrays.asList(1,3)),
+        new BasicDBObject("a", 1),
+        new BasicDBObject("a", 3),
+        new BasicDBObject("b", 3),
+        new BasicDBObject("a", Arrays.asList(1,2))
+    );
+    assertEquals(Arrays.<DBObject>asList(
+        new BasicDBObject("a", 1),
+        new BasicDBObject("b", 3),
+        new BasicDBObject("a", Arrays.asList(1,2))
+    ), results);
   }
   
   @Test
@@ -191,7 +206,54 @@ public class ExpressionParserTest {
   
   @Test
   public void testOrOperator(){
-    fail("not implemented");
+    DBObject query = new BasicDBObject("$or", Arrays.asList(
+        new BasicDBObject("a",3),
+        new BasicDBObject("b", new BasicDBObject("$ne", 3))
+    ));
+    List<DBObject> results = doFilter(
+        query,
+        new BasicDBObject("a", 3).append("b", 1),
+        new BasicDBObject("a", 1).append("b", 3),
+        new BasicDBObject("a", 1).append("b", 1),
+        new BasicDBObject("a", 3),
+        new BasicDBObject("b", 1),
+        new BasicDBObject("a", 5),
+        new BasicDBObject("b", 3)
+    );
+    assertEquals(Arrays.<DBObject>asList(
+        new BasicDBObject("a", 3).append("b", 1),
+        new BasicDBObject("a", 1).append("b", 1),
+        new BasicDBObject("a", 3),
+        new BasicDBObject("b", 1),
+        new BasicDBObject("a", 5) //i wasn't expected this result, but it works same way in mongo
+    ), results);
+  }
+  
+  @Test
+  public void testComplexOrOperator(){
+    DBObject query = new BasicDBObject("$or", Arrays.asList(
+        new BasicDBObject("a",3),
+        new BasicDBObject("$or",Arrays.asList( 
+            new BasicDBObject("b", 1),
+            new BasicDBObject("b", 3)
+        ))
+    ));
+    List<DBObject> results = doFilter(
+        query,
+        new BasicDBObject("a", 3).append("b", 1),
+        new BasicDBObject("a", 1).append("b", 3),
+        new BasicDBObject("a", 1).append("b", 7),
+        new BasicDBObject("a", 3),
+        new BasicDBObject("b", 1),
+        new BasicDBObject("a", 5),
+        new BasicDBObject("b", 7)
+    );
+    assertEquals(Arrays.<DBObject>asList(
+        new BasicDBObject("a", 3).append("b", 1),
+        new BasicDBObject("a", 1).append("b", 3),
+        new BasicDBObject("a", 3),
+        new BasicDBObject("b", 1)
+    ), results);
   }
 
   private void assertQuery(BasicDBObject query, List<DBObject> expected) {
@@ -202,7 +264,8 @@ public class ExpressionParserTest {
         new BasicDBObject("n","fred").append("a", 2),
         new BasicDBObject("n","ted").append("a", 3),
         new BasicDBObject("n","stu").append("a", 4),
-        new BasicDBObject("n","tim").append("a", 5)
+        new BasicDBObject("n","tim").append("a", 5),
+        new BasicDBObject("a", Arrays.asList(3,4))
     );
     assertEquals(expected, results);
   }

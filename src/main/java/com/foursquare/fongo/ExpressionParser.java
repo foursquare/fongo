@@ -13,15 +13,10 @@ public class ExpressionParser {
 
   private final static Pattern DOT_PATTERN = Pattern.compile("\\.");
   
+
   public Filter buildFilter(DBObject ref){
-    return buildFilter(ref, new AndFilter());
-  }
-  
-  public Filter buildFilter(DBObject ref, AndFilter andFilter){
+    AndFilter andFilter = new AndFilter();
     for (String key : ref.keySet()) {
-      if (key.startsWith("$")) {
-        throw new RuntimeException(key + " not supported");
-      }
       Object expression = ref.get(key);
       andFilter.addFilter(buildExpressionFilter(key, expression));
     }
@@ -39,6 +34,7 @@ public class ExpressionParser {
   public final static String IN = "$in";
   public final static String NIN = "$nin";
   public final static String NOT = "$not";
+  public final static String OR = "$or";
   
 
 
@@ -136,23 +132,74 @@ public class ExpressionParser {
   List<FilterFactory> filterFactories = Arrays.<FilterFactory>asList(
       new BasicFilterFactory(GTE){
         boolean compare(Object queryValue, Object storedValue) {
+          if (storedValue instanceof List){
+            for (Object aValue : (List)storedValue){
+              if (aValue != null && compareObjects(queryValue, aValue) <= 0){
+                return true;
+              }
+            }
+            return false;
+          } 
           return storedValue != null && compareObjects(queryValue, storedValue) <= 0;
       }},
       new BasicFilterFactory(LTE){
         boolean compare(Object queryValue, Object storedValue) {
+          if (storedValue instanceof List){
+            for (Object aValue : (List)storedValue){
+              if (aValue != null && compareObjects(queryValue, aValue) >= 0){
+                return true;
+              }
+            }
+            return false;
+          } 
           return storedValue != null && compareObjects(queryValue, storedValue) >= 0;
       }},
       new BasicFilterFactory(GT){
         boolean compare(Object queryValue, Object storedValue) {
+          if (storedValue instanceof List){
+            for (Object aValue : (List)storedValue){
+              if (aValue != null && compareObjects(queryValue, aValue) < 0){
+                return true;
+              }
+            }
+            return false;
+          } 
           return storedValue != null && compareObjects(queryValue, storedValue) < 0;
       }},
       new BasicFilterFactory(LT){
         boolean compare(Object queryValue, Object storedValue) {
+          if (storedValue instanceof List){
+            for (Object aValue : (List)storedValue){
+              if (aValue != null && compareObjects(queryValue, aValue) > 0){
+                return true;
+              }
+            }
+            return false;
+          } 
           return storedValue != null && compareObjects(queryValue, storedValue) > 0;
       }},
-      new BasicFilterFactory(NE){
-        boolean compare(Object queryValue, Object storedValue) {
-          return !queryValue.equals(storedValue);
+      new BasicCommandFilterFactory(NE){
+        public Filter createFilter(final String key, final DBObject refExpression) {
+          return new Filter(){
+            public boolean apply(DBObject o) {
+              Object queryValue = refExpression.get(command);
+              Option<Object> storedOption = getEmbeddedValue(key, o);
+              if (storedOption.isEmpty()) {
+                return true;
+              } else {
+                Object storedValue = storedOption.get();
+                if (storedValue instanceof List){
+                  for (Object aValue : (List)storedValue){
+                    if (queryValue.equals(aValue)){
+                      return false;
+                    }
+                  }
+                  return true;
+                } else {
+                  return !queryValue.equals(storedValue);            
+                }
+              }
+          }};
       }},
       new BasicFilterFactory(ALL){
         boolean compare(Object queryValue, Object storedValue) {
@@ -201,7 +248,14 @@ public class ExpressionParser {
   }
 
   private Filter buildExpressionFilter(final String key, final Object expression) {
-    if (expression instanceof DBObject) {
+    if (key == OR) {
+      List<DBObject> queryList = typecast(key + " operator", expression, List.class);
+      OrFilter orFilter = new OrFilter();
+      for (DBObject query : queryList) {
+        orFilter.addFilter(buildFilter(query));
+      }
+      return orFilter;
+    } else if (expression instanceof DBObject) {
       DBObject ref = (DBObject) expression;
       Object notExpression = ref.get(NOT);
       if (notExpression != null) {
@@ -258,13 +312,17 @@ public class ExpressionParser {
     
   }
 
-  static class AndFilter implements Filter {
-
-    private List<Filter> filters = new ArrayList<Filter>();
+  static abstract class ConjunctionFilter implements Filter {
+    
+    List<Filter> filters = new ArrayList<Filter>();
 
     public void addFilter(Filter filter) {
       filters.add(filter);
     }
+    
+  }
+  
+  static class AndFilter extends ConjunctionFilter {
     @Override
     public boolean apply(DBObject o) {
       for (Filter f : filters) {
@@ -274,7 +332,18 @@ public class ExpressionParser {
       }
       return true;
     }
-    
+  }
+  
+  static class OrFilter extends ConjunctionFilter {
+    @Override
+    public boolean apply(DBObject o) {
+      for (Filter f : filters) {
+        if (f.apply(o)){
+          return true;
+        }
+      }
+      return false;
+    }
   }
 
 }
