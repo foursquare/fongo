@@ -2,6 +2,7 @@ package com.foursquare.fongo;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -271,6 +272,22 @@ public class ExpressionParserTest {
     assertEquals(Arrays.<DBObject>asList(
         new BasicDBObject("a", "fooSter"),
         new BasicDBObject("a", Arrays.asList("foomania", "notfoo"))
+    ), results);
+  }
+  
+  @Test
+  public void testConditionalWithDate() {
+    DBObject query = new BasicDBObjectBuilder().push("a").add("$lte", new Date(2)).pop().get();
+    List<DBObject> results = doFilter(
+        query,
+        new BasicDBObject("a", null),
+        new BasicDBObject("a", new Date(2)),
+        new BasicDBObject("a", new Date(1)),
+        new BasicDBObject("a", new Date(3))
+    );
+    assertEquals(Arrays.<DBObject>asList(
+        new BasicDBObject("a", new Date(2)),
+        new BasicDBObject("a", new Date(1))
     ), results);
   }
   
