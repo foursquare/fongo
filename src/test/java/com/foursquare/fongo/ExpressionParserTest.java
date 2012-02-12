@@ -3,6 +3,7 @@ package com.foursquare.fongo;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.regex.Pattern;
 
 import org.junit.Test;
 import static org.junit.Assert.*;
@@ -253,6 +254,23 @@ public class ExpressionParserTest {
         new BasicDBObject("a", 1).append("b", 3),
         new BasicDBObject("a", 3),
         new BasicDBObject("b", 1)
+    ), results);
+  }
+  
+  @Test
+  public void testRegexOperator() {
+    DBObject query = new BasicDBObject("a", Pattern.compile("^foo"));
+    List<DBObject> results = doFilter(
+        query,
+        new BasicDBObject("a", 1),
+        new BasicDBObject("a", null),
+        new BasicDBObject("a", "fooSter"),
+        new BasicDBObject("a", "funky foo"),
+        new BasicDBObject("a", Arrays.asList("foomania", "notfoo"))
+    );
+    assertEquals(Arrays.<DBObject>asList(
+        new BasicDBObject("a", "fooSter"),
+        new BasicDBObject("a", Arrays.asList("foomania", "notfoo"))
     ), results);
   }
 

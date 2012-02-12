@@ -262,6 +262,35 @@ public class ExpressionParser {
         }
         return andFilter;
       }
+    } else if (expression instanceof Pattern) {
+      final Pattern pattern = (Pattern) expression;
+      return new Filter(){
+        public boolean apply(DBObject o) {
+          Option<Object> storedOption = getEmbeddedValue(key, o);
+          if (storedOption.isEmpty()){
+            return false;
+          } else {
+            Object storedValue = storedOption.get();
+            if (storedValue == null) {
+              return false;
+            } else if (storedValue instanceof List) {
+              for (Object aValue : (List)storedValue) {
+                if (aValue instanceof CharSequence){
+                  if (pattern.matcher((CharSequence)aValue).find()){
+                    return true;
+                  }
+                }
+              }
+              return false;
+            } else {
+              if (storedValue instanceof CharSequence){
+                return pattern.matcher((CharSequence)storedValue).find();
+              }
+              return false;
+            }
+          }
+        }
+      };
     } else {
       return new Filter(){
         public boolean apply(DBObject o) {
