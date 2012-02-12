@@ -16,13 +16,15 @@ public class UpdateEngine {
 
   ExpressionParser expressionParser = new ExpressionParser();
   private final DBObject query;
+  private final boolean debug;
 
-  public UpdateEngine(DBObject q) {
+  public UpdateEngine(DBObject q, boolean debug) {
     this.query = q;
+    this.debug = debug;
   }
 
   public UpdateEngine() {
-    this(new BasicDBObject());
+    this(new BasicDBObject(), true);
   }
   
   void keyCheck(String key, Set<String> seenKeys) {
@@ -31,6 +33,11 @@ public class UpdateEngine {
     }
   }
   
+  void debug(String message){
+    if (debug) {
+      System.out.println(message);
+    }
+  }
   
   abstract class BasicUpdate  {
 
@@ -47,9 +54,9 @@ public class UpdateEngine {
     public DBObject doUpdate(DBObject obj, DBObject update, Set<String> seenKeys){
       DBObject updateObject = (DBObject) update.get(command);
       HashSet<String> keySet = new HashSet<String>(updateObject.keySet());
-      System.out.println("KeySet is of length " + keySet.size());
+      debug("KeySet is of length " + keySet.size());
       for (String updateKey : keySet) {
-        System.out.println("\tfound a key " + updateKey);
+        debug("\tfound a key " + updateKey);
         keyCheck(updateKey, seenKeys);
         doSingleKeyUpdate(updateKey, obj, updateObject.get(updateKey));
       }
@@ -77,9 +84,9 @@ public class UpdateEngine {
         }
         subKey = path[i + 1];
       }
-      System.out.println("Subobject is " + obj);
+      debug("Subobject is " + obj);
       mergeAction(subKey, obj, object);
-      System.out.println("Full object is " + objOriginal);
+      debug("Full object is " + objOriginal);
       
     }
   }
@@ -273,7 +280,7 @@ public class UpdateEngine {
     for (String command : update.keySet()) {
       BasicUpdate basicUpdate = commandMap.get(command);
       if (basicUpdate != null){
-        System.out.println("Doing update for command " + command);
+        debug("Doing update for command " + command);
         basicUpdate.doUpdate(obj, update, seenKeys);
         updateDone = true;
       } else if (command.startsWith("$")){
@@ -291,9 +298,4 @@ public class UpdateEngine {
     }
     return obj;
   }
-
-
-
-
-
 }

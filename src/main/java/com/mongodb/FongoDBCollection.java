@@ -43,7 +43,7 @@ public class FongoDBCollection extends DBCollection {
     final ExpressionParser expressionParser = new ExpressionParser();
     Filter filter = expressionParser.buildFilter(q);
     boolean wasFound = false;
-    UpdateEngine updateEngine = new UpdateEngine(q);
+    UpdateEngine updateEngine = new UpdateEngine(q, false);
     for (DBObject obj : objects) {
       if (filter.apply(obj)){
         wasFound = true;

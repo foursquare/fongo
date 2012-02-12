@@ -220,7 +220,7 @@ public class UpdateEngineTest {
   
   @Test 
   public void testPositionalOperator() {
-    UpdateEngine updateEngine = new UpdateEngine(new BasicDBObject("b.n", "jon"));
+    UpdateEngine updateEngine = new UpdateEngine(new BasicDBObject("b.n", "jon"), true);
     DBObject update = new BasicDBObjectBuilder().push("$inc")
         .append("b.$.c",1).pop().get();
     
