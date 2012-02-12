@@ -4,10 +4,12 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 import java.util.Arrays;
+import java.util.List;
 
 import org.junit.Ignore;
 import org.junit.Test;
 
+import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
 import com.mongodb.BasicDBObjectBuilder;
 import com.mongodb.DBObject;
@@ -89,20 +91,20 @@ public class UpdateEngineTest {
     UpdateEngine updateEngine = new UpdateEngine();
     DBObject update = new BasicDBObjectBuilder().push("$push").append("a", 2).pop().get();
     
-    assertEquals(new BasicDBObject("a", Arrays.asList(1,2)),
-        updateEngine.doUpdate(new BasicDBObject("a", Arrays.asList(1)), update));
-    assertEquals(new BasicDBObject("a", Arrays.asList(2)),
+    assertEquals(new BasicDBObject("a", asList(1,2)),
+        updateEngine.doUpdate(new BasicDBObject("a", asList(1)), update));
+    assertEquals(new BasicDBObject("a", asList(2)),
         updateEngine.doUpdate(new BasicDBObject(), update));
   }
   
   @Test
   public void testPushAllOperation() {
     UpdateEngine updateEngine = new UpdateEngine();
-    DBObject update = new BasicDBObjectBuilder().push("$pushAll").append("a", Arrays.asList(2,3)).pop().get();
+    DBObject update = new BasicDBObjectBuilder().push("$pushAll").append("a", asList(2,3)).pop().get();
     
-    assertEquals(new BasicDBObject("a", Arrays.asList(1,2,3)),
-        updateEngine.doUpdate(new BasicDBObject("a", Arrays.asList(1)), update));
-    assertEquals(new BasicDBObject("a", Arrays.asList(2,3)),
+    assertEquals(new BasicDBObject("a", asList(1,2,3)),
+        updateEngine.doUpdate(new BasicDBObject("a", asList(1)), update));
+    assertEquals(new BasicDBObject("a", asList(2,3)),
         updateEngine.doUpdate(new BasicDBObject(), update));
   }
   
@@ -111,11 +113,11 @@ public class UpdateEngineTest {
     UpdateEngine updateEngine = new UpdateEngine();
     DBObject update = new BasicDBObjectBuilder().push("$addToSet").append("a", 2).pop().get();
     
-    assertEquals(new BasicDBObject("a", Arrays.asList(1,2)),
-        updateEngine.doUpdate(new BasicDBObject("a", Arrays.asList(1)), update));
-    assertEquals(new BasicDBObject("a", Arrays.asList(1,2)),
-        updateEngine.doUpdate(new BasicDBObject("a", Arrays.asList(1,2)), update));
-    assertEquals(new BasicDBObject("a", Arrays.asList(2)),
+    assertEquals(new BasicDBObject("a", asList(1,2)),
+        updateEngine.doUpdate(new BasicDBObject("a", asList(1)), update));
+    assertEquals(new BasicDBObject("a", asList(1,2)),
+        updateEngine.doUpdate(new BasicDBObject("a", asList(1,2)), update));
+    assertEquals(new BasicDBObject("a", asList(2)),
         updateEngine.doUpdate(new BasicDBObject(), update));
   }
   
@@ -123,13 +125,13 @@ public class UpdateEngineTest {
   public void testAddToSetEachOperation() {
     UpdateEngine updateEngine = new UpdateEngine();
     DBObject update = new BasicDBObjectBuilder().push("$addToSet")
-        .push("a").append("$each", Arrays.asList(2,3)).pop().pop().get();
+        .push("a").append("$each", asList(2,3)).pop().pop().get();
     
-    assertEquals(new BasicDBObject("a", Arrays.asList(1,2,3)),
-        updateEngine.doUpdate(new BasicDBObject("a", Arrays.asList(1)), update));
-    assertEquals(new BasicDBObject("a", Arrays.asList(1,2,3)),
-        updateEngine.doUpdate(new BasicDBObject("a", Arrays.asList(1,2)), update));
-    assertEquals(new BasicDBObject("a", Arrays.asList(2,3)),
+    assertEquals(new BasicDBObject("a", asList(1,2,3)),
+        updateEngine.doUpdate(new BasicDBObject("a", asList(1)), update));
+    assertEquals(new BasicDBObject("a", asList(1,2,3)),
+        updateEngine.doUpdate(new BasicDBObject("a", asList(1,2)), update));
+    assertEquals(new BasicDBObject("a", asList(2,3)),
         updateEngine.doUpdate(new BasicDBObject(), update));
   }
   
@@ -138,10 +140,10 @@ public class UpdateEngineTest {
     UpdateEngine updateEngine = new UpdateEngine();
     DBObject update = new BasicDBObjectBuilder().push("$pop").append("a", 1).pop().get();
     
-    assertEquals(new BasicDBObject("a", Arrays.asList(1)),
-        updateEngine.doUpdate(new BasicDBObject("a", Arrays.asList(1,2)), update));
-    assertEquals(new BasicDBObject("a", Arrays.asList()),
-        updateEngine.doUpdate(new BasicDBObject("a", Arrays.asList(1)), update));
+    assertEquals(new BasicDBObject("a", asList(1)),
+        updateEngine.doUpdate(new BasicDBObject("a", asList(1,2)), update));
+    assertEquals(new BasicDBObject("a", asList()),
+        updateEngine.doUpdate(new BasicDBObject("a", asList(1)), update));
     assertEquals(new BasicDBObject(),
         updateEngine.doUpdate(new BasicDBObject(), update));
   }
@@ -151,8 +153,8 @@ public class UpdateEngineTest {
     UpdateEngine updateEngine = new UpdateEngine();
     DBObject update = new BasicDBObjectBuilder().push("$pop").append("a", -1).pop().get();
     
-    assertEquals(new BasicDBObject("a", Arrays.asList(2)),
-        updateEngine.doUpdate(new BasicDBObject("a", Arrays.asList(1,2)), update));
+    assertEquals(new BasicDBObject("a", asList(2)),
+        updateEngine.doUpdate(new BasicDBObject("a", asList(1,2)), update));
   }
   
   @Test
@@ -160,8 +162,8 @@ public class UpdateEngineTest {
     UpdateEngine updateEngine = new UpdateEngine();
     DBObject update = new BasicDBObjectBuilder().push("$pull").append("a", 1).pop().get();
     
-    assertEquals(new BasicDBObject("a", Arrays.asList(2,3)),
-        updateEngine.doUpdate(new BasicDBObject("a", Arrays.asList(1,2,1,3,1)), update));
+    assertEquals(new BasicDBObject("a", asList(2,3)),
+        updateEngine.doUpdate(new BasicDBObject("a", asList(1,2,1,3,1)), update));
   }
   
   @Test
@@ -171,8 +173,8 @@ public class UpdateEngineTest {
     DBObject update = new BasicDBObjectBuilder().push("$pull").push("a")
         .append("b",1).pop().get();
     
-    assertEquals(new BasicDBObject("a", Arrays.asList(new BasicDBObject("b",2))),
-        updateEngine.doUpdate(new BasicDBObject("a", Arrays.asList(
+    assertEquals(new BasicDBObject("a", asList(new BasicDBObject("b",2))),
+        updateEngine.doUpdate(new BasicDBObject("a", asList(
             new BasicDBObject("b", 1),
             new BasicDBObject("b", 2),
             new BasicDBObject("b", 1)
@@ -182,10 +184,10 @@ public class UpdateEngineTest {
   @Test
   public void testPullAllOperation() {
     UpdateEngine updateEngine = new UpdateEngine();
-    DBObject update = new BasicDBObjectBuilder().push("$pullAll").append("a", Arrays.asList(2,3)).pop().get();
+    DBObject update = new BasicDBObjectBuilder().push("$pullAll").append("a", asList(2,3)).pop().get();
     
-    assertEquals(new BasicDBObject("a", Arrays.asList(1,4)),
-        updateEngine.doUpdate(new BasicDBObject("a", Arrays.asList(2,1,2,3,4,2,3)), update));
+    assertEquals(new BasicDBObject("a", asList(1,4)),
+        updateEngine.doUpdate(new BasicDBObject("a", asList(2,1,2,3,4,2,3)), update));
   }
   
   @Test
@@ -224,8 +226,8 @@ public class UpdateEngineTest {
     DBObject update = new BasicDBObjectBuilder().push("$inc")
         .append("b.$.c",1).pop().get();
     
-    assertEquals(new BasicDBObject("b", Arrays.asList(new BasicDBObject("c", 2).append("n","jon"))),
-        updateEngine.doUpdate(new BasicDBObject("b", Arrays.asList(
+    assertEquals(new BasicDBObject("b", asList(new BasicDBObject("c", 2).append("n","jon"))),
+        updateEngine.doUpdate(new BasicDBObject("b", asList(
             new BasicDBObject("c", 1).append("n", "jon"))), update));
   }
   
@@ -235,7 +237,11 @@ public class UpdateEngineTest {
     DBObject update = new BasicDBObjectBuilder().push("$inc")
         .append("b.$",1).pop().get();
     
-    assertEquals(new BasicDBObject("b", Arrays.asList(1,3,3)),
-        updateEngine.doUpdate(new BasicDBObject("b", Arrays.asList(1,2,3)), update));
+    assertEquals(new BasicDBObject("b", asList(1,3,3)),
+        updateEngine.doUpdate(new BasicDBObject("b", asList(1,2,3)), update));
+  }
+  
+  <T> List<T> asList(T ... ts){
+    return Arrays.asList(ts);
   }
 }

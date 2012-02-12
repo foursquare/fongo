@@ -82,10 +82,10 @@ public class UpdateEngine {
           }
         }
         Object value = obj.get(subKey);
-        if (value instanceof DBObject){
-          obj = (DBObject) value;
-        } else if ((value instanceof List) && "$".equals(path[i+1])) {
+        if ((value instanceof List) && "$".equals(path[i+1])) {
           handlePositionalUpdate(updateKey, object, (List)value, obj);
+        } else if (value instanceof DBObject){
+          obj = (DBObject) value;
         } else {
           throw new FongoException("subfield must be object. " + updateKey + " not in " + objOriginal);
         }
@@ -128,7 +128,6 @@ public class UpdateEngine {
         } else {
           //this is kind of a waste
           if (filter.apply(new BasicDBObject(prePath, listItem))){
-            debug("found it");
             BasicDBList newList = new BasicDBList();
             newList.addAll(valueList);
             ownerObj.put(prePath, newList);

@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import com.mongodb.BasicDBList;
 import com.mongodb.DBObject;
 
 public class ExpressionParser {
@@ -230,6 +231,10 @@ public class ExpressionParser {
       Object value = dbo.get(subKey);
       if (value instanceof DBObject){
         dbo = (DBObject) value;
+      } else if (value instanceof List) {
+        BasicDBList newList = Util.wrap((List) value);
+        dbo.put(subKey, newList);
+        dbo = newList;
       } else {
         return Option.None;
       }
