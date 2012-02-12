@@ -273,6 +273,20 @@ public class ExpressionParserTest {
         new BasicDBObject("a", Arrays.asList("foomania", "notfoo"))
     ), results);
   }
+  
+  @Test
+  public void testSizeOperator() {
+    DBObject query = new BasicDBObjectBuilder().push("a").add("$size", 3).pop().get();
+    List<DBObject> results = doFilter(
+        query,
+        new BasicDBObject("a", null),
+        new BasicDBObject("a", Arrays.asList(1,2,3)),
+        new BasicDBObject("a", Arrays.asList(1,2,3,4))
+    );
+    assertEquals(Arrays.<DBObject>asList(
+        new BasicDBObject("a", Arrays.asList(1,2,3))
+    ), results);
+  }
 
   private void assertQuery(BasicDBObject query, List<DBObject> expected) {
     List<DBObject> results = doFilter(

@@ -33,6 +33,7 @@ public class ExpressionParser {
   public final static String MOD = "$mod";
   public final static String IN = "$in";
   public final static String NIN = "$nin";
+  public final static String SIZE = "$size";
   public final static String NOT = "$not";
   public final static String OR = "$or";
   
@@ -213,7 +214,13 @@ public class ExpressionParser {
           return (storedValue != null) && (typecast("value", storedValue, Number.class).longValue()) % modulus == expectedValue;
       }},
       new InFilterFactory(IN, true),
-      new InFilterFactory(NIN, false)
+      new InFilterFactory(NIN, false),
+      new BasicFilterFactory(SIZE){
+        boolean compare(Object queryValue, Object storedValue) {
+          Integer size = typecast(command + " clause", queryValue, Integer.class);
+          List storedList = typecast("value", storedValue, List.class);
+          return storedList != null && storedList.size() == size;
+      }}
   );
   
   private Option<Object> getEmbeddedValue(String key, DBObject dbo) {
