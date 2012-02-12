@@ -5,6 +5,7 @@ import static org.junit.Assert.*;
 import java.util.Arrays;
 import java.util.HashSet;
 
+import org.bson.types.ObjectId;
 import org.junit.Test;
 
 import com.mongodb.BasicDBObject;
@@ -68,6 +69,36 @@ public class FongoTest {
     collection.insert(neil);
     DBCursor cursor = collection.find(neil);
     assertEquals("should have two neils", 2, cursor.toArray().size());
+  }
+  
+  @Test
+  public void testFindWithLimit() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1));
+    collection.insert(new BasicDBObject("_id", 2));
+    collection.insert(new BasicDBObject("_id", 3));
+    collection.insert(new BasicDBObject("_id", 4));
+
+    DBCursor cursor = collection.find().limit(2);
+    assertEquals(Arrays.asList(
+        new BasicDBObject("_id", 1),
+        new BasicDBObject("_id", 2)
+    ), cursor.toArray());
+  }
+  
+  @Test
+  public void testFindWithSkipLimit() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1));
+    collection.insert(new BasicDBObject("_id", 2));
+    collection.insert(new BasicDBObject("_id", 3));
+    collection.insert(new BasicDBObject("_id", 4));
+
+    DBCursor cursor = collection.find().limit(2).skip(2);
+    assertEquals(Arrays.asList(
+        new BasicDBObject("_id", 3),
+        new BasicDBObject("_id", 4)
+    ), cursor.toArray());
   }
 
   private DBCollection newCollection() {
