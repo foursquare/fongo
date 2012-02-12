@@ -1,5 +1,6 @@
 package com.foursquare.fongo;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -30,7 +31,10 @@ public class UpdateEngine {
     
     public DBObject doUpdate(DBObject obj, DBObject update, Set<String> seenKeys){
       DBObject updateObject = (DBObject) update.get(command);
-      for (String updateKey : updateObject.keySet()) {
+      HashSet<String> keySet = new HashSet<String>(updateObject.keySet());
+      System.out.println("KeySet is of length " + keySet.size());
+      for (String updateKey : keySet) {
+        System.out.println("\tfound a key " + updateKey);
         keyCheck(updateKey, seenKeys);
         doSingleKeyUpdate(updateKey, obj, updateObject.get(updateKey));
       }
@@ -66,7 +70,10 @@ public class UpdateEngine {
         }
         subKey = path[i + 1];
       }
+      System.out.println("Subobject is " + obj);
       mergeAction(subKey, obj, object);
+      System.out.println("Full object is " + objOriginal);
+      
     }
   }
   
@@ -121,6 +128,62 @@ public class UpdateEngine {
           }
           obj.removeField(subKey);
         }
+      },
+      new BasicMergeUpdate("$push") {
+        @Override
+        void mergeAction(String subKey, DBObject subObject, Object object) {
+          if (!subObject.containsField(subKey)){
+            subObject.put(subKey, Arrays.asList(object));
+          } else {
+            List currentValue = new ArrayList<Object>(expressionParser.typecast(subKey, subObject.get(subKey), List.class));
+            currentValue.add(object);
+            subObject.put(subKey, currentValue);
+          }
+        }
+      },
+      new BasicMergeUpdate("$pushAll") {
+        @Override
+        void mergeAction(String subKey, DBObject subObject, Object object) {
+          List newList = expressionParser.typecast(command + " value", object, List.class);
+          if (!subObject.containsField(subKey)){
+            subObject.put(subKey, newList);
+          } else {
+            List currentValue = new ArrayList<Object>(expressionParser.typecast(subKey, subObject.get(subKey), List.class));
+            currentValue.addAll(newList);
+            subObject.put(subKey, currentValue);
+          }
+        }
+      },
+      new BasicMergeUpdate("$addToSet") {
+        @Override
+        void mergeAction(String subKey, DBObject subObject, Object object) {
+          boolean isEach = false;
+          List currentValueImmutableList = expressionParser.typecast(subKey, subObject.get(subKey), List.class);
+          List currentValue = (currentValueImmutableList == null) ? new ArrayList<Object>() :
+            new ArrayList<Object>(currentValueImmutableList);
+          if (object instanceof DBObject){
+            Object eachObject = ((DBObject)object).get("$each");
+            if (eachObject != null){
+              isEach = true;
+              List newList = expressionParser.typecast(command + ".$each value", eachObject, List.class);
+              if (newList == null){
+                throw new FongoException(command + ".$each must not be null");
+              }
+
+              for (Object newValue : newList){
+                if (!currentValue.contains(newValue)){
+                  currentValue.add(newValue);               
+                }
+              }
+            } 
+          }
+          if (!isEach) {
+            if (!currentValue.contains(object)){
+              currentValue.add(object);               
+            }
+          }
+          subObject.put(subKey, currentValue);
+        }
       }
   );
   final Map<String, BasicUpdate> commandMap = createCommandMap();
@@ -138,6 +201,7 @@ public class UpdateEngine {
     for (String command : update.keySet()) {
       BasicUpdate basicUpdate = commandMap.get(command);
       if (basicUpdate != null){
+        System.out.println("Doing update for command " + command);
         basicUpdate.doUpdate(obj, update, seenKeys);
         updateDone = true;
       } else if (command.startsWith("$")){
