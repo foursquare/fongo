@@ -46,8 +46,11 @@ public class UpdateEngine {
   
   abstract class BasicMergeUpdate extends BasicUpdate {
 
-    public BasicMergeUpdate(String command) {
+    private boolean createMissing;
+
+    public BasicMergeUpdate(String command, boolean createMissing) {
       super(command);
+      this.createMissing = createMissing;
     }
      
     abstract void mergeAction(String subKey, DBObject subObject, Object object);
@@ -60,7 +63,11 @@ public class UpdateEngine {
       DBObject obj = objOriginal;
       for (int i = 0; i < path.length - 1; i++){
         if (!obj.containsField(subKey)){
-          obj.put(subKey, new BasicDBObject());
+          if (createMissing){
+            obj.put(subKey, new BasicDBObject());
+          } else {
+            return;
+          }
         }
         Object value = obj.get(subKey);
         if (value instanceof DBObject){
@@ -88,13 +95,13 @@ public class UpdateEngine {
   }
   
   final List<BasicUpdate> commands = Arrays.<BasicUpdate>asList(
-      new BasicMergeUpdate("$set") {
+      new BasicMergeUpdate("$set", true) {
         @Override
         void mergeAction(String subKey, DBObject subObject, Object object) {
           subObject.put(subKey, object);
         }
       },
-      new BasicMergeUpdate("$inc") {
+      new BasicMergeUpdate("$inc", true) {
         @Override
         void mergeAction(String subKey, DBObject subObject, Object object) {
           Number updateNumber = expressionParser.typecast(command + " value", object, Number.class);
@@ -107,29 +114,13 @@ public class UpdateEngine {
           }
         }
       },
-      new BasicUpdate("$unset") {
+      new BasicMergeUpdate("$unset", false) {
         @Override
-        void doSingleKeyUpdate(final String updateKey, final DBObject objOriginal, Object object) {
-          String[] path = ExpressionParser.DOT_PATTERN.split(updateKey);
-          String subKey = path[0];
-          
-          DBObject obj = objOriginal;
-          for (int i = 0; i < path.length - 1; i++){
-            if (!obj.containsField(subKey)){
-              return;
-            }
-            Object value = obj.get(subKey);
-            if (value instanceof DBObject){
-              obj = (DBObject) value;
-            } else {
-              throw new FongoException("subfield must be object. " + updateKey + " not in " + objOriginal);
-            }
-            subKey = path[i + 1];
-          }
-          obj.removeField(subKey);
+        void mergeAction(String subKey, DBObject subObject, Object object) {
+          subObject.removeField(subKey);
         }
       },
-      new BasicMergeUpdate("$push") {
+      new BasicMergeUpdate("$push", true) {
         @Override
         void mergeAction(String subKey, DBObject subObject, Object object) {
           if (!subObject.containsField(subKey)){
@@ -141,7 +132,7 @@ public class UpdateEngine {
           }
         }
       },
-      new BasicMergeUpdate("$pushAll") {
+      new BasicMergeUpdate("$pushAll", true) {
         @Override
         void mergeAction(String subKey, DBObject subObject, Object object) {
           List newList = expressionParser.typecast(command + " value", object, List.class);
@@ -154,7 +145,7 @@ public class UpdateEngine {
           }
         }
       },
-      new BasicMergeUpdate("$addToSet") {
+      new BasicMergeUpdate("$addToSet", true) {
         @Override
         void mergeAction(String subKey, DBObject subObject, Object object) {
           boolean isEach = false;
@@ -169,7 +160,6 @@ public class UpdateEngine {
               if (newList == null){
                 throw new FongoException(command + ".$each must not be null");
               }
-
               for (Object newValue : newList){
                 if (!currentValue.contains(newValue)){
                   currentValue.add(newValue);               
@@ -183,6 +173,85 @@ public class UpdateEngine {
             }
           }
           subObject.put(subKey, currentValue);
+        }
+      },
+      new BasicMergeUpdate("$pop", false) {
+        @Override
+        void mergeAction(String subKey, DBObject subObject, Object object) {
+          List currentList = expressionParser.typecast(command, subObject.get(subKey), List.class);
+          if (currentList != null && currentList.size() > 0){
+            int direction = expressionParser.typecast(command, object, Number.class).intValue();
+            ArrayList<Object> newList = new ArrayList<Object>(currentList);
+            if(direction > 0){
+              newList.remove(newList.size() - 1);
+            } else {
+              newList.remove(0);
+            }
+            subObject.put(subKey, newList);
+          }
+        }
+      },
+      new BasicMergeUpdate("$pull", false) {
+        @Override
+        void mergeAction(String subKey, DBObject subObject, Object object) {
+          List currentList = expressionParser.typecast(command + " only works on arrays", subObject.get(subKey), List.class);
+          if (currentList != null && currentList.size() > 0){
+            
+            ArrayList<Object> newList = new ArrayList<Object>();
+            for (Object item : currentList) {
+              if (item != object){
+                newList.add(item);
+              }
+            }
+            subObject.put(subKey, newList);
+          }
+        }
+      },
+      new BasicMergeUpdate("$pullAll", false) {
+        @Override
+        void mergeAction(String subKey, DBObject subObject, Object object) {
+          List currentList = expressionParser.typecast(command + " only works on arrays", subObject.get(subKey), List.class);
+          if (currentList != null && currentList.size() > 0){
+            Set pullSet = new HashSet(expressionParser.typecast(command, object, List.class));
+            ArrayList<Object> newList = new ArrayList<Object>();
+            for (Object item : currentList) {
+              if (!pullSet.contains(item)){
+                newList.add(item);
+              }
+            }
+            subObject.put(subKey, newList);
+          }
+        }
+      },
+      new BasicMergeUpdate("$bit", false) {
+        @Override
+        void mergeAction(String subKey, DBObject subObject, Object object) {
+          Number currentNumber = expressionParser.typecast(command + " only works on integers", subObject.get(subKey), Number.class);
+          if (currentNumber != null){
+            if (currentNumber instanceof Float || currentNumber instanceof Double){
+              throw new FongoException(command + " only works on integers");
+            }
+            DBObject bitOps = expressionParser.typecast(command, object, DBObject.class);
+            for (String op : bitOps.keySet()) {
+              Number opValue = expressionParser.typecast(command + "." + op, bitOps.get(op), Number.class);
+              if (op == "and"){
+                if (opValue instanceof Long || currentNumber instanceof Long){
+                  currentNumber = currentNumber.longValue() & opValue.longValue();
+                } else {
+                  currentNumber = currentNumber.intValue() & opValue.intValue(); 
+                }
+              } else if (op == "or"){
+                if (opValue instanceof Long || currentNumber instanceof Long){
+                  currentNumber = currentNumber.longValue() | opValue.longValue();
+                } else {
+                  currentNumber = currentNumber.intValue() | opValue.intValue(); 
+                }
+              } else {
+                throw new FongoException(command + "." + op + " is not valid.");
+              }
+            }
+            subObject.put(subKey, currentNumber);
+          }
         }
       }
   );
