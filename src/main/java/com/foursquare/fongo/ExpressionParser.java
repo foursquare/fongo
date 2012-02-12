@@ -128,55 +128,43 @@ public class ExpressionParser {
     }
   }
   
+  abstract class ConditionalOperatorFilterFactory extends BasicFilterFactory {
+
+    public ConditionalOperatorFilterFactory(String command) {
+      super(command);
+    }
+    final boolean compare(Object queryValue, Object storedValue) {
+      if (storedValue instanceof List){
+        for (Object aValue : (List)storedValue){
+          if (aValue != null && singleCompare(queryValue, aValue)){
+            return true;
+          }
+        }
+        return false;
+      } else {
+        return storedValue != null && singleCompare(queryValue, storedValue);        
+      }
+    }
+    abstract boolean singleCompare(Object queryValue, Object storedValue);
+  }
+  
   @SuppressWarnings("all")
   List<FilterFactory> filterFactories = Arrays.<FilterFactory>asList(
-      new BasicFilterFactory(GTE){
-        boolean compare(Object queryValue, Object storedValue) {
-          if (storedValue instanceof List){
-            for (Object aValue : (List)storedValue){
-              if (aValue != null && compareObjects(queryValue, aValue) <= 0){
-                return true;
-              }
-            }
-            return false;
-          } 
-          return storedValue != null && compareObjects(queryValue, storedValue) <= 0;
+      new ConditionalOperatorFilterFactory(GTE){
+        boolean singleCompare(Object queryValue, Object storedValue) {
+          return compareObjects(queryValue, storedValue) <= 0;
       }},
-      new BasicFilterFactory(LTE){
-        boolean compare(Object queryValue, Object storedValue) {
-          if (storedValue instanceof List){
-            for (Object aValue : (List)storedValue){
-              if (aValue != null && compareObjects(queryValue, aValue) >= 0){
-                return true;
-              }
-            }
-            return false;
-          } 
-          return storedValue != null && compareObjects(queryValue, storedValue) >= 0;
+      new ConditionalOperatorFilterFactory(LTE){
+        boolean singleCompare(Object queryValue, Object storedValue) {
+            return compareObjects(queryValue, storedValue) >= 0;
       }},
-      new BasicFilterFactory(GT){
-        boolean compare(Object queryValue, Object storedValue) {
-          if (storedValue instanceof List){
-            for (Object aValue : (List)storedValue){
-              if (aValue != null && compareObjects(queryValue, aValue) < 0){
-                return true;
-              }
-            }
-            return false;
-          } 
-          return storedValue != null && compareObjects(queryValue, storedValue) < 0;
+      new ConditionalOperatorFilterFactory(GT){
+        boolean singleCompare(Object queryValue, Object storedValue) {
+          return compareObjects(queryValue, storedValue) < 0;
       }},
-      new BasicFilterFactory(LT){
-        boolean compare(Object queryValue, Object storedValue) {
-          if (storedValue instanceof List){
-            for (Object aValue : (List)storedValue){
-              if (aValue != null && compareObjects(queryValue, aValue) > 0){
-                return true;
-              }
-            }
-            return false;
-          } 
-          return storedValue != null && compareObjects(queryValue, storedValue) > 0;
+      new ConditionalOperatorFilterFactory(LT){
+        boolean singleCompare(Object queryValue, Object storedValue) {
+          return compareObjects(queryValue, storedValue) > 0;
       }},
       new BasicCommandFilterFactory(NE){
         public Filter createFilter(final String key, final DBObject refExpression) {
