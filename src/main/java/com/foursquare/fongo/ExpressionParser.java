@@ -115,7 +115,7 @@ public class ExpressionParser {
    }
   }
   
-  private <T> T typecast(String fieldName, Object obj, Class<T> clazz) {
+  public <T> T typecast(String fieldName, Object obj, Class<T> clazz) {
     try {
       return clazz.cast(obj);
     } catch (Exception e) {
@@ -223,7 +223,7 @@ public class ExpressionParser {
       }}
   );
   
-  private Option<Object> getEmbeddedValue(String key, DBObject dbo) {
+  public Option<Object> getEmbeddedValue(String key, DBObject dbo) {
     String[] path = DOT_PATTERN.split(key);
     String subKey = path[0];
     for (int i = 0; i < path.length - 1; i++){

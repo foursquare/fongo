@@ -1,6 +1,6 @@
 package com.foursquare.fongo;
 
-interface Option<T> {
+public interface Option<T> {
   static final Option None = new Option(){
 
     @Override

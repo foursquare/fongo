@@ -100,6 +100,25 @@ public class FongoTest {
         new BasicDBObject("_id", 4)
     ), cursor.toArray());
   }
+  
+  @Test
+  public void testSort() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("a", 1).append("_id", 1));
+    collection.insert(new BasicDBObject("a", 2).append("_id", 2));
+    collection.insert(new BasicDBObject("_id", 5));
+    collection.insert(new BasicDBObject("a", 3).append("_id", 3));
+    collection.insert(new BasicDBObject("a", 4).append("_id", 4));
+
+    DBCursor cursor = collection.find().sort(new BasicDBObject("a", -1));
+    assertEquals(Arrays.asList(
+        new BasicDBObject("a", 4).append("_id", 4),
+        new BasicDBObject("a", 3).append("_id", 3),
+        new BasicDBObject("a", 2).append("_id", 2),
+        new BasicDBObject("a", 1).append("_id", 1),
+        new BasicDBObject("_id", 5)
+    ), cursor.toArray());
+  }
 
   private DBCollection newCollection() {
     Fongo fongo = new Fongo();
