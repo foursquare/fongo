@@ -228,4 +228,14 @@ public class UpdateEngineTest {
         updateEngine.doUpdate(new BasicDBObject("b", Arrays.asList(
             new BasicDBObject("c", 1).append("n", "jon"))), update));
   }
+  
+  @Test 
+  public void testPositionalArrayOperator() {
+    UpdateEngine updateEngine = new UpdateEngine(new BasicDBObject("b", 2), true);
+    DBObject update = new BasicDBObjectBuilder().push("$inc")
+        .append("b.$",1).pop().get();
+    
+    assertEquals(new BasicDBObject("b", Arrays.asList(1,3,3)),
+        updateEngine.doUpdate(new BasicDBObject("b", Arrays.asList(1,2,3)), update));
+  }
 }

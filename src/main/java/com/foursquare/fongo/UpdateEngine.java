@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBObject;
 
@@ -68,9 +69,13 @@ public class UpdateEngine {
       String subKey = path[0];
       
       DBObject obj = objOriginal;
+      boolean isPositional = updateKey.contains(".$");
+      if (isPositional){
+        debug("got a positional for query " + query);
+      }
       for (int i = 0; i < path.length - 1; i++){
         if (!obj.containsField(subKey)){
-          if (createMissing){
+          if (createMissing && !isPositional){
             obj.put(subKey, new BasicDBObject());
           } else {
             return;
@@ -79,15 +84,59 @@ public class UpdateEngine {
         Object value = obj.get(subKey);
         if (value instanceof DBObject){
           obj = (DBObject) value;
+        } else if ((value instanceof List) && "$".equals(path[i+1])) {
+          handlePositionalUpdate(updateKey, object, (List)value, obj);
         } else {
           throw new FongoException("subfield must be object. " + updateKey + " not in " + objOriginal);
         }
         subKey = path[i + 1];
       }
-      debug("Subobject is " + obj);
-      mergeAction(subKey, obj, object);
-      debug("Full object is " + objOriginal);
+      if (!isPositional) {
+        debug("Subobject is " + obj);
+        mergeAction(subKey, obj, object);
+        debug("Full object is " + objOriginal);
+      }
+    }
+
+    public void handlePositionalUpdate(final String updateKey, Object object, List valueList, DBObject ownerObj) {
+      int dollarIndex = updateKey.indexOf("$");
+      String postPath = (dollarIndex == updateKey.length() -1 )  ? "" : updateKey.substring(dollarIndex + 2);
+      String prePath = updateKey.substring(0, dollarIndex - 1);
+      //create a filter from the original query
+      Filter filter = null;
+      for (String key : query.keySet()){
+        if (key.startsWith(prePath)){
+          String matchKey = prePath.equals(key) ? key : key.substring(prePath.length() + 1);
+          filter = expressionParser.buildFilter(new BasicDBObject(matchKey, query.get(key)));
+        }
+      }
+      if (filter == null){
+        throw new FongoException("positional operator " + updateKey + " must be used on query key " + query);
+      }
       
+      // find the right item
+      for(int i = 0; i < valueList.size(); i++){
+        Object listItem = valueList.get(i);
+        
+        debug("found a positional list item " + listItem + " " + prePath + " " + postPath);
+        if (listItem instanceof DBObject && !postPath.isEmpty()){
+          
+          if (filter.apply((DBObject) listItem)) {
+            doSingleKeyUpdate(postPath, (DBObject) listItem, object);
+            break;
+          }
+        } else {
+          //this is kind of a waste
+          if (filter.apply(new BasicDBObject(prePath, listItem))){
+            debug("found it");
+            BasicDBList newList = new BasicDBList();
+            newList.addAll(valueList);
+            ownerObj.put(prePath, newList);
+            mergeAction(String.valueOf(i), newList, object);
+            break;
+          }
+        }
+      }
     }
   }
   
@@ -209,7 +258,7 @@ public class UpdateEngine {
             
             ArrayList<Object> newList = new ArrayList<Object>();
             for (Object item : currentList) {
-              if (item != object){
+              if (!object.equals(item)){
                 newList.add(item);
               }
             }
@@ -244,13 +293,13 @@ public class UpdateEngine {
             DBObject bitOps = expressionParser.typecast(command, object, DBObject.class);
             for (String op : bitOps.keySet()) {
               Number opValue = expressionParser.typecast(command + "." + op, bitOps.get(op), Number.class);
-              if (op == "and"){
+              if ("and".equals(op)){
                 if (opValue instanceof Long || currentNumber instanceof Long){
                   currentNumber = currentNumber.longValue() & opValue.longValue();
                 } else {
                   currentNumber = currentNumber.intValue() & opValue.intValue(); 
                 }
-              } else if (op == "or"){
+              } else if ("or".equals(op)){
                 if (opValue instanceof Long || currentNumber instanceof Long){
                   currentNumber = currentNumber.longValue() | opValue.longValue();
                 } else {
