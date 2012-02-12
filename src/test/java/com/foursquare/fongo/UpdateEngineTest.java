@@ -220,11 +220,12 @@ public class UpdateEngineTest {
   
   @Test 
   public void testPositionalOperator() {
-    UpdateEngine updateEngine = new UpdateEngine();
+    UpdateEngine updateEngine = new UpdateEngine(new BasicDBObject("b.n", "jon"));
     DBObject update = new BasicDBObjectBuilder().push("$inc")
         .append("b.$.c",1).pop().get();
     
-    assertEquals(new BasicDBObject("b", Arrays.asList(new BasicDBObject("c", 2))),
-        updateEngine.doUpdate(new BasicDBObject("b", Arrays.asList(new BasicDBObject("c", 1))), update));
+    assertEquals(new BasicDBObject("b", Arrays.asList(new BasicDBObject("c", 2).append("n","jon"))),
+        updateEngine.doUpdate(new BasicDBObject("b", Arrays.asList(
+            new BasicDBObject("c", 1).append("n", "jon"))), update));
   }
 }
