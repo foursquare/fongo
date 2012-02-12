@@ -12,6 +12,7 @@ import org.bson.types.ObjectId;
 import com.foursquare.fongo.ExpressionParser;
 import com.foursquare.fongo.Filter;
 import com.foursquare.fongo.Option;
+import com.foursquare.fongo.UpdateEngine;
 
 public class FongoDBCollection extends DBCollection {
   final static String ID_KEY = "_id";
@@ -25,31 +26,54 @@ public class FongoDBCollection extends DBCollection {
   @Override
   public WriteResult insert(DBObject[] arr, WriteConcern concern, DBEncoder encoder) throws MongoException {
     for (DBObject obj : arr) {
-      if (obj.get(ID_KEY) == null) {
+      if (!obj.containsField(ID_KEY)) {
         obj.put(ID_KEY, new ObjectId());
       }
       objects.add(obj);
     }
-    return null;
+    return new WriteResult(fongoDb.okResult(), concern);
   }
 
   @Override
   public WriteResult update(DBObject q, DBObject o, boolean upsert, boolean multi, WriteConcern concern,
       DBEncoder encoder) throws MongoException {
-    // TODO Auto-generated method stub
-    return null;
+    if (o.containsField(ID_KEY)){
+      throw new MongoException("can't update " + ID_KEY);
+    }
+    final ExpressionParser expressionParser = new ExpressionParser();
+    Filter filter = expressionParser.buildFilter(q);
+    boolean wasFound = false;
+    UpdateEngine updateEngine = new UpdateEngine();
+    for (DBObject obj : objects) {
+      if (filter.apply(obj)){
+        wasFound = true;
+        updateEngine.doUpdate(obj, o);
+        if (!multi){
+          break;
+        }
+      }
+    }
+    if (!wasFound && upsert){
+      insert(updateEngine.doUpdate(new BasicDBObject(), o));
+    }
+    return new WriteResult(fongoDb.okResult(), concern);
   }
 
   @Override
   protected void doapply(DBObject o) {
-    // TODO Auto-generated method stub
-    
   }
 
   @Override
   public WriteResult remove(DBObject o, WriteConcern concern, DBEncoder encoder) throws MongoException {
-    // TODO Auto-generated method stub
-    return null;
+    final ExpressionParser expressionParser = new ExpressionParser();
+    Filter filter = expressionParser.buildFilter(o);
+    for (Iterator<DBObject> iter = objects.iterator(); iter.hasNext(); ) {
+      DBObject dbo = iter.next();
+      if (filter.apply(dbo)){
+        iter.remove();
+      }
+    }
+    return new WriteResult(fongoDb.okResult(), concern);
   }
 
 
@@ -95,7 +119,7 @@ public class FongoDBCollection extends DBCollection {
             } else {
               Comparable o1Value = expressionParser.typecast(sortKey, o1option.get(), Comparable.class);
               Comparable o2Value = expressionParser.typecast(sortKey, o2option.get(), Comparable.class);
-              System.out.println("sort " + o1Value);
+              
               return o1Value.compareTo(o2Value) * sortDirection;
             }
           }});
@@ -108,8 +132,11 @@ public class FongoDBCollection extends DBCollection {
         results.add(dbo);
       }
     }
-
-    return results.iterator();
+    if (results.size() == 0){
+      return null;
+    } else {
+      return results.iterator();      
+    }
   }
 
   public int fCount(DBObject object) {

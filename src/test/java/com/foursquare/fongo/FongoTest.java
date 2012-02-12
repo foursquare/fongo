@@ -13,6 +13,7 @@ import com.mongodb.DB;
 import com.mongodb.DBCollection;
 import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
+import com.mongodb.MongoException;
 
 public class FongoTest {
 
@@ -118,6 +119,46 @@ public class FongoTest {
         new BasicDBObject("a", 1).append("_id", 1),
         new BasicDBObject("_id", 5)
     ), cursor.toArray());
+  }
+  
+  @Test
+  public void testBasicUpdate() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1));
+    collection.insert(new BasicDBObject("_id", 2).append("b", 5));
+    collection.insert(new BasicDBObject("_id", 3));
+    collection.insert(new BasicDBObject("_id", 4));
+    
+    collection.update(new BasicDBObject("_id", 2), new BasicDBObject("a", 5));
+    
+    assertEquals(new BasicDBObject("_id", 2).append("a", 5), 
+        collection.findOne(new BasicDBObject("_id",2)));
+  }
+  
+  @Test
+  public void testNoUpdateId() {
+    DBCollection collection = newCollection();
+    
+    try {
+      collection.update(new BasicDBObject("_id", 1), new BasicDBObject("_id", 1));
+      fail("should throw exception");
+    } catch (MongoException e) {
+      
+    }
+  }
+  
+  @Test
+  public void testRemove() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1));
+    collection.insert(new BasicDBObject("_id", 2));
+    collection.insert(new BasicDBObject("_id", 3));
+    collection.insert(new BasicDBObject("_id", 4));
+    
+    collection.remove(new BasicDBObject("_id", 2));
+    
+    assertEquals(null, 
+        collection.findOne(new BasicDBObject("_id",2)));
   }
 
   private DBCollection newCollection() {

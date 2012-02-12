@@ -62,14 +62,19 @@ public class FongoDB extends DB {
     if (cmd.containsField("count")) {
       String collectionName = cmd.get("count").toString();
       int count = doGetCollection(collectionName).fCount((DBObject)cmd.get("query"));
-      CommandResult result = new CommandResult(fongo.getServerAddress());
-      result.put("ok", true);
+      CommandResult result = okResult();
       result.put("n", count);
       return result;
     }
     CommandResult errorResult = new CommandResult(fongo.getServerAddress());
     errorResult.put("err", "undefined command: " + cmd);
     return errorResult;
+  }
+
+  public CommandResult okResult() {
+    CommandResult result = new CommandResult(fongo.getServerAddress());
+    result.put("ok", true);
+    return result;
   }
 
 }
