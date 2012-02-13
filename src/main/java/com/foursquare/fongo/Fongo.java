@@ -1,9 +1,12 @@
 package com.foursquare.fongo;
 
 import java.lang.reflect.Field;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,27 +23,26 @@ import com.mongodb.ServerAddress;
 
 public class Fongo implements MongoConnection {
 
-  private Map<String, FongoDB> dbMap = new HashMap<String, FongoDB>();
+  private final Map<String, FongoDB> dbMap = Collections.synchronizedMap(new HashMap<String, FongoDB>());
   private final ObjectInstantiator instantiator = new ObjenesisStd().getInstantiatorOf(Mongo.class);
   private final ServerAddress serverAddress;
+  private final Mongo mongo;
   
   public Fongo() {
-    try {
-      serverAddress = new ServerAddress("localhost");
-    } catch (UnknownHostException e) {
-      throw new RuntimeException(e);
-    }
+    this.serverAddress = new ServerAddress(new InetSocketAddress(ServerAddress.defaultPort()));
+    this.mongo = createMongo();
   }
   
   @Override
   public DB getDB(String dbname) {
-    FongoDB fongoDb = dbMap.get(dbname);
-    if (fongoDb == null) {
-      fongoDb = new FongoDB(this, dbname);
-      dbMap.put(dbname, fongoDb);
+    synchronized(dbMap) {      
+      FongoDB fongoDb = dbMap.get(dbname);
+      if (fongoDb == null) {
+        fongoDb = new FongoDB(this, dbname);
+        dbMap.put(dbname, fongoDb);
+      }
+      return fongoDb;
     }
-
-    return fongoDb;
   }
 
   @Override
@@ -62,7 +64,11 @@ public class Fongo implements MongoConnection {
     return serverAddress;
   }
   
-  public Mongo createMongo() {
+  public Mongo getMongo() {
+    return this.mongo;
+  }
+  
+  private Mongo createMongo() {
     Mongo mongo = (Mongo) instantiator.newInstance();
     try {
       Field field = Mongo.class.getDeclaredField("_options");

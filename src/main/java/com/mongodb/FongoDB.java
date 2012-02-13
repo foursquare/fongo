@@ -13,7 +13,7 @@ public class FongoDB extends DB {
   private final Fongo fongo;
   
   public FongoDB(Fongo fongo, String name) {
-    super(fongo.createMongo(), name);
+    super(fongo.getMongo(), name);
     this.fongo = fongo;
   }
 
