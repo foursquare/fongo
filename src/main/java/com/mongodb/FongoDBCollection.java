@@ -53,7 +53,7 @@ public class FongoDBCollection extends DBCollection {
   public synchronized WriteResult update(DBObject q, DBObject o, boolean upsert, boolean multi, WriteConcern concern,
       DBEncoder encoder) throws MongoException {
     if (o.containsField(ID_KEY)){
-      throw new MongoException("can't update " + ID_KEY);
+      throw new MongoException.DuplicateKey(0, "can't update " + ID_KEY);
     }
     final ExpressionParser expressionParser = new ExpressionParser();
     Filter filter = expressionParser.buildFilter(q);
