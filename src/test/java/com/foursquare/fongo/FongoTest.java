@@ -177,6 +177,38 @@ public class FongoTest {
   }
   
   @Test
+  public void testFindAndModifyReturnNew() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1).append("a", 1));
+    DBObject result = collection.findAndModify(new BasicDBObject("_id", 1), 
+        null, null, false, new BasicDBObject("$inc", new BasicDBObject("a", 1)), true, false);
+    
+    assertEquals(new BasicDBObject("_id", 1).append("a", 2), result);
+  }
+  
+  @Test
+  public void testFindAndModifyUpsert() {
+    DBCollection collection = newCollection();
+    
+    DBObject result = collection.findAndModify(new BasicDBObject("_id", 1), 
+        null, null, false, new BasicDBObject("$inc", new BasicDBObject("a", 1)), true, true);
+    
+    assertEquals(new BasicDBObject("_id", 1).append("a", 1), result);
+    assertEquals(new BasicDBObject("_id", 1).append("a", 1), collection.findOne());
+  }
+  
+  @Test
+  public void testFindAndModifyRemove() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1).append("a", 1));
+    DBObject result = collection.findAndModify(new BasicDBObject("_id", 1), 
+        null, null, true, null, false, false);
+    
+    assertEquals(new BasicDBObject("_id", 1).append("a", 1), result);
+    assertEquals(null, collection.findOne());
+  }
+  
+  @Test
   public void testRemove() {
     DBCollection collection = newCollection();
     collection.insert(new BasicDBObject("_id", 1));
