@@ -28,14 +28,14 @@ public class FongoDBCollection extends DBCollection {
   }
   
   @Override
-  public WriteResult insert(DBObject[] arr, WriteConcern concern, DBEncoder encoder) throws MongoException {
+  public synchronized WriteResult insert(DBObject[] arr, WriteConcern concern, DBEncoder encoder) throws MongoException {
     for (DBObject obj : arr) {
       fInsert(obj);
     }
     return new WriteResult(fongoDb.okResult(), concern);
   }
 
-  public void fInsert(DBObject obj) {
+  protected void fInsert(DBObject obj) {
     if (!obj.containsField(ID_KEY)) {
       obj.put(ID_KEY, new ObjectId());
     }
@@ -50,7 +50,7 @@ public class FongoDBCollection extends DBCollection {
   }
 
   @Override
-  public WriteResult update(DBObject q, DBObject o, boolean upsert, boolean multi, WriteConcern concern,
+  public synchronized WriteResult update(DBObject q, DBObject o, boolean upsert, boolean multi, WriteConcern concern,
       DBEncoder encoder) throws MongoException {
     if (o.containsField(ID_KEY)){
       throw new MongoException("can't update " + ID_KEY);
@@ -75,7 +75,7 @@ public class FongoDBCollection extends DBCollection {
     return new WriteResult(fongoDb.okResult(), concern);
   }
 
-  public BasicDBObject createUpsertObject(DBObject q) {
+  protected  BasicDBObject createUpsertObject(DBObject q) {
     BasicDBObject newObject = new BasicDBObject();
     for (String key : q.keySet()){
       Object value = q.get(key);
@@ -99,7 +99,7 @@ public class FongoDBCollection extends DBCollection {
   }
 
   @Override
-  public WriteResult remove(DBObject o, WriteConcern concern, DBEncoder encoder) throws MongoException {
+  public synchronized WriteResult remove(DBObject o, WriteConcern concern, DBEncoder encoder) throws MongoException {
     final ExpressionParser expressionParser = new ExpressionParser();
     Filter filter = expressionParser.buildFilter(o);
     for (Iterator<DBObject> iter = objects.iterator(); iter.hasNext(); ) {
@@ -120,7 +120,7 @@ public class FongoDBCollection extends DBCollection {
   }
 
   @Override
-  Iterator<DBObject> __find(DBObject ref, DBObject fields, int numToSkip, int batchSize, int limit, int options,
+  synchronized Iterator<DBObject> __find(DBObject ref, DBObject fields, int numToSkip, int batchSize, int limit, int options,
       ReadPreference readPref, DBDecoder decoder) throws MongoException {
     ArrayList<DBObject> results = new ArrayList<DBObject>();
     DBObject orderby = null;
@@ -150,7 +150,7 @@ public class FongoDBCollection extends DBCollection {
     }
   }
 
-  public List<DBObject> sortObjects(DBObject orderby, final ExpressionParser expressionParser) {
+  protected List<DBObject> sortObjects(DBObject orderby, final ExpressionParser expressionParser) {
     List<DBObject> objectsToSearch = objects;
     if (orderby != null) {
       Set<String> orderbyKeys = orderby.keySet();
@@ -179,11 +179,11 @@ public class FongoDBCollection extends DBCollection {
     return objectsToSearch;
   }
 
-  public int fCount(DBObject object) {
+  public synchronized int fCount(DBObject object) {
     return objects.size();
   }
 
-  public DBObject fFindAndModify(DBObject query, DBObject update, DBObject sort, boolean remove,
+  public synchronized DBObject fFindAndModify(DBObject query, DBObject update, DBObject sort, boolean remove,
       boolean returnNew, boolean upsert) {
     final ExpressionParser expressionParser = new ExpressionParser();
     Filter filter = expressionParser.buildFilter(query);

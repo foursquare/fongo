@@ -1,15 +1,15 @@
 package com.mongodb;
 
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 
 import com.foursquare.fongo.Fongo;
 
 public class FongoDB extends DB {
 
-  private final ConcurrentMap<String, FongoDBCollection> collMap = new ConcurrentHashMap<String, FongoDBCollection>();
+  private final Map<String, FongoDBCollection> collMap = Collections.synchronizedMap(new HashMap<String, FongoDBCollection>());
   private final Fongo fongo;
   
   public FongoDB(Fongo fongo, String name) {
@@ -28,9 +28,14 @@ public class FongoDB extends DB {
 
   @Override
   protected FongoDBCollection doGetCollection(String name) {
-    FongoDBCollection newColl = new FongoDBCollection(this, name);
-    FongoDBCollection oldColl = collMap.putIfAbsent(name, newColl);
-    return oldColl == null ? newColl : oldColl;
+    synchronized(collMap){
+      FongoDBCollection coll = collMap.get(name);
+      if (coll == null){
+        coll = new FongoDBCollection(this, name);
+        collMap.put(name, coll);
+      }
+      return coll;
+    }
   }
   
   @Override
