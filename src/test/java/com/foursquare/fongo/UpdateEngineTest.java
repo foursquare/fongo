@@ -241,6 +241,19 @@ public class UpdateEngineTest {
         updateEngine.doUpdate(new BasicDBObject("b", asList(1,2,3)), update));
   }
   
+  @Test 
+  public void testArrayIndexOperator() {
+    UpdateEngine updateEngine = new UpdateEngine();
+    DBObject update = new BasicDBObjectBuilder().push("$inc")
+        .append("a.1.b",1).pop().get();
+    
+    assertEquals(new BasicDBObject("a", asList(new BasicDBObject("b", 1), new BasicDBObject("b",2))),
+        updateEngine.doUpdate(new BasicDBObject("a", asList(
+            new BasicDBObject("b", 1), 
+            new BasicDBObject("b",1))
+        ), update));
+  }
+  
   <T> List<T> asList(T ... ts){
     return Arrays.asList(ts);
   }

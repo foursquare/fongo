@@ -67,7 +67,6 @@ public class UpdateEngine {
     void doSingleKeyUpdate(final String updateKey, final DBObject objOriginal, Object object) {
       String[] path = ExpressionParser.DOT_PATTERN.split(updateKey);
       String subKey = path[0];
-      
       DBObject obj = objOriginal;
       boolean isPositional = updateKey.contains(".$");
       if (isPositional){
@@ -86,6 +85,10 @@ public class UpdateEngine {
           handlePositionalUpdate(updateKey, object, (List)value, obj);
         } else if (value instanceof DBObject){
           obj = (DBObject) value;
+        } else if (value instanceof List) {
+          BasicDBList newList = Util.wrap((List)value);
+          obj.put(subKey, newList);
+          obj = newList;
         } else {
           throw new FongoException("subfield must be object. " + updateKey + " not in " + objOriginal);
         }
