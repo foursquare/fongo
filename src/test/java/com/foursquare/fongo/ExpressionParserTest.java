@@ -1,17 +1,19 @@
 package com.foursquare.fongo;
 
+import static org.junit.Assert.assertEquals;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.regex.Pattern;
 
+import org.bson.types.ObjectId;
 import org.junit.Test;
-import static org.junit.Assert.*;
 
-import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
 import com.mongodb.BasicDBObjectBuilder;
+import com.mongodb.DBCollection;
 import com.mongodb.DBObject;
 
 
@@ -318,6 +320,21 @@ public class ExpressionParserTest {
     assertEquals(Arrays.<DBObject>asList(
         new BasicDBObject("a", asList(1,2,3))
     ), results);
+  }
+  
+  @Test
+  public void testCompoundObjectInQuery() {
+    ObjectId oid = new ObjectId();
+    DBObject query = new BasicDBObject("a", new BasicDBObject("b", oid));
+    List<DBObject> results = doFilter(
+        query,
+        new BasicDBObject("a", null),
+        new BasicDBObject("a", new BasicDBObject("b", oid))
+    );
+    assertEquals(Arrays.<DBObject>asList(
+        new BasicDBObject("a", new BasicDBObject("b", oid))
+    ), results);
+    
   }
 
   private void assertQuery(BasicDBObject query, List<DBObject> expected) {

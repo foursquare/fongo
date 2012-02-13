@@ -1,9 +1,6 @@
 package com.foursquare.fongo;
 
-import java.lang.reflect.Field;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -11,8 +8,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.objenesis.ObjenesisStd;
-import org.objenesis.instantiator.ObjectInstantiator;
+import org.mockito.Mockito;
 
 import com.mongodb.DB;
 import com.mongodb.FongoDB;
@@ -24,11 +20,12 @@ import com.mongodb.ServerAddress;
 public class Fongo implements MongoConnection {
 
   private final Map<String, FongoDB> dbMap = Collections.synchronizedMap(new HashMap<String, FongoDB>());
-  private final ObjectInstantiator instantiator = new ObjenesisStd().getInstantiatorOf(Mongo.class);
   private final ServerAddress serverAddress;
   private final Mongo mongo;
+  private String name;
   
-  public Fongo() {
+  public Fongo(String name) {
+    this.name = name;
     this.serverAddress = new ServerAddress(new InetSocketAddress(ServerAddress.defaultPort()));
     this.mongo = createMongo();
   }
@@ -69,14 +66,10 @@ public class Fongo implements MongoConnection {
   }
   
   private Mongo createMongo() {
-    Mongo mongo = (Mongo) instantiator.newInstance();
-    try {
-      Field field = Mongo.class.getDeclaredField("_options");
-      field.setAccessible(true);
-      field.set(mongo, new MongoOptions());
-   } catch (Exception e) {
-     throw new RuntimeException(e);
-   }
+    Mongo mongo = Mockito.mock(Mongo.class);
+    Mockito.when(mongo.toString()).thenReturn("Fongo (" + this.name + ")");
+    Mockito.when(mongo.getMongoOptions()).thenReturn(new MongoOptions());
+
     return mongo;
   }
 

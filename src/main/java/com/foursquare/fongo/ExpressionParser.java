@@ -269,7 +269,10 @@ public class ExpressionParser {
             andFilter.addFilter(filterFactory.createFilter(key, ref));
           }
         }
-        if (matchCount == 0 || matchCount > 2){
+        if (matchCount == 0) {
+          return simpleFilter(key, expression);
+        }
+        if (matchCount > 2){
           throw new FongoException("Invalid expression for key " + key + ": " + expression);
         }
         return andFilter;
@@ -304,22 +307,26 @@ public class ExpressionParser {
         }
       };
     } else {
-      return new Filter(){
-        public boolean apply(DBObject o) {
-          Option<Object> storedOption = getEmbeddedValue(key, o);
-          if (storedOption.isEmpty()){
-            return false;
-          } else {
-            Object storedValue = storedOption.get();
-            if (storedValue instanceof List) {
-              return ((List)storedValue).contains(expression);
-            } else {
-              return expression.equals(storedValue);            
-            }
-          }
-
-        }};
+      return simpleFilter(key, expression);
     }
+  }
+
+  public Filter simpleFilter(final String key, final Object expression) {
+    return new Filter(){
+      public boolean apply(DBObject o) {
+        Option<Object> storedOption = getEmbeddedValue(key, o);
+        if (storedOption.isEmpty()){
+          return false;
+        } else {
+          Object storedValue = storedOption.get();
+          if (storedValue instanceof List) {
+            return ((List)storedValue).contains(expression);
+          } else {
+            return expression.equals(storedValue);            
+          }
+        }
+
+      }};
   }
 
 

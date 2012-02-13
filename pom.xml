@@ -23,9 +23,9 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>org.objenesis</groupId>
-      <artifactId>objenesis</artifactId>
-      <version>1.2</version>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <version>1.9.0</version>
     </dependency>
   </dependencies>
   <build>

@@ -1,6 +1,10 @@
 package com.foursquare.fongo;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.util.Arrays;
 import java.util.HashSet;
@@ -20,7 +24,7 @@ public class FongoTest {
 
   @Test
   public void testGetDb() {
-    Fongo fongo = new Fongo();
+    Fongo fongo = newFongo();
     DB db = fongo.getDB("db");
     assertNotNull(db);
     assertSame("getDB should be idempotent", db, fongo.getDB("db"));
@@ -30,7 +34,7 @@ public class FongoTest {
   
   @Test
   public void testGetCollection() {
-    Fongo fongo = new Fongo();
+    Fongo fongo = newFongo();
     DB db = fongo.getDB("db");
     DBCollection collection = db.getCollection("coll");
     assertNotNull(collection);
@@ -141,7 +145,7 @@ public class FongoTest {
     DBCollection collection = newCollection();
     
     try {
-      collection.update(new BasicDBObject("_id", 1), new BasicDBObject("_id", 1));
+      collection.update(new BasicDBObject("_id", 1).append("b", 2), new BasicDBObject("_id", 1));
       fail("should throw exception");
     } catch (MongoException e) {
       
@@ -234,7 +238,7 @@ public class FongoTest {
   
   @Test
   public void testGetLastError(){
-    Fongo fongo = new Fongo();
+    Fongo fongo = newFongo();
     DB db = fongo.getDB("db");
     DBCollection collection = db.getCollection("coll");
     collection.insert(new BasicDBObject("_id", 1));
@@ -242,12 +246,29 @@ public class FongoTest {
     assertTrue(error.ok());
   }
   
+  @Test
+  public void testSave() {
+    DBCollection collection = newCollection();
+    BasicDBObject inserted = new BasicDBObject("_id", 1);
+    collection.insert(inserted);
+    collection.save(inserted);
+  }
+  
+  @Test
+  public void testToString() {
+    new Fongo("test").getMongo().toString();
+  }
 
   private DBCollection newCollection() {
-    Fongo fongo = new Fongo();
+    Fongo fongo = newFongo();
     DB db = fongo.getDB("db");
     DBCollection collection = db.getCollection("coll");
     return collection;
+  }
+
+  public Fongo newFongo() {
+    Fongo fongo = new Fongo("test");
+    return fongo;
   }
 
 }

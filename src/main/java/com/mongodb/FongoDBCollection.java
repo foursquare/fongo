@@ -6,6 +6,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Map;
 import java.util.Set;
 
@@ -35,6 +36,7 @@ public class FongoDBCollection extends DBCollection {
     return new WriteResult(fongoDb.okResult(), concern);
   }
 
+
   protected void fInsert(DBObject obj) {
     if (!obj.containsField(ID_KEY)) {
       obj.put(ID_KEY, new ObjectId());
@@ -52,25 +54,33 @@ public class FongoDBCollection extends DBCollection {
   @Override
   public synchronized WriteResult update(DBObject q, DBObject o, boolean upsert, boolean multi, WriteConcern concern,
       DBEncoder encoder) throws MongoException {
-    if (o.containsField(ID_KEY)){
+    boolean idOnlyUpdate = q.containsField(ID_KEY) && q.keySet().size() == 1;
+    if (o.containsField(ID_KEY) && !idOnlyUpdate){
       throw new MongoException.DuplicateKey(0, "can't update " + ID_KEY);
     }
-    final ExpressionParser expressionParser = new ExpressionParser();
-    Filter filter = expressionParser.buildFilter(q);
-    boolean wasFound = false;
-    UpdateEngine updateEngine = new UpdateEngine(q, false);
-    for (DBObject obj : objects) {
-      if (filter.apply(obj)){
-        wasFound = true;
-        updateEngine.doUpdate(obj, o);
-        if (!multi){
-          break;
+    if (idOnlyUpdate){
+      if (!o.containsField(ID_KEY)) {
+        o.put(ID_KEY, q.get(ID_KEY));
+      }
+      fInsert(o);
+    } else {
+      final ExpressionParser expressionParser = new ExpressionParser();
+      Filter filter = expressionParser.buildFilter(q);
+      boolean wasFound = false;
+      UpdateEngine updateEngine = new UpdateEngine(q, false);
+      for (DBObject obj : objects) {
+        if (filter.apply(obj)){
+          wasFound = true;
+          updateEngine.doUpdate(obj, o);
+          if (!multi){
+            break;
+          }
         }
       }
-    }
-    if (!wasFound && upsert){
-      BasicDBObject newObject = createUpsertObject(q);
-      fInsert(updateEngine.doUpdate(newObject, o));
+      if (!wasFound && upsert){
+        BasicDBObject newObject = createUpsertObject(q);
+        fInsert(updateEngine.doUpdate(newObject, o));
+      }
     }
     return new WriteResult(fongoDb.okResult(), concern);
   }

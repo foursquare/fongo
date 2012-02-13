@@ -9,7 +9,6 @@ import java.util.List;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
 import com.mongodb.BasicDBObjectBuilder;
 import com.mongodb.DBObject;

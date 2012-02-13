@@ -85,6 +85,11 @@ public class FongoDB extends DB {
       return commandResult;
     } else if (cmd.containsField("getlasterror")) {
       return okResult();
+    } else if (cmd.containsField("drop")) {
+      this.collMap.remove(cmd.get("drop").toString());
+      return okResult();
+    } else if (cmd.containsField("deleteIndexes")) {
+      return okResult();
     }
     CommandResult errorResult = new CommandResult(fongo.getServerAddress());
     errorResult.put("err", "undefined command: " + cmd);
@@ -97,4 +102,8 @@ public class FongoDB extends DB {
     return result;
   }
 
+  @Override
+  public String toString() {
+    return "FongoDB." + this.getName();
+  }
 }
