@@ -12,6 +12,7 @@ import java.util.regex.Pattern;
 import org.bson.types.ObjectId;
 import org.junit.Test;
 
+import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
 import com.mongodb.BasicDBObjectBuilder;
 import com.mongodb.DBCollection;
@@ -225,6 +226,35 @@ public class ExpressionParserTest {
   }
   
   @Test
+  public void testEmbeddedArrayObjectMatch(){
+    DBObject query = new BasicDBObject("a.b.c", 1);
+    List<DBObject> results = doFilter(
+        query,
+        new BasicDBObject("a", asList(new BasicDBObject("b",new BasicDBObject("c", 1)))),
+        new BasicDBObject("a", asList(new BasicDBObject("b", 1)))
+    );
+    assertEquals(Arrays.<DBObject>asList(
+        new BasicDBObject("a", asList(new BasicDBObject("b",new BasicDBObject("c", 1))))
+    ), results);
+  }
+  
+  @Test
+  public void testEmbeddedEmptyMatch(){
+    DBObject query = new BasicDBObject("a.b.c", 1);
+    List<DBObject> results = doFilter(
+        query,
+        new BasicDBObject("a", asList(new BasicDBObject("b",new BasicDBObject("c", 1)))),
+        new BasicDBObject("a", asList()),
+        new BasicDBObject("a", asDbList(new BasicDBObject("b",new BasicDBObject("c", 1)))),
+        new BasicDBObject("a", asDbList())
+    );
+    assertEquals(Arrays.<DBObject>asList(
+        new BasicDBObject("a", asList(new BasicDBObject("b",new BasicDBObject("c", 1)))),
+        new BasicDBObject("a", asDbList(new BasicDBObject("b",new BasicDBObject("c", 1))))
+    ), results);
+  }
+  
+  @Test
   public void testOrOperator(){
     DBObject query = new BasicDBObject("$or", asList(
         new BasicDBObject("a",3),
@@ -361,7 +391,7 @@ public class ExpressionParserTest {
   }
 
   public List<DBObject> doFilter(DBObject ref, BasicDBObject ... input) {
-    ExpressionParser ep = new ExpressionParser();
+    ExpressionParser ep = new ExpressionParser(true);
     Filter filter = ep.buildFilter(ref);
     List<DBObject> results = new ArrayList<DBObject>();
     for (DBObject dbo : input) {
@@ -374,6 +404,12 @@ public class ExpressionParserTest {
   
   <T> List<T> asList(T ... ts){
     return Arrays.asList(ts); 
+  }
+  
+  BasicDBList asDbList(Object ... objects) {
+    BasicDBList list = new BasicDBList();
+    list.addAll(Arrays.asList(objects));
+    return list;
   }
 
 }

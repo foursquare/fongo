@@ -9,15 +9,16 @@ import java.util.List;
 import java.util.Map;
 
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 import com.mongodb.DB;
 import com.mongodb.FongoDB;
 import com.mongodb.Mongo;
-import com.mongodb.MongoException;
 import com.mongodb.MongoOptions;
 import com.mongodb.ServerAddress;
 
-public class Fongo implements MongoConnection {
+public class Fongo {
 
   private final Map<String, FongoDB> dbMap = Collections.synchronizedMap(new HashMap<String, FongoDB>());
   private final ServerAddress serverAddress;
@@ -30,7 +31,6 @@ public class Fongo implements MongoConnection {
     this.mongo = createMongo();
   }
   
-  @Override
   public DB getDB(String dbname) {
     synchronized(dbMap) {      
       FongoDB fongoDb = dbMap.get(dbname);
@@ -42,18 +42,15 @@ public class Fongo implements MongoConnection {
     }
   }
 
-  @Override
   public Collection<DB> getUsedDatabases() {
     return new ArrayList<DB>(dbMap.values());
   }
 
-  @Override
-  public List<String> getDatabaseNames() throws MongoException {
+  public List<String> getDatabaseNames() {
     return new ArrayList<String>(dbMap.keySet());
   }
 
-  @Override
-  public void dropDatabase(String dbName) throws MongoException {
+  public void dropDatabase(String dbName) {
     dbMap.remove(dbName);
   }
   
@@ -69,7 +66,29 @@ public class Fongo implements MongoConnection {
     Mongo mongo = Mockito.mock(Mongo.class);
     Mockito.when(mongo.toString()).thenReturn("Fongo (" + this.name + ")");
     Mockito.when(mongo.getMongoOptions()).thenReturn(new MongoOptions());
-
+    Mockito.when(mongo.getDB(Mockito.anyString())).thenAnswer(new Answer<DB>(){
+      @Override
+      public DB answer(InvocationOnMock invocation) throws Throwable {
+        String dbName = (String) invocation.getArguments()[0];
+        return getDB(dbName);
+      }});
+    Mockito.when(mongo.getUsedDatabases()).thenAnswer(new Answer<Collection<DB>>(){
+      @Override
+      public Collection<DB> answer(InvocationOnMock invocation) throws Throwable {
+        return getUsedDatabases();
+      }});
+    Mockito.when(mongo.getDatabaseNames()).thenAnswer(new Answer<List<String>>(){
+      @Override
+      public List<String> answer(InvocationOnMock invocation) throws Throwable {
+        return getDatabaseNames();
+      }});
+    Mockito.doAnswer(new Answer<Void>(){
+      @Override
+      public Void answer(InvocationOnMock invocation) throws Throwable {
+        String dbName = (String) invocation.getArguments()[0];
+        dropDatabase(dbName);
+        return null;
+      }}).when(mongo).dropDatabase(Mockito.anyString());
     return mongo;
   }
 

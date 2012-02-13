@@ -87,7 +87,7 @@ public class UpdateEngine {
           obj = (DBObject) value;
         } else if (value instanceof List) {
           BasicDBList newList = Util.wrap((List)value);
-          obj.put(subKey, newList);
+          
           obj = newList;
         } else {
           throw new FongoException("subfield must be object. " + updateKey + " not in " + objOriginal);

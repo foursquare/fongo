@@ -63,7 +63,7 @@ public class FongoDB extends DB {
    */
   @Override
   public CommandResult command( DBObject cmd , int options, ReadPreference readPrefs ) throws MongoException {
-    System.out.println("Fongo got command " + cmd);
+    
     if (cmd.containsField("count")) {
       String collectionName = cmd.get("count").toString();
       int count = doGetCollection(collectionName).fCount((DBObject)cmd.get("query"));

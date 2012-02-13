@@ -1,14 +1,16 @@
 package com.mongodb;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.Map;
 import java.util.Set;
+import java.util.SortedMap;
+import java.util.TreeMap;
 
 import org.bson.types.ObjectId;
 
@@ -18,10 +20,18 @@ import com.foursquare.fongo.Option;
 import com.foursquare.fongo.UpdateEngine;
 
 public class FongoDBCollection extends DBCollection {
+  
+  private final class IdComparator implements Comparator<Object> {
+    @Override
+    public int compare(Object o1, Object o2) {
+      return expressionParser.compareObjects(o1, o2);
+    }
+  }
+
   final static String ID_KEY = "_id";
   private final FongoDB fongoDb;
-  private final List<DBObject> objects = new ArrayList<DBObject>();
-  private final Map<Object, Integer> idIndex = new HashMap<Object, Integer>();
+  private final Map<Object, DBObject> objects = new HashMap<Object, DBObject>();
+  private final ExpressionParser expressionParser = new ExpressionParser();
   
   public FongoDBCollection(FongoDB db, String name) {
     super(db, name);
@@ -42,13 +52,7 @@ public class FongoDBCollection extends DBCollection {
       obj.put(ID_KEY, new ObjectId());
     }
     Object id = obj.get(ID_KEY);
-    Integer existingIndex = idIndex.get(id);
-    if (existingIndex != null){
-      objects.set(existingIndex, obj);
-    } else {
-      objects.add(obj);
-      idIndex.put(id, objects.size() - 1);
-    }
+    objects.put(id, obj);
   }
 
   @Override
@@ -64,11 +68,10 @@ public class FongoDBCollection extends DBCollection {
       }
       fInsert(o);
     } else {
-      final ExpressionParser expressionParser = new ExpressionParser();
-      Filter filter = expressionParser.buildFilter(q);
+      Filter filter = expressionParser .buildFilter(q);
       boolean wasFound = false;
       UpdateEngine updateEngine = new UpdateEngine(q, false);
-      for (DBObject obj : objects) {
+      for (DBObject obj : objects.values()) {
         if (filter.apply(obj)){
           wasFound = true;
           updateEngine.doUpdate(obj, o);
@@ -83,6 +86,23 @@ public class FongoDBCollection extends DBCollection {
       }
     }
     return new WriteResult(fongoDb.okResult(), concern);
+  }
+  
+  public List<Object> idsIn(DBObject query) {
+    Object idValue = query.get(ID_KEY);
+    if (idValue == null || query.keySet().size() > 0) {
+      return Collections.emptyList();
+    } else if (idValue instanceof DBObject ){
+      DBObject idDbObject = (DBObject)idValue;
+      List inList = (List)idDbObject.get(ExpressionParser.IN);
+      if (inList != null){
+        return inList;
+      } else {
+        return Collections.emptyList();
+      }
+    } else {
+      return Collections.singletonList(idValue);
+    }
   }
 
   protected  BasicDBObject createUpsertObject(DBObject q) {
@@ -110,12 +130,18 @@ public class FongoDBCollection extends DBCollection {
 
   @Override
   public synchronized WriteResult remove(DBObject o, WriteConcern concern, DBEncoder encoder) throws MongoException {
-    final ExpressionParser expressionParser = new ExpressionParser();
-    Filter filter = expressionParser.buildFilter(o);
-    for (Iterator<DBObject> iter = objects.iterator(); iter.hasNext(); ) {
-      DBObject dbo = iter.next();
-      if (filter.apply(dbo)){
-        iter.remove();
+    List<Object> idList = idsIn(o);
+    if (!idList.isEmpty()) {
+      for (Object id : idList){
+        objects.remove(id);        
+      }
+    } else {
+      Filter filter = expressionParser.buildFilter(o);
+      for (Iterator<DBObject> iter = objects.values().iterator(); iter.hasNext(); ) {
+        DBObject dbo = iter.next();
+        if (filter.apply(dbo)){
+          iter.remove();
+        }
       }
     }
     return new WriteResult(fongoDb.okResult(), concern);
@@ -129,28 +155,42 @@ public class FongoDBCollection extends DBCollection {
     
   }
 
+  
   @Override
   synchronized Iterator<DBObject> __find(DBObject ref, DBObject fields, int numToSkip, int batchSize, int limit, int options,
       ReadPreference readPref, DBDecoder decoder) throws MongoException {
+    List<Object> idList = idsIn(ref);
     ArrayList<DBObject> results = new ArrayList<DBObject>();
-    DBObject orderby = null;
-    if (ref.containsField("query") && ref.containsField("orderby")) {
-      orderby = (DBObject)ref.get("orderby");
-      ref = (DBObject)ref.get("query");
-    }
-    final ExpressionParser expressionParser = new ExpressionParser();
-    Filter filter = expressionParser.buildFilter(ref);
-    int foundCount = 0;
-    int upperLimit = Integer.MAX_VALUE;
-    if (limit > 0) {
-      upperLimit = limit;
-    }
-    List<DBObject> objectsToSearch = sortObjects(orderby, expressionParser);
-    for (int i = numToSkip; i < objectsToSearch.size() && foundCount <= upperLimit; i++) {
-      DBObject dbo = objectsToSearch.get(i);
-      if (filter.apply(dbo)) {
-        foundCount++;
-        results.add(dbo);
+    if (!idList.isEmpty()) {
+      for (Object id : idList){
+        DBObject result = objects.get(id);
+        if (result != null){
+          results.add(result);          
+        }
+      }
+    } else {
+      DBObject orderby = null;
+      if (ref.containsField("query") && ref.containsField("orderby")) {
+        orderby = (DBObject)ref.get("orderby");
+        ref = (DBObject)ref.get("query");
+      }
+      
+      Filter filter = expressionParser.buildFilter(ref);
+      int foundCount = 0;
+      int upperLimit = Integer.MAX_VALUE;
+      if (limit > 0) {
+        upperLimit = limit;
+      }
+      Collection<DBObject> objectsToSearch = sortObjects(orderby, expressionParser);
+      int seen = 0;
+      for (Iterator<DBObject> iter = objectsToSearch.iterator(); iter.hasNext() && foundCount <= upperLimit; seen++) {
+        DBObject dbo = iter.next();
+        if (seen >= numToSkip){
+          if (filter.apply(dbo)) {
+            foundCount++;
+            results.add(dbo);
+          }
+        }
       }
     }
     if (results.size() == 0){
@@ -160,15 +200,15 @@ public class FongoDBCollection extends DBCollection {
     }
   }
 
-  protected List<DBObject> sortObjects(DBObject orderby, final ExpressionParser expressionParser) {
-    List<DBObject> objectsToSearch = objects;
+  protected Collection<DBObject> sortObjects(DBObject orderby, final ExpressionParser expressionParser) {
+    Collection<DBObject> objectsToSearch = objects.values();
     if (orderby != null) {
       Set<String> orderbyKeys = orderby.keySet();
       if (!orderbyKeys.isEmpty()){
         final String sortKey = orderbyKeys.iterator().next();
         final int sortDirection = (Integer)orderby.get(sortKey);
-        objectsToSearch = new ArrayList<DBObject>(objects);
-        Collections.sort(objectsToSearch, new Comparator<DBObject>(){
+        ArrayList<DBObject> objectList = new ArrayList<DBObject>(objects.values());
+        Collections.sort(objectList, new Comparator<DBObject>(){
           @Override
           public int compare(DBObject o1, DBObject o2) {
             Option<Object> o1option = expressionParser.getEmbeddedValue(sortKey, o1);
@@ -184,6 +224,7 @@ public class FongoDBCollection extends DBCollection {
               return o1Value.compareTo(o2Value) * sortDirection;
             }
           }});
+        return objectList;
       }
     }
     return objectsToSearch;
@@ -195,15 +236,15 @@ public class FongoDBCollection extends DBCollection {
 
   public synchronized DBObject fFindAndModify(DBObject query, DBObject update, DBObject sort, boolean remove,
       boolean returnNew, boolean upsert) {
-    final ExpressionParser expressionParser = new ExpressionParser();
+    
     Filter filter = expressionParser.buildFilter(query);
  
-    List<DBObject> objectsToSearch = sortObjects(sort, expressionParser);
+    Collection<DBObject> objectsToSearch = sortObjects(sort, expressionParser);
     DBObject beforeObject = null;
     DBObject afterObject = null;
     UpdateEngine updateEngine = new UpdateEngine(query, false);
-    for (int i = 0; i < objectsToSearch.size() && beforeObject == null; i++) {
-      DBObject dbo = objectsToSearch.get(i);
+    for (Iterator<DBObject> iter = objectsToSearch.iterator(); iter.hasNext();) {
+      DBObject dbo = iter.next();
       if (filter.apply(dbo)) {
         beforeObject = dbo;
         if (!remove) {

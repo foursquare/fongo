@@ -66,6 +66,24 @@ public class FongoTest {
   }
   
   @Test
+  public void testFindOneIn() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1));
+    DBObject result = collection.findOne(new BasicDBObject("_id", new BasicDBObject("$in", Arrays.asList(1,2))));
+    assertEquals(new BasicDBObject("_id", 1), result);
+  }
+  
+  @Test
+  public void testFindOneById() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1));
+    DBObject result = collection.findOne(new BasicDBObject("_id", 1));
+    assertEquals(new BasicDBObject("_id", 1), result);
+    
+    assertEquals(null, collection.findOne(new BasicDBObject("_id", 2)));
+  }
+  
+  @Test
   public void testFindWithQuery() {
     DBCollection collection = newCollection();
     

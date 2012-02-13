@@ -13,7 +13,14 @@ import com.mongodb.DBObject;
 public class ExpressionParser {
 
   public final static Pattern DOT_PATTERN = Pattern.compile("\\.");
-  
+  private final boolean debug;
+  public ExpressionParser() {
+    this(false);
+  }
+
+  public ExpressionParser(boolean debug) {
+    this.debug = debug;
+  }
 
   public Filter buildFilter(DBObject ref){
     AndFilter andFilter = new AndFilter();
@@ -223,18 +230,33 @@ public class ExpressionParser {
           return storedList != null && storedList.size() == size;
       }}
   );
-  
+
+  public boolean isInt(String s){
+    return s.matches("[0-9]+");
+  }
   public Option<Object> getEmbeddedValue(String key, DBObject dbo) {
     String[] path = DOT_PATTERN.split(key);
     String subKey = path[0];
+    if (path.length > 1) {
+      debug("getEmbeddedValue looking for " + key + " in " + dbo);
+    }
+    
     for (int i = 0; i < path.length - 1; i++){
       Object value = dbo.get(subKey);
-      if (value instanceof DBObject){
+      if (value instanceof DBObject && !(value instanceof List)){
         dbo = (DBObject) value;
-      } else if (value instanceof List) {
+      } else if (value instanceof List && isInt(path[i + 1])) {
         BasicDBList newList = Util.wrap((List) value);
-        dbo.put(subKey, newList);
         dbo = newList;
+      } else if (value instanceof List) {
+        for (Object listValue : (List) value){
+          if (listValue instanceof DBObject){
+            Option<Object> embeddedListValue = getEmbeddedValue(join(path, i + 1, "."), (DBObject)listValue);
+            if (embeddedListValue.isFull()){
+              return embeddedListValue;
+            }
+          }
+        }
       } else {
         return Option.None;
       }
@@ -245,6 +267,23 @@ public class ExpressionParser {
     } else {
       return Option.None;
     }
+  }
+
+  private void debug(String string) {
+    if (this.debug) {
+      System.out.println(string);
+    }
+  }
+
+  private String join(String[] path, int i, String separator) {
+    StringBuilder sb = new StringBuilder();
+    for (; i < path.length; i++){
+      sb.append(path[i]);
+      if (i < path.length - 1){
+        sb.append(separator);
+      }
+    }
+    return sb.toString();
   }
 
   private Filter buildExpressionFilter(final String key, final Object expression) {
