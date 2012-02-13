@@ -1,5 +1,6 @@
 package com.foursquare.fongo;
 
+import static org.junit.Assert.*;
 import static org.junit.Assert.assertEquals;
 
 import java.util.ArrayList;
@@ -334,7 +335,15 @@ public class ExpressionParserTest {
     assertEquals(Arrays.<DBObject>asList(
         new BasicDBObject("a", new BasicDBObject("b", oid))
     ), results);
-    
+  }
+  
+  @Test
+  public void testCompareObjects() {
+    ExpressionParser expressionParser = new ExpressionParser();
+    assertEquals(0, expressionParser.compareObjects(new BasicDBObject(), new BasicDBObject()));
+    assertTrue(0 < expressionParser.compareObjects(new BasicDBObject("a", 3), new BasicDBObject("a", 1)));
+    assertTrue(0 < expressionParser.compareObjects(new BasicDBObject("a", 3), new BasicDBObject("b", 1)));
+    assertTrue(0 < expressionParser.compareObjects(new BasicDBObject("a", asList(2,3)), new BasicDBObject("a", asList(1,2))));
   }
 
   private void assertQuery(BasicDBObject query, List<DBObject> expected) {

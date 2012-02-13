@@ -331,12 +331,43 @@ public class ExpressionParser {
 
 
   @SuppressWarnings("all")
-  private int compareObjects(Object queryValue, Object storedValue) {
-    Comparable queryComp = typecast("query value", queryValue, Comparable.class);
-    Comparable storedComp = typecast("stored value", storedValue, Comparable.class);
-    return queryComp.compareTo(storedComp);
+  public int compareObjects(Object queryValue, Object storedValue) {
+    if (queryValue instanceof DBObject && storedValue instanceof DBObject) {
+      return compareDBObjects((DBObject)queryValue, (DBObject) storedValue);
+    } else if (queryValue instanceof List && storedValue instanceof List){
+      List queryList = (List)queryValue;
+      List storedList = (List)storedValue;
+      return compareLists(queryList, storedList);
+    } else {
+      Comparable queryComp = typecast("query value", queryValue, Comparable.class);
+      Comparable storedComp = typecast("stored value", storedValue, Comparable.class);
+      if (storedComp == null){
+        return 1;
+      }
+      return queryComp.compareTo(storedComp);
+    }
+  }
+
+  public int compareLists(List queryList, List storedList) {
+    int compareValue = 0;
+    int sizeDiff = queryList.size() - storedList.size();
+    if (sizeDiff != 0) {
+      return sizeDiff;
+    }
+    for (int i = 0; i < queryList.size(); i++){
+      compareValue += compareObjects(queryList.get(i), storedList.get(i));
+    }
+    return compareValue;
   }
   
+  private int compareDBObjects(DBObject db0, DBObject db1) {
+    int compareValue = 0;
+    for (String key : db0.keySet()){
+      compareValue += compareObjects(db0.get(key), db1.get(key));
+    }
+    return compareValue;
+  }
+
   static class NotFilter implements Filter {
     private final Filter filter;
     public NotFilter(Filter filter) {
