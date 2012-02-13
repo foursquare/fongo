@@ -54,9 +54,29 @@ public class FongoDBCollection extends DBCollection {
       }
     }
     if (!wasFound && upsert){
-      insert(updateEngine.doUpdate(new BasicDBObject(), o));
+      BasicDBObject newObject = createUpsertObject(q);
+      insert(updateEngine.doUpdate(newObject, o));
     }
     return new WriteResult(fongoDb.okResult(), concern);
+  }
+
+  public BasicDBObject createUpsertObject(DBObject q) {
+    BasicDBObject newObject = new BasicDBObject();
+    for (String key : q.keySet()){
+      Object value = q.get(key);
+      boolean okValue = true;
+      if (value instanceof DBObject){
+        for (String innerKey : ((DBObject) value).keySet()){
+          if (innerKey.startsWith("$")){
+            okValue = false;
+          }
+        }
+      }
+      if (okValue){
+        newObject.put(key, value);
+      }
+    }
+    return newObject;
   }
 
   @Override
@@ -100,6 +120,22 @@ public class FongoDBCollection extends DBCollection {
     if (limit > 0) {
       upperLimit = limit;
     }
+    List<DBObject> objectsToSearch = sortObjects(orderby, expressionParser);
+    for (int i = numToSkip; i < objectsToSearch.size() && foundCount <= upperLimit; i++) {
+      DBObject dbo = objectsToSearch.get(i);
+      if (filter.apply(dbo)) {
+        foundCount++;
+        results.add(dbo);
+      }
+    }
+    if (results.size() == 0){
+      return null;
+    } else {
+      return results.iterator();      
+    }
+  }
+
+  public List<DBObject> sortObjects(DBObject orderby, final ExpressionParser expressionParser) {
     List<DBObject> objectsToSearch = objects;
     if (orderby != null) {
       Set<String> orderbyKeys = orderby.keySet();
@@ -125,22 +161,44 @@ public class FongoDBCollection extends DBCollection {
           }});
       }
     }
-    for (int i = numToSkip; i < objectsToSearch.size() && foundCount <= upperLimit; i++) {
-      DBObject dbo = objectsToSearch.get(i);
-      if (filter.apply(dbo)) {
-        foundCount++;
-        results.add(dbo);
-      }
-    }
-    if (results.size() == 0){
-      return null;
-    } else {
-      return results.iterator();      
-    }
+    return objectsToSearch;
   }
 
   public int fCount(DBObject object) {
     return objects.size();
+  }
+
+  public DBObject fFindAndModify(DBObject query, DBObject update, DBObject sort, boolean remove,
+      boolean returnNew, boolean upsert) {
+    final ExpressionParser expressionParser = new ExpressionParser();
+    Filter filter = expressionParser.buildFilter(query);
+ 
+    List<DBObject> objectsToSearch = sortObjects(sort, expressionParser);
+    DBObject beforeObject = null;
+    DBObject afterObject = null;
+    UpdateEngine updateEngine = new UpdateEngine(query, false);
+    for (int i = 0; i < objectsToSearch.size() && beforeObject == null; i++) {
+      DBObject dbo = objectsToSearch.get(i);
+      if (filter.apply(dbo)) {
+        beforeObject = dbo;
+        remove(dbo);
+        if (!remove) {
+          afterObject = new BasicDBObject();
+          afterObject.putAll(beforeObject);
+          insert(updateEngine.doUpdate(afterObject, update));
+        } else {
+          return dbo;
+        }
+      }
+    }
+    if (beforeObject != null && !returnNew){
+      return beforeObject;
+    }
+    if (beforeObject == null && upsert && !remove){
+      afterObject = createUpsertObject(query);
+      insert(updateEngine.doUpdate(afterObject, update));
+    }
+    return afterObject;
   }
   
 

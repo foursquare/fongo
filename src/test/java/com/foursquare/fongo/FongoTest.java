@@ -148,6 +148,35 @@ public class FongoTest {
   }
   
   @Test
+  public void testUpsert() {
+    DBCollection collection = newCollection();
+    collection.update(new BasicDBObject("_id", 1).append("n", "jon"), 
+        new BasicDBObject("$inc", new BasicDBObject("a", 1)), true, false);
+    assertEquals(new BasicDBObject("_id", 1).append("n", "jon").append("a", 1),
+        collection.findOne());
+  }
+  
+  @Test
+  public void testUpsertWithConditional() {
+    DBCollection collection = newCollection();
+    collection.update(new BasicDBObject("_id", 1).append("b", new BasicDBObject("$gt", 5)), 
+        new BasicDBObject("$inc", new BasicDBObject("a", 1)), true, false);
+    assertEquals(new BasicDBObject("_id", 1).append("a", 1),
+        collection.findOne());
+  }
+  
+  @Test
+  public void testFindAndModifyReturnOld() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1).append("a", 1));
+    DBObject result = collection.findAndModify(new BasicDBObject("_id", 1), 
+        null, null, false, new BasicDBObject("$inc", new BasicDBObject("a", 1)), false, false);
+    
+    assertEquals(new BasicDBObject("_id", 1).append("a", 1), result);
+    assertEquals(new BasicDBObject("_id", 1).append("a", 2), collection.findOne());
+  }
+  
+  @Test
   public void testRemove() {
     DBCollection collection = newCollection();
     collection.insert(new BasicDBObject("_id", 1));

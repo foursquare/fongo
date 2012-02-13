@@ -65,6 +65,19 @@ public class FongoDB extends DB {
       CommandResult result = okResult();
       result.put("n", count);
       return result;
+    } else if (cmd.containsField("findandmodify")) {
+      String collectionName = cmd.get("findandmodify").toString();
+      DBObject query = (DBObject)cmd.get("query");
+      DBObject update = (DBObject)cmd.get("update");
+      DBObject sort = (DBObject)cmd.get("sort");
+      boolean remove = Boolean.valueOf(String.valueOf(cmd.get("remove")));
+      boolean upsert = Boolean.valueOf(String.valueOf(cmd.get("upsert")));
+      boolean returnNew = Boolean.valueOf(String.valueOf(cmd.get("new")));
+
+      DBObject dbResult = doGetCollection(collectionName).fFindAndModify(query, update, sort, remove, returnNew, upsert);
+      CommandResult commandResult = okResult();
+      commandResult.put("value", dbResult);
+      return commandResult;
     }
     CommandResult errorResult = new CommandResult(fongo.getServerAddress());
     errorResult.put("err", "undefined command: " + cmd);
