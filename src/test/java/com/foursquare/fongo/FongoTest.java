@@ -9,6 +9,7 @@ import org.bson.types.ObjectId;
 import org.junit.Test;
 
 import com.mongodb.BasicDBObject;
+import com.mongodb.CommandResult;
 import com.mongodb.DB;
 import com.mongodb.DBCollection;
 import com.mongodb.DBCursor;
@@ -230,6 +231,17 @@ public class FongoTest {
     assertEquals(null, 
         collection.findOne(new BasicDBObject("_id",2)));
   }
+  
+  @Test
+  public void testGetLastError(){
+    Fongo fongo = new Fongo();
+    DB db = fongo.getDB("db");
+    DBCollection collection = db.getCollection("coll");
+    collection.insert(new BasicDBObject("_id", 1));
+    CommandResult error = db.getLastError();
+    assertTrue(error.ok());
+  }
+  
 
   private DBCollection newCollection() {
     Fongo fongo = new Fongo();
