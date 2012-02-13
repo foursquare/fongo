@@ -3,8 +3,10 @@ package com.mongodb;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.bson.types.ObjectId;
@@ -18,6 +20,8 @@ public class FongoDBCollection extends DBCollection {
   final static String ID_KEY = "_id";
   private final FongoDB fongoDb;
   private final List<DBObject> objects = new ArrayList<DBObject>();
+  private final Map<Object, Integer> idIndex = new HashMap<Object, Integer>();
+  
   public FongoDBCollection(FongoDB db, String name) {
     super(db, name);
     this.fongoDb = db;
@@ -26,12 +30,23 @@ public class FongoDBCollection extends DBCollection {
   @Override
   public WriteResult insert(DBObject[] arr, WriteConcern concern, DBEncoder encoder) throws MongoException {
     for (DBObject obj : arr) {
-      if (!obj.containsField(ID_KEY)) {
-        obj.put(ID_KEY, new ObjectId());
-      }
-      objects.add(obj);
+      fInsert(obj);
     }
     return new WriteResult(fongoDb.okResult(), concern);
+  }
+
+  public void fInsert(DBObject obj) {
+    if (!obj.containsField(ID_KEY)) {
+      obj.put(ID_KEY, new ObjectId());
+    }
+    Object id = obj.get(ID_KEY);
+    Integer existingIndex = idIndex.get(id);
+    if (existingIndex != null){
+      objects.set(existingIndex, obj);
+    } else {
+      objects.add(obj);
+      idIndex.put(id, objects.size() - 1);
+    }
   }
 
   @Override
@@ -55,7 +70,7 @@ public class FongoDBCollection extends DBCollection {
     }
     if (!wasFound && upsert){
       BasicDBObject newObject = createUpsertObject(q);
-      insert(updateEngine.doUpdate(newObject, o));
+      fInsert(updateEngine.doUpdate(newObject, o));
     }
     return new WriteResult(fongoDb.okResult(), concern);
   }
@@ -181,12 +196,12 @@ public class FongoDBCollection extends DBCollection {
       DBObject dbo = objectsToSearch.get(i);
       if (filter.apply(dbo)) {
         beforeObject = dbo;
-        remove(dbo);
         if (!remove) {
           afterObject = new BasicDBObject();
           afterObject.putAll(beforeObject);
-          insert(updateEngine.doUpdate(afterObject, update));
+          fInsert(updateEngine.doUpdate(afterObject, update));
         } else {
+          remove(dbo);
           return dbo;
         }
       }
@@ -196,7 +211,7 @@ public class FongoDBCollection extends DBCollection {
     }
     if (beforeObject == null && upsert && !remove){
       afterObject = createUpsertObject(query);
-      insert(updateEngine.doUpdate(afterObject, update));
+      fInsert(updateEngine.doUpdate(afterObject, update));
     }
     return afterObject;
   }

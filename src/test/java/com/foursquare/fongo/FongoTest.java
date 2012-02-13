@@ -63,12 +63,12 @@ public class FongoTest {
   @Test
   public void testFindWithQuery() {
     DBCollection collection = newCollection();
-    BasicDBObject neil = new BasicDBObject("name", "neil");
+    
     collection.insert(new BasicDBObject("name", "jon"));
     collection.insert(new BasicDBObject("name", "leo"));
-    collection.insert(neil);
-    collection.insert(neil);
-    DBCursor cursor = collection.find(neil);
+    collection.insert(new BasicDBObject("name", "neil"));
+    collection.insert(new BasicDBObject("name", "neil"));
+    DBCursor cursor = collection.find(new BasicDBObject("name", "neil"));
     assertEquals("should have two neils", 2, cursor.toArray().size());
   }
   
@@ -206,6 +206,15 @@ public class FongoTest {
     
     assertEquals(new BasicDBObject("_id", 1).append("a", 1), result);
     assertEquals(null, collection.findOne());
+  }
+  
+  @Test
+  public void testEnforcesIdUniqueness() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1).append("a", 1));
+    collection.insert(new BasicDBObject("_id", 1).append("a", 2));
+    assertEquals(1, collection.count());
+    assertEquals(new BasicDBObject("_id", 1).append("a", 2), collection.findOne());
   }
   
   @Test
