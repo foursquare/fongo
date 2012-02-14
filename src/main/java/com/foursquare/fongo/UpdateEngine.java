@@ -1,6 +1,5 @@
 package com.foursquare.fongo;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -152,6 +151,14 @@ public class UpdateEngine {
     }
   }
   
+  BasicDBList asDbList(Object ... objects){
+    BasicDBList dbList = new BasicDBList();
+    for (Object o : objects){
+      dbList.add(o);
+    }
+    return dbList;
+  }
+  
   final List<BasicUpdate> commands = Arrays.<BasicUpdate>asList(
       new BasicUpdate("$set", true) {
         @Override
@@ -182,9 +189,9 @@ public class UpdateEngine {
         @Override
         void mergeAction(String subKey, DBObject subObject, Object object) {
           if (!subObject.containsField(subKey)){
-            subObject.put(subKey, Arrays.asList(object));
+            subObject.put(subKey, asDbList(object));
           } else {
-            List currentValue = new ArrayList<Object>(expressionParser.typecast(subKey, subObject.get(subKey), List.class));
+            BasicDBList currentValue = expressionParser.typecast(subKey, subObject.get(subKey), BasicDBList.class);
             currentValue.add(object);
             subObject.put(subKey, currentValue);
           }
@@ -197,7 +204,7 @@ public class UpdateEngine {
           if (!subObject.containsField(subKey)){
             subObject.put(subKey, newList);
           } else {
-            List currentValue = new ArrayList<Object>(expressionParser.typecast(subKey, subObject.get(subKey), List.class));
+            BasicDBList currentValue = expressionParser.typecast(subKey, subObject.get(subKey), BasicDBList.class);
             currentValue.addAll(newList);
             subObject.put(subKey, currentValue);
           }
@@ -207,14 +214,13 @@ public class UpdateEngine {
         @Override
         void mergeAction(String subKey, DBObject subObject, Object object) {
           boolean isEach = false;
-          List currentValueImmutableList = expressionParser.typecast(subKey, subObject.get(subKey), List.class);
-          List currentValue = (currentValueImmutableList == null) ? new ArrayList<Object>() :
-            new ArrayList<Object>(currentValueImmutableList);
+          BasicDBList currentValue = expressionParser.typecast(subKey, subObject.get(subKey), BasicDBList.class);
+          currentValue = (currentValue == null) ? new BasicDBList() : currentValue;
           if (object instanceof DBObject){
             Object eachObject = ((DBObject)object).get("$each");
             if (eachObject != null){
               isEach = true;
-              List newList = expressionParser.typecast(command + ".$each value", eachObject, List.class);
+              BasicDBList newList = expressionParser.typecast(command + ".$each value", eachObject, BasicDBList.class);
               if (newList == null){
                 throw new FongoException(command + ".$each must not be null");
               }
@@ -236,16 +242,14 @@ public class UpdateEngine {
       new BasicUpdate("$pop", false) {
         @Override
         void mergeAction(String subKey, DBObject subObject, Object object) {
-          List currentList = expressionParser.typecast(command, subObject.get(subKey), List.class);
+          BasicDBList currentList = expressionParser.typecast(command, subObject.get(subKey), BasicDBList.class);
           if (currentList != null && currentList.size() > 0){
             int direction = expressionParser.typecast(command, object, Number.class).intValue();
-            ArrayList<Object> newList = new ArrayList<Object>(currentList);
             if(direction > 0){
-              newList.remove(newList.size() - 1);
+              currentList.remove(currentList.size() - 1);
             } else {
-              newList.remove(0);
+              currentList.remove(0);
             }
-            subObject.put(subKey, newList);
           }
         }
       },
@@ -255,12 +259,11 @@ public class UpdateEngine {
           if (object instanceof DBObject) {
             throw new FongoException(command + " with expressions is not support");
           }
-          List currentList = expressionParser.typecast(command + " only works on arrays", subObject.get(subKey), List.class);
+          BasicDBList currentList = expressionParser.typecast(command + " only works on arrays", subObject.get(subKey), BasicDBList.class);
           if (currentList != null && currentList.size() > 0){
-            
-            ArrayList<Object> newList = new ArrayList<Object>();
-            for (Object item : currentList) {
-              if (!object.equals(item)){
+            BasicDBList newList = new BasicDBList();
+            for (Object item : currentList){
+              if (!object.equals(item)) {
                 newList.add(item);
               }
             }
@@ -271,10 +274,10 @@ public class UpdateEngine {
       new BasicUpdate("$pullAll", false) {
         @Override
         void mergeAction(String subKey, DBObject subObject, Object object) {
-          List currentList = expressionParser.typecast(command + " only works on arrays", subObject.get(subKey), List.class);
+          BasicDBList currentList = expressionParser.typecast(command + " only works on arrays", subObject.get(subKey), BasicDBList.class);
           if (currentList != null && currentList.size() > 0){
             Set pullSet = new HashSet(expressionParser.typecast(command, object, List.class));
-            ArrayList<Object> newList = new ArrayList<Object>();
+            BasicDBList newList = new BasicDBList();
             for (Object item : currentList) {
               if (!pullSet.contains(item)){
                 newList.add(item);

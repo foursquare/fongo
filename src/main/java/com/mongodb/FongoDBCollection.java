@@ -5,12 +5,11 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.SortedMap;
-import java.util.TreeMap;
 
 import org.bson.types.ObjectId;
 
@@ -42,9 +41,35 @@ public class FongoDBCollection extends DBCollection {
   public synchronized WriteResult insert(DBObject[] arr, WriteConcern concern, DBEncoder encoder) throws MongoException {
     for (DBObject obj : arr) {
       debug("insert: " + obj);
-      fInsert(obj);
+      fInsert(filterLists(obj));
     }
     return new WriteResult(fongoDb.okResult(), concern);
+  }
+  
+  public DBObject filterLists(DBObject dbo){
+    if (dbo == null) {
+      return null;
+    }
+    for (String key : dbo.keySet()) {
+      Object value = dbo.get(key);
+      Object replacementValue = replaceList(value);
+      dbo.put(key, replacementValue);
+    }
+    return dbo;
+  }
+
+  public Object replaceList(Object value) {
+    Object replacementValue = value;
+    if (value instanceof DBObject) {
+      replacementValue = filterLists((DBObject) value);
+    } else if (value instanceof List && !(value instanceof BasicDBList)){
+      BasicDBList list = new BasicDBList();
+      for (Object listItem : (List) value){
+        list.add(replaceList(listItem));
+      }
+      replacementValue = list;
+    }
+    return replacementValue;
   }
 
 
@@ -62,11 +87,14 @@ public class FongoDBCollection extends DBCollection {
   @Override
   public synchronized WriteResult update(DBObject q, DBObject o, boolean upsert, boolean multi, WriteConcern concern,
       DBEncoder encoder) throws MongoException {
-    debug("update: " + q + " " + o + " upsert? " + upsert + " multi? " + multi);
+    debug("update(" + q + ", " + o + ", " + upsert + ", " + multi +")");
+    
     boolean idOnlyUpdate = q.containsField(ID_KEY) && q.keySet().size() == 1;
     if (o.containsField(ID_KEY) && !idOnlyUpdate){
       throw new MongoException.DuplicateKey(0, "can't update " + ID_KEY);
     }
+    filterLists(q);
+    filterLists(o);
     if (idOnlyUpdate && isNotUpdateCommand(o)) {
       if (!o.containsField(ID_KEY)) {
         o.put(ID_KEY, q.get(ID_KEY));
@@ -95,11 +123,12 @@ public class FongoDBCollection extends DBCollection {
   
   public List<Object> idsIn(DBObject query) {
     Object idValue = query.get(ID_KEY);
-    if (idValue == null || query.keySet().size() > 0) {
+    if (idValue == null || query.keySet().size() > 1) {
       return Collections.emptyList();
     } else if (idValue instanceof DBObject ){
       DBObject idDbObject = (DBObject)idValue;
       List inList = (List)idDbObject.get(ExpressionParser.IN);
+      
       if (inList != null){
         return inList;
       } else {
@@ -112,11 +141,17 @@ public class FongoDBCollection extends DBCollection {
 
   protected  BasicDBObject createUpsertObject(DBObject q) {
     BasicDBObject newObject = new BasicDBObject();
-    for (String key : q.keySet()){
-      Object value = q.get(key);
-      boolean okValue = isNotUpdateCommand(value);
-      if (okValue){
-        newObject.put(key, value);
+    List<Object> idsIn = idsIn(q);
+    
+    if (!idsIn.isEmpty()){
+      newObject.put(ID_KEY, idsIn.get(0));
+    } else {
+      for (String key : q.keySet()){
+        Object value = q.get(key);
+        boolean okValue = isNotUpdateCommand(value);
+        if (okValue){
+          newObject.put(key, value);
+        }
       }
     }
     return newObject;
@@ -170,7 +205,7 @@ public class FongoDBCollection extends DBCollection {
   @Override
   synchronized Iterator<DBObject> __find(DBObject ref, DBObject fields, int numToSkip, int batchSize, int limit, int options,
       ReadPreference readPref, DBDecoder decoder) throws MongoException {
-    debug("find: " + ref);
+    debug("find(" + ref + ")");
     List<Object> idList = idsIn(ref);
     ArrayList<DBObject> results = new ArrayList<DBObject>();
     if (!idList.isEmpty()) {
@@ -248,9 +283,10 @@ public class FongoDBCollection extends DBCollection {
 
   public synchronized DBObject fFindAndModify(DBObject query, DBObject update, DBObject sort, boolean remove,
       boolean returnNew, boolean upsert) {
-    
+    filterLists(query);
+    filterLists(update);
     Filter filter = expressionParser.buildFilter(query);
- 
+
     Collection<DBObject> objectsToSearch = sortObjects(sort, expressionParser);
     DBObject beforeObject = null;
     DBObject afterObject = null;
@@ -273,10 +309,24 @@ public class FongoDBCollection extends DBCollection {
       return beforeObject;
     }
     if (beforeObject == null && upsert && !remove){
+
       afterObject = createUpsertObject(query);
       fInsert(updateEngine.doUpdate(afterObject, update));
     }
     return afterObject;
+  }
+
+  public List<DBObject> fDistinct(String key, DBObject query) {
+    List<DBObject> results = new ArrayList<DBObject>();
+    Filter filter = expressionParser.buildFilter(query);
+    Set<Object> seen = new HashSet<Object>();
+    for (Iterator<DBObject> iter = objects.values().iterator(); iter.hasNext();) {
+      DBObject value = iter.next();
+      if (filter.apply(value) && seen.add(value.get(key))){
+        results.add(value);
+      }
+    }
+    return results;
   }
   
 

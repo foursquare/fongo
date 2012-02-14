@@ -393,15 +393,17 @@ public class ExpressionParser {
   }
 
   public int compareLists(List queryList, List storedList) {
-    int compareValue = 0;
     int sizeDiff = queryList.size() - storedList.size();
     if (sizeDiff != 0) {
       return sizeDiff;
     }
     for (int i = 0; i < queryList.size(); i++){
-      compareValue += compareObjects(queryList.get(i), storedList.get(i));
+      int compareValue = compareObjects(queryList.get(i), storedList.get(i));
+      if (compareValue != 0){
+        return compareValue;
+      }
     }
-    return compareValue;
+    return 0;
   }
   
   private int compareDBObjects(DBObject db0, DBObject db1) {    

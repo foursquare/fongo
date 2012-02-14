@@ -9,9 +9,10 @@ import static org.junit.Assert.fail;
 import java.util.Arrays;
 import java.util.HashSet;
 
-import org.bson.types.ObjectId;
+import org.junit.Ignore;
 import org.junit.Test;
 
+import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
 import com.mongodb.BasicDBObjectBuilder;
 import com.mongodb.CommandResult;
@@ -22,6 +23,8 @@ import com.mongodb.DBObject;
 import com.mongodb.MongoException;
 
 public class FongoTest {
+
+  private static final String BasicBSONList = null;
 
   @Test
   public void testGetDb() {
@@ -190,6 +193,19 @@ public class FongoTest {
   }
   
   @Test
+  public void testUpsertWithIdIn() {
+    //Fongo.notification_feed update: { "_id" : { "$in" : [ 693532]}} { "$push" : { "n" : { "_id" : { "$oid" : "4f39e0f04b9036c35b5b875d"}}} , "$inc" : { "c" : 1}} upsert? false multi? true
+    DBCollection collection = newCollection();
+    DBObject query = new BasicDBObjectBuilder().push("_id").append("$in", Arrays.asList(1)).pop().get();
+    DBObject update = new BasicDBObjectBuilder()
+      .push("$push").push("n").append("_id", 2).append("u", 3).pop().pop()
+      .push("$inc").append("c",4).pop().get();
+    DBObject expected = new BasicDBObjectBuilder().append("_id", 1).append("n", Arrays.asList(new BasicDBObject("_id", 2).append("u", 3))).append("c", 4).get();
+    collection.update(query, update, true, false);
+    assertEquals(expected, collection.findOne());
+  }
+  
+  @Test
   public void testAnotherUpsert() {
     DBCollection collection = newCollection();
     //Fongo.metrics update: { "_id" : { "f" : "ca" , "1" : { "l" : 284000} , "t" : { "t" : 1323648000000}}} { "$inc" : { "n.!" : 1 , "n.a.b:false" : 1}} upsert? true multi? false
@@ -268,6 +284,30 @@ public class FongoTest {
     
     assertEquals(null, 
         collection.findOne(new BasicDBObject("_id",2)));
+  }
+  
+  @Test
+  public void testConvertJavaListToDbList() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1).append("n", Arrays.asList(1,2)));
+    DBObject result = collection.findOne();
+    assertTrue("not a DBList", result.get("n") instanceof BasicDBList);
+    
+  }
+  
+  @Test
+  public void testDistinctQuery() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("n", 1).append("_id", 1));
+    collection.insert(new BasicDBObject("n", 2).append("_id", 2));
+    collection.insert(new BasicDBObject("n", 3).append("_id", 3));
+    collection.insert(new BasicDBObject("n", 1).append("_id", 4));
+    collection.insert(new BasicDBObject("n", 1).append("_id", 5));
+    assertEquals(Arrays.asList(
+        new BasicDBObject("n", 1).append("_id", 1), 
+        new BasicDBObject("n", 2).append("_id", 2), 
+        new BasicDBObject("n", 3).append("_id", 3)
+    ), collection.distinct("n"));
   }
   
   @Test

@@ -2,6 +2,7 @@ package com.mongodb;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -63,7 +64,7 @@ public class FongoDB extends DB {
    */
   @Override
   public CommandResult command( DBObject cmd , int options, ReadPreference readPrefs ) throws MongoException {
-    System.out.println("Fongo got command " + cmd);
+    //System.out.println("Fongo got command " + cmd);
     if (cmd.containsField("count")) {
       String collectionName = cmd.get("count").toString();
       int count = doGetCollection(collectionName).fCount((DBObject)cmd.get("query"));
@@ -90,6 +91,14 @@ public class FongoDB extends DB {
       return okResult();
     } else if (cmd.containsField("deleteIndexes")) {
       return okResult();
+    } else if (cmd.containsField("distinct")) {
+      String collectionName = cmd.get("distinct").toString();
+      String key = cmd.get("key").toString();
+      DBObject query = (DBObject)cmd.get("query");
+      List<DBObject> values = doGetCollection(collectionName).fDistinct(key, query);
+      CommandResult result = okResult();
+      result.put("values", values);
+      return result;
     }
     CommandResult errorResult = new CommandResult(fongo.getServerAddress());
     errorResult.put("err", "undefined command: " + cmd);
