@@ -228,8 +228,8 @@ public class FongoDBCollection extends DBCollection {
       if (limit > 0) {
         upperLimit = limit;
       }
-      Collection<DBObject> objectsToSearch = sortObjects(orderby, expressionParser);
       int seen = 0;
+      Collection<DBObject> objectsToSearch = sortObjects(orderby, expressionParser);
       for (Iterator<DBObject> iter = objectsToSearch.iterator(); iter.hasNext() && foundCount <= upperLimit; seen++) {
         DBObject dbo = iter.next();
         if (seen >= numToSkip){
@@ -276,13 +276,28 @@ public class FongoDBCollection extends DBCollection {
     }
     return objectsToSearch;
   }
-
-  public synchronized int fCount(DBObject object) {
-    return objects.size();
+  
+  @Override
+  public synchronized long getCount(DBObject query, DBObject fields, long limit, long skip ) {
+    Filter filter = expressionParser.buildFilter(query);
+    long count = 0;
+    long upperLimit = Long.MAX_VALUE;
+    if (limit > 0) {
+      upperLimit = limit;
+    }
+    int seen = 0;
+    for (Iterator<DBObject> iter = objects.values().iterator(); iter.hasNext() && count <= upperLimit;) {
+      DBObject value = iter.next();
+      if (seen++ >= skip) {
+        if (filter.apply(value)){
+          count++;
+        }
+      }
+    }
+    return count;
   }
 
-  public synchronized DBObject fFindAndModify(DBObject query, DBObject update, DBObject sort, boolean remove,
-      boolean returnNew, boolean upsert) {
+  public synchronized DBObject findAndModify(DBObject query, DBObject fields, DBObject sort, boolean remove, DBObject update, boolean returnNew, boolean upsert) {
     filterLists(query);
     filterLists(update);
     Filter filter = expressionParser.buildFilter(query);
@@ -315,8 +330,9 @@ public class FongoDBCollection extends DBCollection {
     }
     return afterObject;
   }
-
-  public List<DBObject> fDistinct(String key, DBObject query) {
+  
+  @Override
+  public synchronized List<DBObject> distinct(String key, DBObject query) {
     List<DBObject> results = new ArrayList<DBObject>();
     Filter filter = expressionParser.buildFilter(query);
     Set<Object> seen = new HashSet<Object>();
@@ -329,5 +345,8 @@ public class FongoDBCollection extends DBCollection {
     return results;
   }
   
-
+  @Override
+  public void dropIndexes(String name) throws MongoException {
+    // do nothing
+  }
 }

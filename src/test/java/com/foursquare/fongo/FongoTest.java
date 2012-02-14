@@ -53,6 +53,16 @@ public class FongoTest {
     assertEquals(0, collection.count());
   }
   
+  @Test 
+  public void testCountWithQueryCommand() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("n", 1));
+    collection.insert(new BasicDBObject("n", 2));
+    collection.insert(new BasicDBObject("n", 2));
+    assertEquals(2, collection.count(new BasicDBObject("n", 2)));
+  }
+  
+  
   @Test
   public void testInsertIncrementsCount() {
     DBCollection collection = newCollection();

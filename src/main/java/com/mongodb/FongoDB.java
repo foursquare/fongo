@@ -65,40 +65,11 @@ public class FongoDB extends DB {
   @Override
   public CommandResult command( DBObject cmd , int options, ReadPreference readPrefs ) throws MongoException {
     //System.out.println("Fongo got command " + cmd);
-    if (cmd.containsField("count")) {
-      String collectionName = cmd.get("count").toString();
-      int count = doGetCollection(collectionName).fCount((DBObject)cmd.get("query"));
-      CommandResult result = okResult();
-      result.put("n", count);
-      return result;
-    } else if (cmd.containsField("findandmodify")) {
-      String collectionName = cmd.get("findandmodify").toString();
-      DBObject query = (DBObject)cmd.get("query");
-      DBObject update = (DBObject)cmd.get("update");
-      DBObject sort = (DBObject)cmd.get("sort");
-      boolean remove = Boolean.valueOf(String.valueOf(cmd.get("remove")));
-      boolean upsert = Boolean.valueOf(String.valueOf(cmd.get("upsert")));
-      boolean returnNew = Boolean.valueOf(String.valueOf(cmd.get("new")));
-
-      DBObject dbResult = doGetCollection(collectionName).fFindAndModify(query, update, sort, remove, returnNew, upsert);
-      CommandResult commandResult = okResult();
-      commandResult.put("value", dbResult);
-      return commandResult;
-    } else if (cmd.containsField("getlasterror")) {
+    if (cmd.containsField("getlasterror")) {
       return okResult();
     } else if (cmd.containsField("drop")) {
       this.collMap.remove(cmd.get("drop").toString());
       return okResult();
-    } else if (cmd.containsField("deleteIndexes")) {
-      return okResult();
-    } else if (cmd.containsField("distinct")) {
-      String collectionName = cmd.get("distinct").toString();
-      String key = cmd.get("key").toString();
-      DBObject query = (DBObject)cmd.get("query");
-      List<DBObject> values = doGetCollection(collectionName).fDistinct(key, query);
-      CommandResult result = okResult();
-      result.put("values", values);
-      return result;
     }
     CommandResult errorResult = new CommandResult(fongo.getServerAddress());
     errorResult.put("err", "undefined command: " + cmd);
