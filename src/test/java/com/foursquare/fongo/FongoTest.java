@@ -13,6 +13,7 @@ import org.bson.types.ObjectId;
 import org.junit.Test;
 
 import com.mongodb.BasicDBObject;
+import com.mongodb.BasicDBObjectBuilder;
 import com.mongodb.CommandResult;
 import com.mongodb.DB;
 import com.mongodb.DBCollection;
@@ -186,6 +187,21 @@ public class FongoTest {
         new BasicDBObject("$inc", new BasicDBObject("a", 1)), true, false);
     assertEquals(new BasicDBObject("_id", 1).append("a", 1),
         collection.findOne());
+  }
+  
+  @Test
+  public void testAnotherUpsert() {
+    DBCollection collection = newCollection();
+    //Fongo.metrics update: { "_id" : { "f" : "ca" , "1" : { "l" : 284000} , "t" : { "t" : 1323648000000}}} { "$inc" : { "n.!" : 1 , "n.a.b:false" : 1}} upsert? true multi? false
+    BasicDBObjectBuilder queryBuilder = BasicDBObjectBuilder.start().push("_id").
+        append("f", "ca").push("1").append("l", 2).pop().push("t").append("t", 11).pop().pop();
+    DBObject query = queryBuilder.get();
+    
+    DBObject update = BasicDBObjectBuilder.start().push("$inc").append("n.!", 1).append("n.a.b:false", 1).pop().get();
+    collection.update(query, update, true, false);
+    
+    DBObject expected = queryBuilder.push("n").append("!", 1).push("a").append("b:false", 1).pop().pop().get();
+    assertEquals(expected, collection.findOne());
   }
   
   @Test

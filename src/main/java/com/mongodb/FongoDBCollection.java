@@ -41,6 +41,7 @@ public class FongoDBCollection extends DBCollection {
   @Override
   public synchronized WriteResult insert(DBObject[] arr, WriteConcern concern, DBEncoder encoder) throws MongoException {
     for (DBObject obj : arr) {
+      debug("insert: " + obj);
       fInsert(obj);
     }
     return new WriteResult(fongoDb.okResult(), concern);
@@ -55,14 +56,18 @@ public class FongoDBCollection extends DBCollection {
     objects.put(id, obj);
   }
 
+  void debug(String message) {
+    //System.out.println("Fongo." + getName() + " " + message);
+  }
   @Override
   public synchronized WriteResult update(DBObject q, DBObject o, boolean upsert, boolean multi, WriteConcern concern,
       DBEncoder encoder) throws MongoException {
+    debug("update: " + q + " " + o + " upsert? " + upsert + " multi? " + multi);
     boolean idOnlyUpdate = q.containsField(ID_KEY) && q.keySet().size() == 1;
     if (o.containsField(ID_KEY) && !idOnlyUpdate){
       throw new MongoException.DuplicateKey(0, "can't update " + ID_KEY);
     }
-    if (idOnlyUpdate){
+    if (idOnlyUpdate && isNotUpdateCommand(o)) {
       if (!o.containsField(ID_KEY)) {
         o.put(ID_KEY, q.get(ID_KEY));
       }
@@ -109,19 +114,24 @@ public class FongoDBCollection extends DBCollection {
     BasicDBObject newObject = new BasicDBObject();
     for (String key : q.keySet()){
       Object value = q.get(key);
-      boolean okValue = true;
-      if (value instanceof DBObject){
-        for (String innerKey : ((DBObject) value).keySet()){
-          if (innerKey.startsWith("$")){
-            okValue = false;
-          }
-        }
-      }
+      boolean okValue = isNotUpdateCommand(value);
       if (okValue){
         newObject.put(key, value);
       }
     }
     return newObject;
+  }
+
+  public boolean isNotUpdateCommand(Object value) {
+    boolean okValue = true;
+    if (value instanceof DBObject){
+      for (String innerKey : ((DBObject) value).keySet()){
+        if (innerKey.startsWith("$")){
+          okValue = false;
+        }
+      }
+    }
+    return okValue;
   }
 
   @Override
@@ -130,6 +140,7 @@ public class FongoDBCollection extends DBCollection {
 
   @Override
   public synchronized WriteResult remove(DBObject o, WriteConcern concern, DBEncoder encoder) throws MongoException {
+    debug("remove: " + o);
     List<Object> idList = idsIn(o);
     if (!idList.isEmpty()) {
       for (Object id : idList){
@@ -159,6 +170,7 @@ public class FongoDBCollection extends DBCollection {
   @Override
   synchronized Iterator<DBObject> __find(DBObject ref, DBObject fields, int numToSkip, int batchSize, int limit, int options,
       ReadPreference readPref, DBDecoder decoder) throws MongoException {
+    debug("find: " + ref);
     List<Object> idList = idsIn(ref);
     ArrayList<DBObject> results = new ArrayList<DBObject>();
     if (!idList.isEmpty()) {

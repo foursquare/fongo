@@ -91,27 +91,31 @@ public class ExpressionParser {
     
   }
   @SuppressWarnings("all")
-  private final class InFilterFactory extends BasicFilterFactory {
-    private Set querySet;
+  private final class InFilterFactory extends BasicCommandFilterFactory {
+
     private final boolean direction;
     
     public InFilterFactory(String command, boolean direction) {
       super(command);
       this.direction = direction;
     }
-
+    
     @Override
-    public boolean matchesCommand(DBObject ref) {
-      Object commandValue = ref.get(command);
-      if (commandValue != null){
-        List queryList = typecast(command + " clause", commandValue, List.class);
-        this.querySet = new HashSet(queryList);
-        return true;
-      }
-      return false;
+    public Filter createFilter(final String key, final DBObject refExpression) {
+      List queryList = typecast(command + " clause", refExpression.get(command), List.class);
+      final Set querySet = new HashSet(queryList);
+      return new Filter(){
+        public boolean apply(DBObject o) {
+          Option<Object> storedOption = getEmbeddedValue(key, o);
+          if (storedOption.isEmpty()) {
+            return false;
+          } else {
+            return compare(refExpression.get(command), storedOption.get(), querySet);            
+          }
+        }};
     }
 
-    boolean compare(Object queryValueIgnored, Object storedValue) {
+    boolean compare(Object queryValueIgnored, Object storedValue, Set querySet) {
       if (storedValue instanceof List){
         for (Object valueItem : (List)storedValue){
           if (querySet.contains(valueItem)) return direction;
@@ -371,6 +375,7 @@ public class ExpressionParser {
 
   @SuppressWarnings("all")
   public int compareObjects(Object queryValue, Object storedValue) {
+    debug("comparing " + queryValue + " and " + storedValue);
     if (queryValue instanceof DBObject && storedValue instanceof DBObject) {
       return compareDBObjects((DBObject)queryValue, (DBObject) storedValue);
     } else if (queryValue instanceof List && storedValue instanceof List){
@@ -399,12 +404,14 @@ public class ExpressionParser {
     return compareValue;
   }
   
-  private int compareDBObjects(DBObject db0, DBObject db1) {
-    int compareValue = 0;
+  private int compareDBObjects(DBObject db0, DBObject db1) {    
     for (String key : db0.keySet()){
-      compareValue += compareObjects(db0.get(key), db1.get(key));
+      int compareValue = compareObjects(db0.get(key), db1.get(key));
+      if (compareValue != 0) {
+        return compareValue;
+      }
     }
-    return compareValue;
+    return 0;
   }
 
   static class NotFilter implements Filter {

@@ -374,6 +374,43 @@ public class ExpressionParserTest {
     assertTrue(0 < expressionParser.compareObjects(new BasicDBObject("a", 3), new BasicDBObject("a", 1)));
     assertTrue(0 < expressionParser.compareObjects(new BasicDBObject("a", 3), new BasicDBObject("b", 1)));
     assertTrue(0 < expressionParser.compareObjects(new BasicDBObject("a", asList(2,3)), new BasicDBObject("a", asList(1,2))));
+
+  }
+  
+  @Test
+  public void testItemInList() {
+     DBObject query = BasicDBObjectBuilder.start()
+        .push("_id").append("$in", asList(new ObjectId("4f39d7904b90b2f2f1530849"), new ObjectId("4f39d78d4b90b2f2f1530841"))).pop()
+        .push("c").append("$in", asList(new ObjectId("4f39d78d4b90b2f2f153083b"))).pop().get();
+    
+    BasicDBObject expectedResult = new BasicDBObject("_id", new ObjectId("4f39d78d4b90b2f2f1530841")).append("c", asList(new ObjectId("4f39d78d4b90b2f2f153083b")));
+    List<DBObject> results = doFilter(
+        query,
+        expectedResult
+    );
+    assertEquals(Arrays.<DBObject>asList(
+        expectedResult
+    ), results);
+  }
+  
+  @Test
+  public void testComplexBounds() {
+    DBObject query = new BasicDBObjectBuilder().push("_id")
+        .append("$gte", new BasicDBObject("u", 1).append("v", new ObjectId("000000000000000000000000")))
+        .append("$lte", new BasicDBObject("u", 2).append("v", new ObjectId("000000000000000000000000")))
+        .push("c").append("$gt", 0).pop().pop().get();
+    System.out.println("Doing query " + query);  
+    BasicDBObject rec1 = new BasicDBObject("_id", new BasicDBObject("u", 1).append("v", new ObjectId())).append("c", 1);
+    BasicDBObject rec2 = new BasicDBObject("_id", new BasicDBObject("u", 1).append("v", new ObjectId())).append("c", 1);
+    List<DBObject> results = doFilter(
+        query,
+        rec1,
+        rec2
+    );
+    assertEquals(Arrays.<DBObject>asList(
+        rec1,
+        rec2
+    ), results);
   }
 
   private void assertQuery(BasicDBObject query, List<DBObject> expected) {
