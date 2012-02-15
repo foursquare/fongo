@@ -274,15 +274,6 @@ public class FongoTest {
   }
   
   @Test
-  public void testEnforcesIdUniqueness() {
-    DBCollection collection = newCollection();
-    collection.insert(new BasicDBObject("_id", 1).append("a", 1));
-    collection.insert(new BasicDBObject("_id", 1).append("a", 2));
-    assertEquals(1, collection.count());
-    assertEquals(new BasicDBObject("_id", 1).append("a", 2), collection.findOne());
-  }
-  
-  @Test
   public void testRemove() {
     DBCollection collection = newCollection();
     collection.insert(new BasicDBObject("_id", 1));
@@ -338,9 +329,16 @@ public class FongoTest {
     collection.save(inserted);
   }
   
+  @Test(expected = MongoException.DuplicateKey.class)
+  public void testInsertDuplicateThrows(){
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1));
+    collection.insert(new BasicDBObject("_id", 1));
+  }
+  
   @Test
   public void testToString() {
-    new Fongo("test").getMongo().toString();
+    new Fongo("test", true).getMongo().toString();
   }
 
   private DBCollection newCollection() {
@@ -351,7 +349,7 @@ public class FongoTest {
   }
 
   public Fongo newFongo() {
-    Fongo fongo = new Fongo("test");
+    Fongo fongo = new Fongo("test", true);
     return fongo;
   }
 

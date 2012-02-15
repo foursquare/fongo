@@ -14,13 +14,14 @@ import com.mongodb.DBObject;
 
 public class UpdateEngine {
 
-  ExpressionParser expressionParser = new ExpressionParser();
+  private final ExpressionParser expressionParser;
   private final DBObject query;
-  private final boolean debug;
+  private final boolean isDebug;
 
-  public UpdateEngine(DBObject q, boolean debug) {
+  public UpdateEngine(DBObject q, boolean isDebug) {
     this.query = q;
-    this.debug = debug;
+    this.isDebug = isDebug;
+    expressionParser = new ExpressionParser(isDebug);
   }
 
   public UpdateEngine() {
@@ -34,7 +35,7 @@ public class UpdateEngine {
   }
   
   void debug(String message){
-    if (debug) {
+    if (isDebug) {
       System.out.println(message);
     }
   }
@@ -54,9 +55,13 @@ public class UpdateEngine {
     public DBObject doUpdate(DBObject obj, DBObject update, Set<String> seenKeys){
       DBObject updateObject = (DBObject) update.get(command);
       HashSet<String> keySet = new HashSet<String>(updateObject.keySet());
-      debug("KeySet is of length " + keySet.size());
+      if (isDebug) {
+        debug("KeySet is of length " + keySet.size());
+      }
       for (String updateKey : keySet) {
-        debug("\tfound a key " + updateKey);
+        if (isDebug){
+          debug("\tfound a key " + updateKey);
+        }
         keyCheck(updateKey, seenKeys);
         doSingleKeyUpdate(updateKey, obj, updateObject.get(updateKey));
       }
@@ -68,7 +73,7 @@ public class UpdateEngine {
       String subKey = path[0];
       DBObject obj = objOriginal;
       boolean isPositional = updateKey.contains(".$");
-      if (isPositional){
+      if (isPositional && isDebug){
         debug("got a positional for query " + query);
       }
       for (int i = 0; i < path.length - 1; i++){
@@ -94,9 +99,13 @@ public class UpdateEngine {
         subKey = path[i + 1];
       }
       if (!isPositional) {
-        debug("Subobject is " + obj);
+        if (isDebug) {
+          debug("Subobject is " + obj);
+        }
         mergeAction(subKey, obj, object);
-        debug("Full object is " + objOriginal);
+        if (isDebug) {
+          debug("Full object is " + objOriginal);
+        }
       }
     }
 
@@ -119,8 +128,9 @@ public class UpdateEngine {
       // find the right item
       for(int i = 0; i < valueList.size(); i++){
         Object listItem = valueList.get(i);
-        
-        debug("found a positional list item " + listItem + " " + prePath + " " + postPath);
+        if (isDebug) {
+          debug("found a positional list item " + listItem + " " + prePath + " " + postPath);
+        }
         if (listItem instanceof DBObject && !postPath.isEmpty()){
           
           if (filter.apply((DBObject) listItem)) {
@@ -334,7 +344,9 @@ public class UpdateEngine {
     for (String command : update.keySet()) {
       BasicUpdate basicUpdate = commandMap.get(command);
       if (basicUpdate != null){
-        debug("Doing update for command " + command);
+        if (isDebug) {
+          debug("Doing update for command " + command);
+        }
         basicUpdate.doUpdate(obj, update, seenKeys);
         updateDone = true;
       } else if (command.startsWith("$")){

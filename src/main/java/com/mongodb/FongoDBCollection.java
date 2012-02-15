@@ -15,6 +15,7 @@ import org.bson.types.ObjectId;
 
 import com.foursquare.fongo.ExpressionParser;
 import com.foursquare.fongo.Filter;
+import com.foursquare.fongo.FongoException;
 import com.foursquare.fongo.Option;
 import com.foursquare.fongo.UpdateEngine;
 
@@ -31,19 +32,38 @@ public class FongoDBCollection extends DBCollection {
   private final FongoDB fongoDb;
   private final Map<Object, DBObject> objects = new HashMap<Object, DBObject>();
   private final ExpressionParser expressionParser = new ExpressionParser();
+  private final boolean isDebug;
   
   public FongoDBCollection(FongoDB db, String name) {
     super(db, name);
     this.fongoDb = db;
+    this.isDebug = db.isDebug();
   }
   
   @Override
   public synchronized WriteResult insert(DBObject[] arr, WriteConcern concern, DBEncoder encoder) throws MongoException {
     for (DBObject obj : arr) {
-      debug("insert: " + obj);
-      fInsert(filterLists(obj));
+      if (isDebug){
+        debug("insert: " + obj);
+      }
+      filterLists(obj);
+      if (!obj.containsField(ID_KEY)) {
+        obj.put(ID_KEY, new ObjectId());
+      }
+      Object id = obj.get(ID_KEY);
+      if (objects.containsKey(id)){
+        throw new MongoException.DuplicateKey(0, "Attempting to insert duplicate _id: " + id);
+      }
+      putSizeCheck(id, obj);
     }
     return new WriteResult(fongoDb.okResult(), concern);
+  }
+
+  public void putSizeCheck(Object id, DBObject obj) {
+    if (objects.size() > 100000) {
+      throw new FongoException("Whoa, hold up there.  Fongo's designed for lightweight testing.  100,000 items per collection max");
+    }
+    objects.put(id, obj);
   }
   
   public DBObject filterLists(DBObject dbo){
@@ -78,22 +98,24 @@ public class FongoDBCollection extends DBCollection {
       obj.put(ID_KEY, new ObjectId());
     }
     Object id = obj.get(ID_KEY);
-    objects.put(id, obj);
+    putSizeCheck(id, obj);
   }
 
   void debug(String message) {
-    //System.out.println("Fongo." + getName() + " " + message);
+    if (isDebug){
+      System.out.println("Fongo." + getName() + " " + message);
+    }
   }
   @Override
   public synchronized WriteResult update(DBObject q, DBObject o, boolean upsert, boolean multi, WriteConcern concern,
       DBEncoder encoder) throws MongoException {
-    debug("update(" + q + ", " + o + ", " + upsert + ", " + multi +")");
-    
+    if (isDebug){
+      debug("update(" + q + ", " + o + ", " + upsert + ", " + multi +")");
+    }
     boolean idOnlyUpdate = q.containsField(ID_KEY) && q.keySet().size() == 1;
     if (o.containsField(ID_KEY) && !idOnlyUpdate){
       throw new MongoException.DuplicateKey(0, "can't update " + ID_KEY);
     }
-    filterLists(q);
     filterLists(o);
     if (idOnlyUpdate && isNotUpdateCommand(o)) {
       if (!o.containsField(ID_KEY)) {
@@ -101,15 +123,24 @@ public class FongoDBCollection extends DBCollection {
       }
       fInsert(o);
     } else {
-      Filter filter = expressionParser .buildFilter(q);
+      filterLists(q);
       boolean wasFound = false;
-      UpdateEngine updateEngine = new UpdateEngine(q, false);
-      for (DBObject obj : objects.values()) {
-        if (filter.apply(obj)){
+      UpdateEngine updateEngine = new UpdateEngine(q, isDebug);
+      if (idOnlyUpdate) {
+        DBObject existingObject = objects.get(q.get(ID_KEY));
+        if (existingObject != null){
           wasFound = true;
-          updateEngine.doUpdate(obj, o);
-          if (!multi){
-            break;
+          updateEngine.doUpdate(existingObject, o);
+        }
+      } else {
+        Filter filter = expressionParser.buildFilter(q);
+        for (DBObject obj : objects.values()) {
+          if (filter.apply(obj)){
+            wasFound = true;
+            updateEngine.doUpdate(obj, o);
+            if (!multi){
+              break;
+            }
           }
         }
       }
@@ -175,7 +206,9 @@ public class FongoDBCollection extends DBCollection {
 
   @Override
   public synchronized WriteResult remove(DBObject o, WriteConcern concern, DBEncoder encoder) throws MongoException {
-    debug("remove: " + o);
+    if (isDebug){
+      debug("remove: " + o);
+    }
     List<Object> idList = idsIn(o);
     if (!idList.isEmpty()) {
       for (Object id : idList){
@@ -205,7 +238,9 @@ public class FongoDBCollection extends DBCollection {
   @Override
   synchronized Iterator<DBObject> __find(DBObject ref, DBObject fields, int numToSkip, int batchSize, int limit, int options,
       ReadPreference readPref, DBDecoder decoder) throws MongoException {
-    debug("find(" + ref + ")");
+    if (isDebug){
+      debug("find(" + ref + ")");
+    }
     List<Object> idList = idsIn(ref);
     ArrayList<DBObject> results = new ArrayList<DBObject>();
     if (!idList.isEmpty()) {
@@ -305,7 +340,7 @@ public class FongoDBCollection extends DBCollection {
     Collection<DBObject> objectsToSearch = sortObjects(sort, expressionParser);
     DBObject beforeObject = null;
     DBObject afterObject = null;
-    UpdateEngine updateEngine = new UpdateEngine(query, false);
+    UpdateEngine updateEngine = new UpdateEngine(query, isDebug);
     for (Iterator<DBObject> iter = objectsToSearch.iterator(); iter.hasNext();) {
       DBObject dbo = iter.next();
       if (filter.apply(dbo)) {

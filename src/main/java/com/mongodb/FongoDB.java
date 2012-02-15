@@ -12,10 +12,12 @@ public class FongoDB extends DB {
 
   private final Map<String, FongoDBCollection> collMap = Collections.synchronizedMap(new HashMap<String, FongoDBCollection>());
   private final Fongo fongo;
+  private final boolean isDebug;
   
   public FongoDB(Fongo fongo, String name) {
     super(fongo.getMongo(), name);
     this.fongo = fongo;
+    isDebug = fongo.isDebug();
   }
 
   @Override
@@ -52,6 +54,21 @@ public class FongoDB extends DB {
    return fongo.getDB(name);
   }
   
+  @Override
+  public WriteConcern getWriteConcern() {
+    return WriteConcern.NONE;
+  }
+  
+  @Override
+  public ReadPreference getReadPreference() {
+    return ReadPreference.PRIMARY;
+  }
+  
+  @Override
+  public void dropDatabase() throws MongoException {
+    this.fongo.dropDatabase(this.getName());
+  }
+  
   /**
    * Executes a database command.
    * @see <a href="http://mongodb.onconfluence.com/display/DOCS/List+of+Database+Commands">List of Commands</a>
@@ -85,5 +102,9 @@ public class FongoDB extends DB {
   @Override
   public String toString() {
     return "FongoDB." + this.getName();
+  }
+
+  public boolean isDebug() {
+    return isDebug;
   }
 }

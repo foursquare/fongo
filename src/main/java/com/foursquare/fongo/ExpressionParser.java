@@ -2,6 +2,7 @@ package com.foursquare.fongo;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -13,13 +14,13 @@ import com.mongodb.DBObject;
 public class ExpressionParser {
 
   public final static Pattern DOT_PATTERN = Pattern.compile("\\.");
-  private final boolean debug;
+  private final boolean isDebug;
   public ExpressionParser() {
     this(false);
   }
 
   public ExpressionParser(boolean debug) {
-    this.debug = debug;
+    this.isDebug = debug;
   }
 
   public Filter buildFilter(DBObject ref){
@@ -238,18 +239,38 @@ public class ExpressionParser {
   public boolean isInt(String s){
     return s.matches("[0-9]+");
   }
+  
+  public List<String> split(String key){
+    char dot = '.';
+    int index = key.indexOf(dot);
+    if (index <= 0) {
+      return Collections.singletonList(key);
+    } else {
+      ArrayList<String> path = new ArrayList<String>(5);
+      while ( index > 0){
+        path.add(key.substring(0, index));
+        key = key.substring(index + 1);
+        index = key.indexOf(dot);
+      }
+      path.add(key);
+      return path;
+    }
+  }
+  
   public Option<Object> getEmbeddedValue(String key, DBObject dbo) {
-    String[] path = DOT_PATTERN.split(key);
-    String subKey = path[0];
-    if (path.length > 1) {
-      debug("getEmbeddedValue looking for " + key + " in " + dbo);
+    List<String> path = split(key);
+    String subKey = path.get(0);
+    if (path.size() > 1) {
+      if (isDebug){
+        debug("getEmbeddedValue looking for " + key + " in " + dbo);
+      }
     }
     
-    for (int i = 0; i < path.length - 1; i++){
+    for (int i = 0; i < path.size() - 1; i++){
       Object value = dbo.get(subKey);
       if (value instanceof DBObject && !(value instanceof List)){
         dbo = (DBObject) value;
-      } else if (value instanceof List && isInt(path[i + 1])) {
+      } else if (value instanceof List && isInt(path.get(i + 1))) {
         BasicDBList newList = Util.wrap((List) value);
         dbo = newList;
       } else if (value instanceof List) {
@@ -264,7 +285,7 @@ public class ExpressionParser {
       } else {
         return Option.None;
       }
-      subKey = path[i + 1];
+      subKey = path.get(i + 1);
     }
     if (dbo.containsField(subKey)) {
       return new Some<Object>(dbo.get(subKey));      
@@ -274,16 +295,16 @@ public class ExpressionParser {
   }
 
   private void debug(String string) {
-    if (this.debug) {
+    if (this.isDebug) {
       System.out.println(string);
     }
   }
 
-  private String join(String[] path, int i, String separator) {
+  private String join(List<String> path, int i, String separator) {
     StringBuilder sb = new StringBuilder();
-    for (; i < path.length; i++){
-      sb.append(path[i]);
-      if (i < path.length - 1){
+    for (; i < path.size(); i++){
+      sb.append(path.get(i));
+      if (i < path.size() - 1){
         sb.append(separator);
       }
     }
@@ -375,7 +396,9 @@ public class ExpressionParser {
 
   @SuppressWarnings("all")
   public int compareObjects(Object queryValue, Object storedValue) {
-    debug("comparing " + queryValue + " and " + storedValue);
+    if (isDebug){
+      debug("comparing " + queryValue + " and " + storedValue);
+    }
     if (queryValue instanceof DBObject && storedValue instanceof DBObject) {
       return compareDBObjects((DBObject)queryValue, (DBObject) storedValue);
     } else if (queryValue instanceof List && storedValue instanceof List){
