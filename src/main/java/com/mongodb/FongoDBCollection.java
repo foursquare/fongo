@@ -4,9 +4,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -30,7 +30,7 @@ public class FongoDBCollection extends DBCollection {
 
   final static String ID_KEY = "_id";
   private final FongoDB fongoDb;
-  private final Map<Object, DBObject> objects = new HashMap<Object, DBObject>();
+  private final Map<Object, DBObject> objects = new LinkedHashMap<Object, DBObject>();
   private final ExpressionParser expressionParser = new ExpressionParser();
   private final boolean isDebug;
   
@@ -167,6 +167,9 @@ public class FongoDBCollection extends DBCollection {
       if (inList != null){
         return inList;
       }
+      if (!isNotUpdateCommand(idValue)){
+        return Collections.emptyList();
+      }
     } 
     return Collections.singletonList(idValue);
   }
@@ -245,6 +248,9 @@ public class FongoDBCollection extends DBCollection {
     List<Object> idList = idsIn(ref);
     ArrayList<DBObject> results = new ArrayList<DBObject>();
     if (!idList.isEmpty()) {
+      if (isDebug){
+        debug("find using id index only " + idList);
+      }
       for (Object id : idList){
         DBObject result = objects.get(id);
         if (result != null){

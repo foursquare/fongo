@@ -7,9 +7,10 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.util.Arrays;
+import java.util.Date;
 import java.util.HashSet;
+import java.util.List;
 
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.mongodb.BasicDBList;
@@ -235,6 +236,32 @@ public class FongoTest {
     DBObject update = new BasicDBObject("$set", new BasicDBObject("a", 1));
     collection.update(query, update, false, false);
     assertEquals(new BasicDBObject("_id", new BasicDBObject("n", 1)).append("a", 1), collection.findOne());
+  }
+  
+  @Test
+  public void testCompoundDateIdUpserts(){
+    DBCollection collection = newCollection();
+    DBObject query = new BasicDBObjectBuilder().push("_id")
+      .push("$lt").add("n", "a").add("t", 10).pop()
+      .push("$gte").add("n", "a").add("t", 1).pop()
+      .pop().get();
+    List<BasicDBObject> toUpsert = Arrays.asList(
+        new BasicDBObject("_id", new BasicDBObject("n","a").append("t", 1)),
+        new BasicDBObject("_id", new BasicDBObject("n","a").append("t", 2)),
+        new BasicDBObject("_id", new BasicDBObject("n","a").append("t", 3)),
+        new BasicDBObject("_id", new BasicDBObject("n","a").append("t", 11))
+    );
+    for (BasicDBObject dbo : toUpsert) {
+      collection.update(dbo, ((BasicDBObject)dbo.copy()).append("foo", "bar"), true, false);
+    }
+    System.out.println(collection.find().toArray());
+    List<DBObject> results = collection.find(query).toArray();
+    assertEquals(Arrays.<DBObject>asList(
+        new BasicDBObject("_id", new BasicDBObject("n","a").append("t", 1)).append("foo", "bar"),
+        new BasicDBObject("_id", new BasicDBObject("n","a").append("t", 2)).append("foo", "bar"),
+        new BasicDBObject("_id", new BasicDBObject("n","a").append("t", 3)).append("foo", "bar")
+    ), results);
+    
   }
   
   @Test

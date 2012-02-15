@@ -340,6 +340,26 @@ public class ExpressionParserTest {
   }
   
   @Test
+  public void testCompoundDateRange() {
+    DBObject query = new BasicDBObjectBuilder().push("_id")
+      .push("$lt").add("n", "a").add("t", new Date(10)).pop()
+      .push("$gte").add("n", "a").add("t", new Date(1)).pop()
+      .pop().get();
+    List<DBObject> results = doFilter(
+        query,
+        new BasicDBObject("_id", new BasicDBObject("n","a").append("t", new Date(1))),
+        new BasicDBObject("_id", new BasicDBObject("n","a").append("t", new Date(2))),
+        new BasicDBObject("_id", new BasicDBObject("n","a").append("t", new Date(3))),
+        new BasicDBObject("_id", new BasicDBObject("n","a").append("t", new Date(11)))
+    );
+    assertEquals(Arrays.<DBObject>asList(
+        new BasicDBObject("_id", new BasicDBObject("n","a").append("t", new Date(1))),
+        new BasicDBObject("_id", new BasicDBObject("n","a").append("t", new Date(2))),
+        new BasicDBObject("_id", new BasicDBObject("n","a").append("t", new Date(3)))
+    ), results);
+  }
+  
+  @Test
   public void testSizeOperator() {
     DBObject query = new BasicDBObjectBuilder().push("a").add("$size", 3).pop().get();
     List<DBObject> results = doFilter(
