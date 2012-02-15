@@ -239,6 +239,20 @@ public class FongoTest {
   }
   
   @Test
+  public void testUpdateWithIdInMulti() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1),new BasicDBObject("_id", 2));
+    collection.update(new BasicDBObject("_id", new BasicDBObject("$in", Arrays.asList(1,2))), 
+        new BasicDBObject("$set", new BasicDBObject("n", 1)), false, true);
+    List<DBObject> results = collection.find().toArray();
+    assertEquals(Arrays.asList(
+        new BasicDBObject("_id", 1).append("n", 1),
+        new BasicDBObject("_id", 2).append("n", 1)
+    ), results);
+    
+  }
+  
+  @Test
   public void testCompoundDateIdUpserts(){
     DBCollection collection = newCollection();
     DBObject query = new BasicDBObjectBuilder().push("_id")
@@ -396,6 +410,21 @@ public class FongoTest {
             new BasicDBObject("v", 1).append("key", new BasicDBObject("n", 1)).append("ns", "db.coll").append("name", "n_1"),
             new BasicDBObject("v", 1).append("key", new BasicDBObject("b", 1)).append("ns", "db.coll").append("name", "b_1")
         ), indexes);
+  }
+  
+  @Test
+  public void testSortByEmeddedKey(){
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1).append("a", new BasicDBObject("b", 1)));
+    collection.insert(new BasicDBObject("_id", 2).append("a", new BasicDBObject("b", 2)));
+    collection.insert(new BasicDBObject("_id", 3).append("a", new BasicDBObject("b", 3)));
+    List<DBObject> results = collection.find().sort(new BasicDBObject("a.b", -1)).toArray();
+    assertEquals(
+        Arrays.asList(
+            new BasicDBObject("_id", 3).append("a", new BasicDBObject("b", 3)),
+            new BasicDBObject("_id", 2).append("a", new BasicDBObject("b", 2)),
+            new BasicDBObject("_id", 1).append("a", new BasicDBObject("b", 1))
+        ),results);
   }
   
   @Test

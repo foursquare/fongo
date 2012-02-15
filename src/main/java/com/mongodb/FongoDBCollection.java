@@ -137,13 +137,14 @@ public class FongoDBCollection extends DBCollection {
       boolean wasFound = false;
       UpdateEngine updateEngine = new UpdateEngine(q, isDebug);
       if (idOnlyUpdate) {
-        List<Object> ids = idsIn(q);
-        if (!ids.isEmpty()){
-          Object id = ids.get(0);
+        for (Object id : idsIn(q)){
           DBObject existingObject = objects.get(id);
           if (existingObject != null){
             wasFound = true;
             updateEngine.doUpdate(existingObject, o);
+            if (!multi){
+              break;
+            }
           }
         }
       } else {
@@ -296,7 +297,7 @@ public class FongoDBCollection extends DBCollection {
         upperLimit = limit;
       }
       int seen = 0;
-      Collection<DBObject> objectsToSearch = sortObjects(orderby, expressionParser);
+      Collection<DBObject> objectsToSearch = sortObjects(orderby);
       for (Iterator<DBObject> iter = objectsToSearch.iterator(); iter.hasNext() && foundCount <= upperLimit; seen++) {
         DBObject dbo = iter.next();
         if (seen >= numToSkip){
@@ -314,7 +315,7 @@ public class FongoDBCollection extends DBCollection {
     }
   }
 
-  protected Collection<DBObject> sortObjects(DBObject orderby, final ExpressionParser expressionParser) {
+  public Collection<DBObject> sortObjects(DBObject orderby) {
     Collection<DBObject> objectsToSearch = objects.values();
     if (orderby != null) {
       Set<String> orderbyKeys = orderby.keySet();
@@ -369,7 +370,7 @@ public class FongoDBCollection extends DBCollection {
     filterLists(update);
     Filter filter = expressionParser.buildFilter(query);
 
-    Collection<DBObject> objectsToSearch = sortObjects(sort, expressionParser);
+    Collection<DBObject> objectsToSearch = sortObjects(sort);
     DBObject beforeObject = null;
     DBObject afterObject = null;
     UpdateEngine updateEngine = new UpdateEngine(query, isDebug);
