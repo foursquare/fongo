@@ -33,11 +33,13 @@ public class FongoDBCollection extends DBCollection {
   private final Map<Object, DBObject> objects = new LinkedHashMap<Object, DBObject>();
   private final ExpressionParser expressionParser = new ExpressionParser();
   private final boolean isDebug;
+  private final boolean nonIdCollection;
   
   public FongoDBCollection(FongoDB db, String name) {
     super(db, name);
     this.fongoDb = db;
     this.isDebug = db.isDebug();
+    this.nonIdCollection = name.startsWith("system");
   }
   
   @Override
@@ -47,16 +49,26 @@ public class FongoDBCollection extends DBCollection {
         debug("insert: " + obj);
       }
       filterLists(obj);
-      if (!obj.containsField(ID_KEY)) {
-        obj.put(ID_KEY, new ObjectId());
-      }
-      Object id = obj.get(ID_KEY);
+      Object id = putIdIfNotPresent(obj);
+
       if (objects.containsKey(id)){
         throw new MongoException.DuplicateKey(0, "Attempting to insert duplicate _id: " + id);
       }
       putSizeCheck(id, obj);
     }
     return new WriteResult(fongoDb.okResult(), concern);
+  }
+
+  public Object putIdIfNotPresent(DBObject obj) {
+    if (!obj.containsField(ID_KEY)) {
+      ObjectId id = new ObjectId();
+      if (!nonIdCollection){
+        obj.put(ID_KEY, id);
+      }
+      return id;
+    } else {
+      return obj.get(ID_KEY);
+    }
   }
 
   public void putSizeCheck(Object id, DBObject obj) {
@@ -94,9 +106,7 @@ public class FongoDBCollection extends DBCollection {
 
 
   protected void fInsert(DBObject obj) {
-    if (!obj.containsField(ID_KEY)) {
-      obj.put(ID_KEY, new ObjectId());
-    }
+    putIdIfNotPresent(obj);
     Object id = obj.get(ID_KEY);
     putSizeCheck(id, obj);
   }
@@ -234,8 +244,23 @@ public class FongoDBCollection extends DBCollection {
 
   @Override
   public void createIndex(DBObject keys, DBObject options, DBEncoder encoder) throws MongoException {
-    // TODO Auto-generated method stub
-    
+    DBCollection indexColl = fongoDb.getCollection("system.indexes");
+    BasicDBObject rec = new BasicDBObject();
+    rec.append("v", 1);
+    rec.append("key", keys);
+    rec.append("ns", this.getDB().getName() + "." + this.getName());
+    StringBuilder sb = new StringBuilder();
+    boolean firstLoop = true;
+    for (String keyName : keys.keySet()) {
+      if (!firstLoop){
+        sb.append("_");
+      }
+      sb.append(keyName).append("_").append(keys.get(keyName));
+      firstLoop = false;
+    }
+    rec.append("name", sb.toString());
+    rec.putAll(options);
+    indexColl.insert(rec);
   }
 
   

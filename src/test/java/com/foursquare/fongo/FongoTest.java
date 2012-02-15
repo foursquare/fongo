@@ -386,6 +386,19 @@ public class FongoTest {
   }
   
   @Test
+  public void testCreateIndexes() {
+    DBCollection collection = newCollection();
+    collection.ensureIndex("n");
+    collection.ensureIndex("b");
+    List<DBObject> indexes = collection.getDB().getCollection("system.indexes").find().toArray();
+    assertEquals(
+        Arrays.asList(
+            new BasicDBObject("v", 1).append("key", new BasicDBObject("n", 1)).append("ns", "db.coll").append("name", "n_1"),
+            new BasicDBObject("v", 1).append("key", new BasicDBObject("b", 1)).append("ns", "db.coll").append("name", "b_1")
+        ), indexes);
+  }
+  
+  @Test
   public void testToString() {
     new Fongo("test", true).getMongo().toString();
   }
