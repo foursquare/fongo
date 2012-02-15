@@ -127,10 +127,14 @@ public class FongoDBCollection extends DBCollection {
       boolean wasFound = false;
       UpdateEngine updateEngine = new UpdateEngine(q, isDebug);
       if (idOnlyUpdate) {
-        DBObject existingObject = objects.get(q.get(ID_KEY));
-        if (existingObject != null){
-          wasFound = true;
-          updateEngine.doUpdate(existingObject, o);
+        List<Object> ids = idsIn(q);
+        if (!ids.isEmpty()){
+          Object id = ids.get(0);
+          DBObject existingObject = objects.get(id);
+          if (existingObject != null){
+            wasFound = true;
+            updateEngine.doUpdate(existingObject, o);
+          }
         }
       } else {
         Filter filter = expressionParser.buildFilter(q);
@@ -162,12 +166,9 @@ public class FongoDBCollection extends DBCollection {
       
       if (inList != null){
         return inList;
-      } else {
-        return Collections.emptyList();
       }
-    } else {
-      return Collections.singletonList(idValue);
-    }
+    } 
+    return Collections.singletonList(idValue);
   }
 
   protected  BasicDBObject createUpsertObject(DBObject q) {

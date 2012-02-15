@@ -18,7 +18,7 @@ public class PerTest {
       DB db = fongo.getDB("db");
       DBCollection collection = db.getCollection("coll");
       for (int k = 0; k < 10000; k++){
-        collection.update(new BasicDBObject("n", k), new BasicDBObject("$push", new BasicDBObject("a", 1)), true, false);
+        collection.update(new BasicDBObject("_id", k), new BasicDBObject("$push", new BasicDBObject("a", 1)), true, false);
       }
       db.dropDatabase();
     }

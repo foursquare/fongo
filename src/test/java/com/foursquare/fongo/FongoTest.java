@@ -204,7 +204,6 @@ public class FongoTest {
   
   @Test
   public void testUpsertWithIdIn() {
-    //Fongo.notification_feed update: { "_id" : { "$in" : [ 693532]}} { "$push" : { "n" : { "_id" : { "$oid" : "4f39e0f04b9036c35b5b875d"}}} , "$inc" : { "c" : 1}} upsert? false multi? true
     DBCollection collection = newCollection();
     DBObject query = new BasicDBObjectBuilder().push("_id").append("$in", Arrays.asList(1)).pop().get();
     DBObject update = new BasicDBObjectBuilder()
@@ -213,6 +212,29 @@ public class FongoTest {
     DBObject expected = new BasicDBObjectBuilder().append("_id", 1).append("n", Arrays.asList(new BasicDBObject("_id", 2).append("u", 3))).append("c", 4).get();
     collection.update(query, update, true, false);
     assertEquals(expected, collection.findOne());
+  }
+  
+  @Test
+  public void testUpdatetWithIdIn() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1));
+    DBObject query = new BasicDBObjectBuilder().push("_id").append("$in", Arrays.asList(1)).pop().get();
+    DBObject update = new BasicDBObjectBuilder()
+      .push("$push").push("n").append("_id", 2).append("u", 3).pop().pop()
+      .push("$inc").append("c",4).pop().get();
+    DBObject expected = new BasicDBObjectBuilder().append("_id", 1).append("n", Arrays.asList(new BasicDBObject("_id", 2).append("u", 3))).append("c", 4).get();
+    collection.update(query, update, false, true);
+    assertEquals(expected, collection.findOne());
+  }
+  
+  @Test
+  public void testUpdatetWithObjectId() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", new BasicDBObject("n", 1)));
+    DBObject query = new BasicDBObject("_id", new BasicDBObject("n", 1));
+    DBObject update = new BasicDBObject("$set", new BasicDBObject("a", 1));
+    collection.update(query, update, false, false);
+    assertEquals(new BasicDBObject("_id", new BasicDBObject("n", 1)).append("a", 1), collection.findOne());
   }
   
   @Test
