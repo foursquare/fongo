@@ -326,6 +326,17 @@ public class FongoTest {
   }
   
   @Test
+  public void testFindAndModifyUpsertReturnNewFalse() {
+    DBCollection collection = newCollection();
+    
+    DBObject result = collection.findAndModify(new BasicDBObject("_id", 1), 
+        null, null, false, new BasicDBObject("$inc", new BasicDBObject("a", 1)), false, true);
+    
+    assertEquals(new BasicDBObject(), result);
+    assertEquals(new BasicDBObject("_id", 1).append("a", 1), collection.findOne());
+  }
+  
+  @Test
   public void testFindAndModifyRemove() {
     DBCollection collection = newCollection();
     collection.insert(new BasicDBObject("_id", 1).append("a", 1));

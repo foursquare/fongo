@@ -392,11 +392,15 @@ public class FongoDBCollection extends DBCollection {
       return beforeObject;
     }
     if (beforeObject == null && upsert && !remove){
-
+      beforeObject = new BasicDBObject();
       afterObject = createUpsertObject(query);
       fInsert(updateEngine.doUpdate(afterObject, update));
     }
-    return afterObject;
+    if (returnNew){
+      return afterObject;
+    } else {
+      return beforeObject;
+    }
   }
   
   @Override
