@@ -32,6 +32,7 @@ public class FongoDBCollection extends DBCollection {
   private final FongoDB fongoDb;
   private final Map<Object, DBObject> objects = new LinkedHashMap<Object, DBObject>();
   private final ExpressionParser expressionParser;
+  private final UpdateEngine updateEngine;
   private final boolean isDebug;
   private final boolean nonIdCollection;
   
@@ -41,6 +42,7 @@ public class FongoDBCollection extends DBCollection {
     this.isDebug = db.isDebug();
     this.nonIdCollection = name.startsWith("system");
     expressionParser = new ExpressionParser(isDebug);
+    updateEngine = new UpdateEngine(isDebug);
   }
   
   @Override
@@ -136,13 +138,12 @@ public class FongoDBCollection extends DBCollection {
     } else {
       filterLists(q);
       boolean wasFound = false;
-      UpdateEngine updateEngine = new UpdateEngine(q, isDebug);
       if (idOnlyUpdate) {
         for (Object id : idsIn(q)){
           DBObject existingObject = objects.get(id);
           if (existingObject != null){
             wasFound = true;
-            updateEngine.doUpdate(existingObject, o);
+            updateEngine.doUpdate(existingObject, o, q);
             if (!multi){
               break;
             }
@@ -153,7 +154,7 @@ public class FongoDBCollection extends DBCollection {
         for (DBObject obj : objects.values()) {
           if (filter.apply(obj)){
             wasFound = true;
-            updateEngine.doUpdate(obj, o);
+            updateEngine.doUpdate(obj, o, q);
             if (!multi){
               break;
             }
@@ -162,7 +163,7 @@ public class FongoDBCollection extends DBCollection {
       }
       if (!wasFound && upsert){
         BasicDBObject newObject = createUpsertObject(q);
-        fInsert(updateEngine.doUpdate(newObject, o));
+        fInsert(updateEngine.doUpdate(newObject, o, q));
       }
     }
     return new WriteResult(fongoDb.okResult(), concern);
@@ -193,13 +194,14 @@ public class FongoDBCollection extends DBCollection {
     if (!idsIn.isEmpty()){
       newObject.put(ID_KEY, idsIn.get(0));
     } else {
+      BasicDBObject filteredQuery = new BasicDBObject();
       for (String key : q.keySet()){
         Object value = q.get(key);
-        boolean okValue = isNotUpdateCommand(value);
-        if (okValue){
-          newObject.put(key, value);
+        if (isNotUpdateCommand(value)){
+          filteredQuery.put(key, value);
         }
       }
+      updateEngine.mergeEmbeddedValueFromQuery(newObject, filteredQuery);
     }
     return newObject;
   }
@@ -378,7 +380,6 @@ public class FongoDBCollection extends DBCollection {
     Collection<DBObject> objectsToSearch = sortObjects(sort);
     DBObject beforeObject = null;
     DBObject afterObject = null;
-    UpdateEngine updateEngine = new UpdateEngine(query, isDebug);
     for (Iterator<DBObject> iter = objectsToSearch.iterator(); iter.hasNext();) {
       DBObject dbo = iter.next();
       if (filter.apply(dbo)) {
@@ -386,7 +387,7 @@ public class FongoDBCollection extends DBCollection {
         if (!remove) {
           afterObject = new BasicDBObject();
           afterObject.putAll(beforeObject);
-          fInsert(updateEngine.doUpdate(afterObject, update));
+          fInsert(updateEngine.doUpdate(afterObject, update, query));
         } else {
           remove(dbo);
           return dbo;
@@ -399,7 +400,7 @@ public class FongoDBCollection extends DBCollection {
     if (beforeObject == null && upsert && !remove){
       beforeObject = new BasicDBObject();
       afterObject = createUpsertObject(query);
-      fInsert(updateEngine.doUpdate(afterObject, update));
+      fInsert(updateEngine.doUpdate(afterObject, update, query));
     }
     if (returnNew){
       return afterObject;

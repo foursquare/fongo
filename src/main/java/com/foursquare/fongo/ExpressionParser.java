@@ -50,7 +50,7 @@ public class ExpressionParser {
 
   interface FilterFactory {
     public boolean matchesCommand(DBObject refExpression);
-    public Filter createFilter(String key, DBObject refExpression);
+    public Filter createFilter(List<String> path, DBObject refExpression);
   }
   
   abstract class BasicCommandFilterFactory implements FilterFactory {
@@ -76,10 +76,10 @@ public class ExpressionParser {
     }
     
     @Override
-    public Filter createFilter(final String key, final DBObject refExpression) {
+    public Filter createFilter(final List<String> path, final DBObject refExpression) {
       return new Filter(){
         public boolean apply(DBObject o) {
-          List<Object> storedOption = getEmbeddedValues(key, o);
+          List<Object> storedOption = getEmbeddedValues(path, o);
           if (storedOption.isEmpty()) {
             return false;
           } else {
@@ -102,12 +102,12 @@ public class ExpressionParser {
     }
     
     @Override
-    public Filter createFilter(final String key, final DBObject refExpression) {
+    public Filter createFilter(final List<String> path, final DBObject refExpression) {
       List queryList = typecast(command + " clause", refExpression.get(command), List.class);
       final Set querySet = new HashSet(queryList);
       return new Filter(){
         public boolean apply(DBObject o) {
-          List<Object> storedOption = getEmbeddedValues(key, o);
+          List<Object> storedOption = getEmbeddedValues(path, o);
           if (storedOption.isEmpty()) {
             return !direction;
           } else {
@@ -181,11 +181,11 @@ public class ExpressionParser {
           return compareObjects(queryValue, storedValue) > 0;
       }},
       new BasicCommandFilterFactory(NE){
-        public Filter createFilter(final String key, final DBObject refExpression) {
+        public Filter createFilter(final List<String> path, final DBObject refExpression) {
           return new Filter(){
             public boolean apply(DBObject o) {
               Object queryValue = refExpression.get(command);
-              List<Object> storedOption = getEmbeddedValues(key, o);
+              List<Object> storedOption = getEmbeddedValues(path, o);
               if (storedOption.isEmpty()) {
                 return true;
               } else {
@@ -210,10 +210,10 @@ public class ExpressionParser {
           return storedList != null && storedList.containsAll(queryList);
       }},
       new BasicCommandFilterFactory(EXISTS){
-        public Filter createFilter(final String key, final DBObject refExpression) {
+        public Filter createFilter(final List<String> path, final DBObject refExpression) {
           return new Filter(){
             public boolean apply(DBObject o) {
-              List<Object> storedOption = getEmbeddedValues(key, o);
+              List<Object> storedOption = getEmbeddedValues(path, o);
               return typecast(command + " clause", refExpression.get(command), Boolean.class) == !storedOption.isEmpty();
           }};
       }},
@@ -240,33 +240,23 @@ public class ExpressionParser {
     return s.matches("[0-9]+");
   }
   
-  public List<String> split(String key){
-    char dot = '.';
-    int index = key.indexOf(dot);
-    if (index <= 0) {
-      return Collections.singletonList(key);
-    } else {
-      ArrayList<String> path = new ArrayList<String>(5);
-      while ( index > 0){
-        path.add(key.substring(0, index));
-        key = key.substring(index + 1);
-        index = key.indexOf(dot);
-      }
-      path.add(key);
-      return path;
-    }
+  public List<Object> getEmbeddedValues(List<String> path, DBObject dbo) {
+    return getEmbeddedValues(path, 0, dbo);
   }
   
   public List<Object> getEmbeddedValues(String key, DBObject dbo) {
-    List<String> path = split(key);
-    String subKey = path.get(0);
+    return getEmbeddedValues(Util.split(key), 0, dbo);
+  }
+  
+  public List<Object> getEmbeddedValues(List<String> path, int startIndex, DBObject dbo) {
+    String subKey = path.get(startIndex);
     if (path.size() > 1) {
       if (isDebug){
-        debug("getEmbeddedValue looking for " + key + " in " + dbo);
+        debug("getEmbeddedValue looking for " + path + " in " + dbo);
       }
     }
     
-    for (int i = 0; i < path.size() - 1; i++){
+    for (int i = startIndex; i < path.size() - 1; i++){
       Object value = dbo.get(subKey);
 
       if (value instanceof DBObject && !(value instanceof List)){
@@ -278,7 +268,7 @@ public class ExpressionParser {
         List<Object> results = new ArrayList<Object>();
         for (Object listValue : (List) value){
           if (listValue instanceof DBObject){
-            List<Object> embeddedListValue = getEmbeddedValues(join(path, i + 1, "."), (DBObject)listValue);
+            List<Object> embeddedListValue = getEmbeddedValues(path, i + 1, (DBObject)listValue);
             results.addAll(embeddedListValue);
           }
         }
@@ -313,13 +303,16 @@ public class ExpressionParser {
     }
     return sb.toString();
   }
-
+  
   private Filter buildExpressionFilter(final String key, final Object expression) {
-    if (isDebug){
-      debug("building expresion filter ");
-    }
-    if (key == OR) {
-      List<DBObject> queryList = typecast(key + " operator", expression, List.class);
+    return buildExpressionFilter(Util.split(key), expression);
+  }
+  
+
+  private Filter buildExpressionFilter(final List<String> path, final Object expression) {
+
+    if (path.get(0) == OR) {
+      List<DBObject> queryList = typecast(path + " operator", expression, List.class);
       OrFilter orFilter = new OrFilter();
       for (DBObject query : queryList) {
         orFilter.addFilter(buildFilter(query));
@@ -329,27 +322,22 @@ public class ExpressionParser {
       DBObject ref = (DBObject) expression;
       Object notExpression = ref.get(NOT);
       if (notExpression != null) {
-        return new NotFilter(buildExpressionFilter(key, notExpression));
+        return new NotFilter(buildExpressionFilter(path, notExpression));
       } else {
-        if (isDebug){
-          debug("building Andfilter ");
-        }
+
         AndFilter andFilter = new AndFilter();
         int matchCount = 0;
         for (FilterFactory filterFactory : filterFactories){
           if (filterFactory.matchesCommand(ref)) {
             matchCount++;
-            andFilter.addFilter(filterFactory.createFilter(key, ref));
+            andFilter.addFilter(filterFactory.createFilter(path, ref));
           }
         }
         if (matchCount == 0) {
-          return simpleFilter(key, expression);
+          return simpleFilter(path, expression);
         }
         if (matchCount > 2){
-          throw new FongoException("Invalid expression for key " + key + ": " + expression);
-        }
-        if (isDebug){
-          debug("using filter " + andFilter);
+          throw new FongoException("Invalid expression for key " + path + ": " + expression);
         }
         return andFilter;
       }
@@ -357,7 +345,7 @@ public class ExpressionParser {
       final Pattern pattern = (Pattern) expression;
       return new Filter(){
         public boolean apply(DBObject o) {
-          List<Object> storedOption = getEmbeddedValues(key, o);
+          List<Object> storedOption = getEmbeddedValues(path, o);
           if (storedOption.isEmpty()){
             return false;
           } else {
@@ -383,14 +371,14 @@ public class ExpressionParser {
         }
       };
     } else {
-      return simpleFilter(key, expression);
+      return simpleFilter(path, expression);
     }
   }
 
-  public Filter simpleFilter(final String key, final Object expression) {
+  public Filter simpleFilter(final List<String> path, final Object expression) {
     return new Filter(){
       public boolean apply(DBObject o) {
-        List<Object> storedOption = getEmbeddedValues(key, o);
+        List<Object> storedOption = getEmbeddedValues(path, o);
         if (storedOption.isEmpty()){
           return false;
         } else {

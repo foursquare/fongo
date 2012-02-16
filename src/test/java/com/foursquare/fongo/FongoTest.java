@@ -312,6 +312,19 @@ public class FongoTest {
   }
   
   @Test
+  public void testUpsertWithEmbeddedQuery() {
+    DBCollection collection = newCollection();
+
+    DBObject update = BasicDBObjectBuilder.start().push("$set").append("a",1).pop().get();
+    
+    collection.update(new BasicDBObject("_id", 1).append("e.i", 1), update, true, false);
+    
+    DBObject expected = BasicDBObjectBuilder.start().append("_id", 1).push("e").append("i", 1).pop().append("a", 1).get();
+    
+    assertEquals(expected, collection.findOne(new BasicDBObject("_id", 1)));
+  }
+  
+  @Test
   public void testFindAndModifyReturnOld() {
     DBCollection collection = newCollection();
     collection.insert(new BasicDBObject("_id", 1).append("a", 1));

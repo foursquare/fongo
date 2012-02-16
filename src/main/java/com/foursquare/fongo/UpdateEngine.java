@@ -15,17 +15,15 @@ import com.mongodb.DBObject;
 public class UpdateEngine {
 
   private final ExpressionParser expressionParser;
-  private final DBObject query;
   private final boolean isDebug;
 
-  public UpdateEngine(DBObject q, boolean isDebug) {
-    this.query = q;
+  public UpdateEngine(boolean isDebug) {
     this.isDebug = isDebug;
     expressionParser = new ExpressionParser(isDebug);
   }
 
   public UpdateEngine() {
-    this(new BasicDBObject(), true);
+    this(true);
   }
   
   void keyCheck(String key, Set<String> seenKeys) {
@@ -52,7 +50,7 @@ public class UpdateEngine {
      
     abstract void mergeAction(String subKey, DBObject subObject, Object object);
     
-    public DBObject doUpdate(DBObject obj, DBObject update, Set<String> seenKeys){
+    public DBObject doUpdate(DBObject obj, DBObject update, Set<String> seenKeys, DBObject query){
       DBObject updateObject = (DBObject) update.get(command);
       HashSet<String> keySet = new HashSet<String>(updateObject.keySet());
       if (isDebug) {
@@ -63,20 +61,20 @@ public class UpdateEngine {
           debug("\tfound a key " + updateKey);
         }
         keyCheck(updateKey, seenKeys);
-        doSingleKeyUpdate(updateKey, obj, updateObject.get(updateKey));
+        doSingleKeyUpdate(updateKey, obj, updateObject.get(updateKey), query);
       }
       return obj;
     }
     
-    void doSingleKeyUpdate(final String updateKey, final DBObject objOriginal, Object object) {
-      String[] path = ExpressionParser.DOT_PATTERN.split(updateKey);
-      String subKey = path[0];
+    void doSingleKeyUpdate(final String updateKey, final DBObject objOriginal, Object object, DBObject query) {
+      List<String> path = Util.split(updateKey);
+      String subKey = path.get(0);
       DBObject obj = objOriginal;
       boolean isPositional = updateKey.contains(".$");
       if (isPositional && isDebug){
         debug("got a positional for query " + query);
       }
-      for (int i = 0; i < path.length - 1; i++){
+      for (int i = 0; i < path.size() - 1; i++){
         if (!obj.containsField(subKey)){
           if (createMissing && !isPositional){
             obj.put(subKey, new BasicDBObject());
@@ -85,8 +83,8 @@ public class UpdateEngine {
           }
         }
         Object value = obj.get(subKey);
-        if ((value instanceof List) && "$".equals(path[i+1])) {
-          handlePositionalUpdate(updateKey, object, (List)value, obj);
+        if ((value instanceof List) && "$".equals(path.get(i+1))) {
+          handlePositionalUpdate(updateKey, object, (List)value, obj, query);
         } else if (value instanceof DBObject){
           obj = (DBObject) value;
         } else if (value instanceof List) {
@@ -96,7 +94,7 @@ public class UpdateEngine {
         } else {
           throw new FongoException("subfield must be object. " + updateKey + " not in " + objOriginal);
         }
-        subKey = path[i + 1];
+        subKey = path.get(i + 1);
       }
       if (!isPositional) {
         if (isDebug) {
@@ -109,7 +107,7 @@ public class UpdateEngine {
       }
     }
 
-    public void handlePositionalUpdate(final String updateKey, Object object, List valueList, DBObject ownerObj) {
+    public void handlePositionalUpdate(final String updateKey, Object object, List valueList, DBObject ownerObj, DBObject query) {
       int dollarIndex = updateKey.indexOf("$");
       String postPath = (dollarIndex == updateKey.length() -1 )  ? "" : updateKey.substring(dollarIndex + 2);
       String prePath = updateKey.substring(0, dollarIndex - 1);
@@ -134,7 +132,7 @@ public class UpdateEngine {
         if (listItem instanceof DBObject && !postPath.isEmpty()){
           
           if (filter.apply((DBObject) listItem)) {
-            doSingleKeyUpdate(postPath, (DBObject) listItem, object);
+            doSingleKeyUpdate(postPath, (DBObject) listItem, object, query);
             break;
           }
         } else {
@@ -336,6 +334,12 @@ public class UpdateEngine {
       }
   );
   final Map<String, BasicUpdate> commandMap = createCommandMap();
+  private final BasicUpdate basicUpdateForUpsert = new BasicUpdate("upsert", true){
+    @Override
+    void mergeAction(String subKey, DBObject subObject, Object object) {
+      subObject.put(subKey, object);
+    }};
+    
   private Map<String, BasicUpdate> createCommandMap() {
     Map<String, BasicUpdate> map = new HashMap<String, BasicUpdate>();
     for (BasicUpdate item : commands){
@@ -345,6 +349,10 @@ public class UpdateEngine {
   }
   
   public DBObject doUpdate(final DBObject obj, final DBObject update) {
+    return doUpdate(obj, update, new BasicDBObject());
+  }
+  
+  public DBObject doUpdate(final DBObject obj, final DBObject update, DBObject query) {
     boolean updateDone = false;
     Set<String> seenKeys = new HashSet<String>();
     for (String command : update.keySet()) {
@@ -353,7 +361,7 @@ public class UpdateEngine {
         if (isDebug) {
           debug("Doing update for command " + command);
         }
-        basicUpdate.doUpdate(obj, update, seenKeys);
+        basicUpdate.doUpdate(obj, update, seenKeys, query);
         updateDone = true;
       } else if (command.startsWith("$")){
         throw new FongoException("usupported update: " + update);
@@ -369,5 +377,9 @@ public class UpdateEngine {
       obj.putAll(update);
     }
     return obj;
+  }
+
+  public void mergeEmbeddedValueFromQuery(BasicDBObject newObject, DBObject q) {
+    basicUpdateForUpsert.doUpdate(newObject, new BasicDBObject(basicUpdateForUpsert.command, q), new HashSet<String>(), q);
   }
 }

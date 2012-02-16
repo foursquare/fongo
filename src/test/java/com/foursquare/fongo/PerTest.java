@@ -6,7 +6,7 @@ import com.mongodb.DBCollection;
 
 public class PerTest {
   public static void main(String[] args) {
-    doit();
+    //doit();
     long startTime = System.currentTimeMillis();
     doit();
     System.out.println("Took " + (System.currentTimeMillis() - startTime));
@@ -17,8 +17,9 @@ public class PerTest {
     for (int i = 0; i < 1; i++){
       DB db = fongo.getDB("db");
       DBCollection collection = db.getCollection("coll");
-      for (int k = 0; k < 10000; k++){
-        collection.update(new BasicDBObject("_id", k), new BasicDBObject("$push", new BasicDBObject("a", 1)), true, false);
+      for (int k = 0; k < 1000; k++){
+        collection.insert(new BasicDBObject("_id", k).append("n", new BasicDBObject("a", 1)));
+        collection.findOne(new BasicDBObject("n.a", 1));
       }
       db.dropDatabase();
     }
