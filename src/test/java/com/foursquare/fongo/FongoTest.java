@@ -7,7 +7,6 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.util.Arrays;
-import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 
@@ -281,7 +280,6 @@ public class FongoTest {
   @Test
   public void testAnotherUpsert() {
     DBCollection collection = newCollection();
-    //Fongo.metrics update: { "_id" : { "f" : "ca" , "1" : { "l" : 284000} , "t" : { "t" : 1323648000000}}} { "$inc" : { "n.!" : 1 , "n.a.b:false" : 1}} upsert? true multi? false
     BasicDBObjectBuilder queryBuilder = BasicDBObjectBuilder.start().push("_id").
         append("f", "ca").push("1").append("l", 2).pop().push("t").append("t", 11).pop().pop();
     DBObject query = queryBuilder.get();

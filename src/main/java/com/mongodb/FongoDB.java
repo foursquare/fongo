@@ -81,7 +81,9 @@ public class FongoDB extends DB {
    */
   @Override
   public CommandResult command( DBObject cmd , int options, ReadPreference readPrefs ) throws MongoException {
-    //System.out.println("Fongo got command " + cmd);
+    if (isDebug) {
+      System.out.println("Fongo got command " + cmd);
+    }
     if (cmd.containsField("getlasterror")) {
       return okResult();
     } else if (cmd.containsField("drop")) {

@@ -239,6 +239,18 @@ public class ExpressionParserTest {
   }
   
   @Test
+  public void testEmbeddedArrayObjectMultiMatch(){
+    DBObject query = new BasicDBObject("a.b", 1).append("a.c",1);
+    List<DBObject> results = doFilter(
+        query,
+        new BasicDBObject("a", asList(new BasicDBObject("b",1).append("c", 1)))
+    );
+    assertEquals(Arrays.<DBObject>asList(
+        new BasicDBObject("a", asList(new BasicDBObject("b",1).append("c", 1)))
+    ), results);
+  }
+  
+  @Test
   public void testEmbeddedEmptyMatch(){
     DBObject query = new BasicDBObject("a.b.c", 1);
     List<DBObject> results = doFilter(
