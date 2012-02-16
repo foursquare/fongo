@@ -176,17 +176,16 @@ public class UpdateEngineTest {
   }
   
   @Test
-  @Ignore("would take a major refactor of the way filters work to do well")
   public void testEmbeddedPullOperation() {
     UpdateEngine updateEngine = new UpdateEngine();
     DBObject update = new BasicDBObjectBuilder().push("$pull").push("a")
         .append("b",1).pop().get();
     
-    assertEquals(new BasicDBObject("a", Util.list(new BasicDBObject("b",2))),
+    assertEquals(new BasicDBObject("a", Util.list(new BasicDBObject("b",2).append("f", 1))),
         updateEngine.doUpdate(new BasicDBObject("a", Util.list(
-            new BasicDBObject("b", 1),
-            new BasicDBObject("b", 2),
-            new BasicDBObject("b", 1)
+            new BasicDBObject("b", 1).append("f", 1),
+            new BasicDBObject("b", 2).append("f", 1),
+            new BasicDBObject("b", 1).append("f", 1)
         )), update));
   }
 

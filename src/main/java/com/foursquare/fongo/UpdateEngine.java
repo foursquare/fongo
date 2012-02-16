@@ -266,15 +266,21 @@ public class UpdateEngine {
       new BasicUpdate("$pull", false) {
         @Override
         void mergeAction(String subKey, DBObject subObject, Object object) {
-          if (object instanceof DBObject) {
-            throw new FongoException(command + " with expressions is not support");
-          }
           BasicDBList currentList = expressionParser.typecast(command + " only works on arrays", subObject.get(subKey), BasicDBList.class);
           if (currentList != null && currentList.size() > 0){
             BasicDBList newList = new BasicDBList();
-            for (Object item : currentList){
-              if (!object.equals(item)) {
-                newList.add(item);
+            if (object instanceof DBObject) {
+              Filter filter = expressionParser.buildFilter((DBObject)object);
+              for (Object item : currentList) {
+                if (!(item instanceof DBObject) || !filter.apply((DBObject)item)) {
+                  newList.add(item);
+                }
+              }
+            } else {
+              for (Object item : currentList){
+                if (!object.equals(item)) {
+                  newList.add(item);
+                }
               }
             }
             subObject.put(subKey, newList);
