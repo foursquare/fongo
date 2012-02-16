@@ -79,11 +79,11 @@ public class ExpressionParser {
     public Filter createFilter(final String key, final DBObject refExpression) {
       return new Filter(){
         public boolean apply(DBObject o) {
-          Option<Object> storedOption = getEmbeddedValue(key, o);
+          List<Object> storedOption = getEmbeddedValues(key, o);
           if (storedOption.isEmpty()) {
             return false;
           } else {
-            return compare(refExpression.get(command), storedOption.get());            
+            return compare(refExpression.get(command), storedOption.get(0));            
           }
         }};
     }
@@ -107,11 +107,11 @@ public class ExpressionParser {
       final Set querySet = new HashSet(queryList);
       return new Filter(){
         public boolean apply(DBObject o) {
-          Option<Object> storedOption = getEmbeddedValue(key, o);
+          List<Object> storedOption = getEmbeddedValues(key, o);
           if (storedOption.isEmpty()) {
-            return false;
+            return !direction;
           } else {
-            return compare(refExpression.get(command), storedOption.get(), querySet);            
+            return compare(refExpression.get(command), storedOption.get(0), querySet);            
           }
         }};
     }
@@ -185,11 +185,11 @@ public class ExpressionParser {
           return new Filter(){
             public boolean apply(DBObject o) {
               Object queryValue = refExpression.get(command);
-              Option<Object> storedOption = getEmbeddedValue(key, o);
+              List<Object> storedOption = getEmbeddedValues(key, o);
               if (storedOption.isEmpty()) {
                 return true;
               } else {
-                Object storedValue = storedOption.get();
+                Object storedValue = storedOption.get(0);
                 if (storedValue instanceof List){
                   for (Object aValue : (List)storedValue){
                     if (queryValue.equals(aValue)){
@@ -213,8 +213,8 @@ public class ExpressionParser {
         public Filter createFilter(final String key, final DBObject refExpression) {
           return new Filter(){
             public boolean apply(DBObject o) {
-              Option<Object> storedOption = getEmbeddedValue(key, o);
-              return typecast(command + " clause", refExpression.get(command), Boolean.class) == storedOption.isFull();
+              List<Object> storedOption = getEmbeddedValues(key, o);
+              return typecast(command + " clause", refExpression.get(command), Boolean.class) == !storedOption.isEmpty();
           }};
       }},
       new BasicFilterFactory(MOD){
@@ -257,7 +257,7 @@ public class ExpressionParser {
     }
   }
   
-  public Option<Object> getEmbeddedValue(String key, DBObject dbo) {
+  public List<Object> getEmbeddedValues(String key, DBObject dbo) {
     List<String> path = split(key);
     String subKey = path.get(0);
     if (path.size() > 1) {
@@ -268,29 +268,32 @@ public class ExpressionParser {
     
     for (int i = 0; i < path.size() - 1; i++){
       Object value = dbo.get(subKey);
+
       if (value instanceof DBObject && !(value instanceof List)){
         dbo = (DBObject) value;
       } else if (value instanceof List && isInt(path.get(i + 1))) {
         BasicDBList newList = Util.wrap((List) value);
         dbo = newList;
       } else if (value instanceof List) {
+        List<Object> results = new ArrayList<Object>();
         for (Object listValue : (List) value){
           if (listValue instanceof DBObject){
-            Option<Object> embeddedListValue = getEmbeddedValue(join(path, i + 1, "."), (DBObject)listValue);
-            if (embeddedListValue.isFull()){
-              return embeddedListValue;
-            }
+            List<Object> embeddedListValue = getEmbeddedValues(join(path, i + 1, "."), (DBObject)listValue);
+            results.addAll(embeddedListValue);
           }
         }
+        if (!results.isEmpty()) {
+          return results;
+        }
       } else {
-        return Option.None;
+        return Collections.emptyList();
       }
       subKey = path.get(i + 1);
     }
     if (dbo.containsField(subKey)) {
-      return new Some<Object>(dbo.get(subKey));      
+      return Collections.singletonList((dbo.get(subKey)));      
     } else {
-      return Option.None;
+      return Collections.emptyList();
     }
   }
 
@@ -312,6 +315,9 @@ public class ExpressionParser {
   }
 
   private Filter buildExpressionFilter(final String key, final Object expression) {
+    if (isDebug){
+      debug("building expresion filter ");
+    }
     if (key == OR) {
       List<DBObject> queryList = typecast(key + " operator", expression, List.class);
       OrFilter orFilter = new OrFilter();
@@ -325,6 +331,9 @@ public class ExpressionParser {
       if (notExpression != null) {
         return new NotFilter(buildExpressionFilter(key, notExpression));
       } else {
+        if (isDebug){
+          debug("building Andfilter ");
+        }
         AndFilter andFilter = new AndFilter();
         int matchCount = 0;
         for (FilterFactory filterFactory : filterFactories){
@@ -339,17 +348,20 @@ public class ExpressionParser {
         if (matchCount > 2){
           throw new FongoException("Invalid expression for key " + key + ": " + expression);
         }
+        if (isDebug){
+          debug("using filter " + andFilter);
+        }
         return andFilter;
       }
     } else if (expression instanceof Pattern) {
       final Pattern pattern = (Pattern) expression;
       return new Filter(){
         public boolean apply(DBObject o) {
-          Option<Object> storedOption = getEmbeddedValue(key, o);
+          List<Object> storedOption = getEmbeddedValues(key, o);
           if (storedOption.isEmpty()){
             return false;
           } else {
-            Object storedValue = storedOption.get();
+            Object storedValue = storedOption.get(0);
             if (storedValue == null) {
               return false;
             } else if (storedValue instanceof List) {
@@ -378,16 +390,22 @@ public class ExpressionParser {
   public Filter simpleFilter(final String key, final Object expression) {
     return new Filter(){
       public boolean apply(DBObject o) {
-        Option<Object> storedOption = getEmbeddedValue(key, o);
+        List<Object> storedOption = getEmbeddedValues(key, o);
         if (storedOption.isEmpty()){
           return false;
         } else {
-          Object storedValue = storedOption.get();
-          if (storedValue instanceof List) {
-            return ((List)storedValue).contains(expression);
-          } else {
-            return expression.equals(storedValue);            
+          for(Object storedValue : storedOption) {
+            if (storedValue instanceof List) {
+              if (((List)storedValue).contains(expression)){
+                return true;
+              }
+            } else {
+              if (expression.equals(storedValue)){
+                return true;
+              }
+            }            
           }
+          return false;
         }
 
       }};

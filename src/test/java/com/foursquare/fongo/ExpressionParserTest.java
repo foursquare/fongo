@@ -161,6 +161,24 @@ public class ExpressionParserTest {
         new BasicDBObject("a", 1)
     ), results);
   }
+  
+  @Test
+  public void testNinMissingOperator() {
+    DBObject query = new BasicDBObjectBuilder().push("a").add("$nin", asList(2,3)).pop().get();
+    List<DBObject> results = doFilter(
+        query,
+        new BasicDBObject("a", asList(1,4)),
+        new BasicDBObject("a", asList(1,3)),
+        new BasicDBObject("a", 1),
+        new BasicDBObject("a", 3),
+        new BasicDBObject("b", 3)
+    );
+    assertEquals(Arrays.<DBObject>asList(
+        new BasicDBObject("a", asList(1,4)),
+        new BasicDBObject("a", 1),
+        new BasicDBObject("b", 3)
+    ), results);
+  }
 
   @Test
   public void testNotComplexOperator(){

@@ -31,7 +31,7 @@ public class FongoDBCollection extends DBCollection {
   final static String ID_KEY = "_id";
   private final FongoDB fongoDb;
   private final Map<Object, DBObject> objects = new LinkedHashMap<Object, DBObject>();
-  private final ExpressionParser expressionParser = new ExpressionParser();
+  private final ExpressionParser expressionParser;
   private final boolean isDebug;
   private final boolean nonIdCollection;
   
@@ -40,6 +40,7 @@ public class FongoDBCollection extends DBCollection {
     this.fongoDb = db;
     this.isDebug = db.isDebug();
     this.nonIdCollection = name.startsWith("system");
+    expressionParser = new ExpressionParser(isDebug);
   }
   
   @Override
@@ -270,6 +271,7 @@ public class FongoDBCollection extends DBCollection {
       ReadPreference readPref, DBDecoder decoder) throws MongoException {
     if (isDebug){
       debug("find(" + ref + ")");
+      debug("the db looks like " + objects);
     }
     List<Object> idList = idsIn(ref);
     ArrayList<DBObject> results = new ArrayList<DBObject>();
@@ -308,6 +310,9 @@ public class FongoDBCollection extends DBCollection {
         }
       }
     }
+    if (isDebug){
+      debug("found results " + results);
+    }
     if (results.size() == 0){
       return null;
     } else {
@@ -326,15 +331,15 @@ public class FongoDBCollection extends DBCollection {
         Collections.sort(objectList, new Comparator<DBObject>(){
           @Override
           public int compare(DBObject o1, DBObject o2) {
-            Option<Object> o1option = expressionParser.getEmbeddedValue(sortKey, o1);
-            Option<Object> o2option = expressionParser.getEmbeddedValue(sortKey, o2);
+            List<Object> o1option = expressionParser.getEmbeddedValues(sortKey, o1);
+            List<Object> o2option = expressionParser.getEmbeddedValues(sortKey, o2);
             if (o1option.isEmpty()) {
               return -1 * sortDirection;
             } else if (o2option.isEmpty()) {
               return sortDirection;
             } else {
-              Comparable o1Value = expressionParser.typecast(sortKey, o1option.get(), Comparable.class);
-              Comparable o2Value = expressionParser.typecast(sortKey, o2option.get(), Comparable.class);
+              Comparable o1Value = expressionParser.typecast(sortKey, o1option.get(0), Comparable.class);
+              Comparable o2Value = expressionParser.typecast(sortKey, o2option.get(0), Comparable.class);
               
               return o1Value.compareTo(o2Value) * sortDirection;
             }

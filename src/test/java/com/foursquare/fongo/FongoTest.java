@@ -292,6 +292,26 @@ public class FongoTest {
   }
   
   @Test
+  public void testUpsertOnIdWithPush() {
+    DBCollection collection = newCollection();
+
+    DBObject update1 = BasicDBObjectBuilder.start().push("$push")
+        .push("c").append("a",1).append("b", 2).pop().pop().get();
+    
+    DBObject update2 = BasicDBObjectBuilder.start().push("$push")
+        .push("c").append("a",3).append("b", 4).pop().pop().get();
+
+    collection.update(new BasicDBObject("_id", 1), update1, true, false);
+    collection.update(new BasicDBObject("_id", 1), update2, true, false);
+    
+    DBObject expected = new BasicDBObject("_id", 1).append("c", Util.list(
+        new BasicDBObject("a", 1).append("b", 2),
+        new BasicDBObject("a", 3).append("b", 4)));
+    
+    assertEquals(expected, collection.findOne(new BasicDBObject("c.a", 3).append("c.b", 4)));
+  }
+  
+  @Test
   public void testFindAndModifyReturnOld() {
     DBCollection collection = newCollection();
     collection.insert(new BasicDBObject("_id", 1).append("a", 1));
