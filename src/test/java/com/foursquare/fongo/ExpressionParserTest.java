@@ -61,7 +61,29 @@ public class ExpressionParserTest {
         new BasicDBObject("n","stu").append("a", 4),
         new BasicDBObject("a", asList(3,4))
     ));
+  }
+  
+  @Test
+  public void testConditionalEmbeddedOperator(){
 
+    DBObject query = new BasicDBObject("a.b", new BasicDBObject("$gt",2));
+    List<DBObject> results = doFilter(
+        query,
+        new BasicDBObject("a", asList(
+            new BasicDBObject("b",1), 
+            new BasicDBObject("b",2)
+        )),
+        new BasicDBObject("a", asList(
+            new BasicDBObject("b",2), 
+            new BasicDBObject("b",3)
+        ))
+    );
+    assertEquals(Arrays.<DBObject>asList(
+        new BasicDBObject("a", asList(
+            new BasicDBObject("b",2), 
+            new BasicDBObject("b",3)
+        ))
+    ), results);
   }
   
   @Test
@@ -79,6 +101,29 @@ public class ExpressionParserTest {
         new BasicDBObject("a", 1),
         new BasicDBObject("b", 3),
         new BasicDBObject("a", asList(1,2))
+    ), results);
+  }
+  
+  @Test
+  public void testNeEmbeddedOperator(){
+
+    DBObject query = new BasicDBObject("a.b", new BasicDBObject("$ne",2));
+    List<DBObject> results = doFilter(
+        query,
+        new BasicDBObject("a", asList(
+            new BasicDBObject("b",1), 
+            new BasicDBObject("b",2)
+        )),
+        new BasicDBObject("a", asList(
+            new BasicDBObject("b",3), 
+            new BasicDBObject("b",4)
+        ))
+    );
+    assertEquals(Arrays.<DBObject>asList(
+        new BasicDBObject("a", asList(
+            new BasicDBObject("b",3), 
+            new BasicDBObject("b",4)
+        ))
     ), results);
   }
   
@@ -147,6 +192,29 @@ public class ExpressionParserTest {
   }
   
   @Test
+  public void testInEmbeddedOperator(){
+
+    DBObject query = new BasicDBObject("a.b", new BasicDBObject("$in",asList(2)));
+    List<DBObject> results = doFilter(
+        query,
+        new BasicDBObject("a", asList(
+            new BasicDBObject("b",1), 
+            new BasicDBObject("b",2)
+        )),
+        new BasicDBObject("a", asList(
+            new BasicDBObject("b",3), 
+            new BasicDBObject("b",4)
+        ))
+    );
+    assertEquals(Arrays.<DBObject>asList(
+        new BasicDBObject("a", asList(
+            new BasicDBObject("b",1), 
+            new BasicDBObject("b",2)
+        ))
+    ), results);
+  }
+  
+  @Test
   public void testNinOperator(){
     DBObject query = new BasicDBObjectBuilder().push("a").add("$nin", asList(2,3)).pop().get();
     List<DBObject> results = doFilter(
@@ -159,6 +227,29 @@ public class ExpressionParserTest {
     assertEquals(Arrays.<DBObject>asList(
         new BasicDBObject("a", asList(1,4)),
         new BasicDBObject("a", 1)
+    ), results);
+  }
+  
+  @Test
+  public void testNinEmbeddedOperator(){
+
+    DBObject query = new BasicDBObject("a.b", new BasicDBObject("$nin",asList(2)));
+    List<DBObject> results = doFilter(
+        query,
+        new BasicDBObject("a", asList(
+            new BasicDBObject("b",1), 
+            new BasicDBObject("b",2)
+        )),
+        new BasicDBObject("a", asList(
+            new BasicDBObject("b",3), 
+            new BasicDBObject("b",4)
+        ))
+    );
+    assertEquals(Arrays.<DBObject>asList(
+        new BasicDBObject("a", asList(
+            new BasicDBObject("b",3), 
+            new BasicDBObject("b",4)
+        ))
     ), results);
   }
   
@@ -350,6 +441,25 @@ public class ExpressionParserTest {
     assertEquals(Arrays.<DBObject>asList(
         new BasicDBObject("a", "fooSter"),
         new BasicDBObject("a", asList("foomania", "notfoo"))
+    ), results);
+  }
+  
+  @Test
+  public void testRegexEmbeddedOperator() {
+    DBObject query = new BasicDBObject("a.b", Pattern.compile("^foo"));
+    List<DBObject> results = doFilter(
+        query,
+        new BasicDBObject("a", asList(
+            new BasicDBObject("b","bar"), 
+            new BasicDBObject("b","fooBar")
+        ))
+
+    );
+    assertEquals(Arrays.<DBObject>asList(
+        new BasicDBObject("a", asList(
+            new BasicDBObject("b","bar"), 
+            new BasicDBObject("b","fooBar")
+        ))
     ), results);
   }
   

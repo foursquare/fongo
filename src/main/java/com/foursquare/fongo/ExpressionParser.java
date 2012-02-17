@@ -13,7 +13,20 @@ import com.mongodb.DBObject;
 
 public class ExpressionParser {
 
-  public final static Pattern DOT_PATTERN = Pattern.compile("\\.");
+  public final static String LT = "$lt";
+  public final static String LTE = "$lte";
+  public final static String GT = "$gt";
+  public final static String GTE = "$gte";
+  public final static String NE = "$ne";
+  public final static String ALL = "$all";
+  public final static String EXISTS = "$exists";
+  public final static String MOD = "$mod";
+  public final static String IN = "$in";
+  public final static String NIN = "$nin";
+  public final static String SIZE = "$size";
+  public final static String NOT = "$not";
+  public final static String OR = "$or";
+  
   private final boolean isDebug;
   public ExpressionParser() {
     this(false);
@@ -31,22 +44,6 @@ public class ExpressionParser {
     }
     return andFilter;
   }
-  
-  public final static String LT = "$lt";
-  public final static String LTE = "$lte";
-  public final static String GT = "$gt";
-  public final static String GTE = "$gte";
-  public final static String NE = "$ne";
-  public final static String ALL = "$all";
-  public final static String EXISTS = "$exists";
-  public final static String MOD = "$mod";
-  public final static String IN = "$in";
-  public final static String NIN = "$nin";
-  public final static String SIZE = "$size";
-  public final static String NOT = "$not";
-  public final static String OR = "$or";
-  
-
 
   interface FilterFactory {
     public boolean matchesCommand(DBObject refExpression);
@@ -79,11 +76,16 @@ public class ExpressionParser {
     public Filter createFilter(final List<String> path, final DBObject refExpression) {
       return new Filter(){
         public boolean apply(DBObject o) {
-          List<Object> storedOption = getEmbeddedValues(path, o);
-          if (storedOption.isEmpty()) {
+          List<Object> storedList = getEmbeddedValues(path, o);
+          if (storedList.isEmpty()) {
             return false;
           } else {
-            return compare(refExpression.get(command), storedOption.get(0));            
+            for (Object storedValue : storedList){
+              if (compare(refExpression.get(command), storedValue)){
+                return true;
+              }
+            }
+            return false;
           }
         }};
     }
@@ -107,11 +109,16 @@ public class ExpressionParser {
       final Set querySet = new HashSet(queryList);
       return new Filter(){
         public boolean apply(DBObject o) {
-          List<Object> storedOption = getEmbeddedValues(path, o);
-          if (storedOption.isEmpty()) {
+          List<Object> storedList = getEmbeddedValues(path, o);
+          if (storedList.isEmpty()) {
             return !direction;
           } else {
-            return compare(refExpression.get(command), storedOption.get(0), querySet);            
+            for (Object storedValue : storedList){
+              if (compare(refExpression.get(command), storedValue, querySet) == direction){
+                return direction;
+              }
+            }
+            return !direction;
           }
         }};
     }
@@ -185,21 +192,24 @@ public class ExpressionParser {
           return new Filter(){
             public boolean apply(DBObject o) {
               Object queryValue = refExpression.get(command);
-              List<Object> storedOption = getEmbeddedValues(path, o);
-              if (storedOption.isEmpty()) {
+              List<Object> storedList = getEmbeddedValues(path, o);
+              if (storedList.isEmpty()) {
                 return true;
               } else {
-                Object storedValue = storedOption.get(0);
-                if (storedValue instanceof List){
-                  for (Object aValue : (List)storedValue){
-                    if (queryValue.equals(aValue)){
+                for (Object storedValue : storedList){
+                  if (storedValue instanceof List){
+                    for (Object aValue : (List)storedValue){
+                      if (queryValue.equals(aValue)){
+                        return false;
+                      }
+                    }
+                  } else {
+                    if (queryValue.equals(storedValue)){
                       return false;
                     }
                   }
-                  return true;
-                } else {
-                  return !queryValue.equals(storedValue);            
                 }
+                return true;
               }
           }};
       }},
@@ -292,17 +302,6 @@ public class ExpressionParser {
       System.out.println(string);
     }
   }
-
-  private String join(List<String> path, int i, String separator) {
-    StringBuilder sb = new StringBuilder();
-    for (; i < path.size(); i++){
-      sb.append(path.get(i));
-      if (i < path.size() - 1){
-        sb.append(separator);
-      }
-    }
-    return sb.toString();
-  }
   
   private Filter buildExpressionFilter(final String key, final Object expression) {
     return buildExpressionFilter(Util.split(key), expression);
@@ -349,24 +348,24 @@ public class ExpressionParser {
           if (storedOption.isEmpty()){
             return false;
           } else {
-            Object storedValue = storedOption.get(0);
-            if (storedValue == null) {
-              return false;
-            } else if (storedValue instanceof List) {
-              for (Object aValue : (List)storedValue) {
-                if (aValue instanceof CharSequence){
-                  if (pattern.matcher((CharSequence)aValue).find()){
+            for (Object storedValue : storedOption){
+              if (storedValue != null){
+                if (storedValue instanceof List) {
+                  for (Object aValue : (List)storedValue) {
+                    if (aValue instanceof CharSequence){
+                      if (pattern.matcher((CharSequence)aValue).find()){
+                        return true;
+                      }
+                    }
+                  }
+                } else if (storedValue instanceof CharSequence){
+                  if(pattern.matcher((CharSequence)storedValue).find()){
                     return true;
                   }
                 }
               }
-              return false;
-            } else {
-              if (storedValue instanceof CharSequence){
-                return pattern.matcher((CharSequence)storedValue).find();
-              }
-              return false;
             }
+            return false;
           }
         }
       };
