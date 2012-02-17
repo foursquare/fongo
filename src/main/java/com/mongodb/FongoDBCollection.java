@@ -17,7 +17,6 @@ import org.bson.types.ObjectId;
 import com.foursquare.fongo.ExpressionParser;
 import com.foursquare.fongo.Filter;
 import com.foursquare.fongo.FongoException;
-import com.foursquare.fongo.Option;
 import com.foursquare.fongo.UpdateEngine;
 import com.foursquare.fongo.Util;
 
