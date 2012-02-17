@@ -324,34 +324,34 @@ public class FongoDBCollection extends DBCollection {
     }
   }
 
-  public Collection<DBObject> sortObjects(DBObject orderby) {
+  public Collection<DBObject> sortObjects(final DBObject orderby) {
     Collection<DBObject> objectsToSearch = objects.values();
     if (orderby != null) {
-      Set<String> orderbyKeySet = orderby.keySet();
+      final Set<String> orderbyKeySet = orderby.keySet();
       if (!orderbyKeySet.isEmpty()){
         DBObject[] objectsToSort = objects.values().toArray(new DBObject [0]);
-        List<String> orderByKeys = new ArrayList<String>(orderbyKeySet);
-        for (int i = orderByKeys.size() - 1; i >= 0; i--) {
-          String sortKey = orderByKeys.get(i);
-          final int sortDirection = (Integer)orderby.get(sortKey);
-          sortByKey(sortKey, objectsToSort, sortDirection);
-        }
+
+        Arrays.sort(objectsToSort, new Comparator<DBObject>(){
+          @Override
+          public int compare(DBObject o1, DBObject o2) {
+            for (String sortKey : orderbyKeySet) {
+              final List<String> path = Util.split(sortKey);
+              int sortDirection = (Integer)orderby.get(sortKey);
+              List<Object> o1list = expressionParser.getEmbeddedValues(path, o1);
+              List<Object> o2list = expressionParser.getEmbeddedValues(path, o2);
+              int compareValue = expressionParser.compareLists(o1list, o2list) * sortDirection;
+              if (compareValue != 0){
+                return compareValue;
+              }
+            }
+            return 0;
+          }});
         return Arrays.asList(objectsToSort);
       }
     }
     return objectsToSearch;
   }
 
-  public void sortByKey(final String sortKey, DBObject [] objectList, final int sortDirection) {
-    final List<String> path = Util.split(sortKey);
-    Arrays.sort(objectList, new Comparator<DBObject>(){
-      @Override
-      public int compare(DBObject o1, DBObject o2) {
-        List<Object> o1list = expressionParser.getEmbeddedValues(path, o1);
-        List<Object> o2list = expressionParser.getEmbeddedValues(path, o2);
-        return expressionParser.compareLists(o1list, o2list) * sortDirection;
-      }});
-  }
   
   @Override
   public synchronized long getCount(DBObject query, DBObject fields, long limit, long skip ) {
