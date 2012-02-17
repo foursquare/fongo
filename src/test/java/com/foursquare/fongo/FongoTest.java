@@ -159,6 +159,25 @@ public class FongoTest {
   }
   
   @Test
+  public void testCompoundSort() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("a", 1).append("_id", 1));
+    collection.insert(new BasicDBObject("a", 2).append("_id", 5));
+    collection.insert(new BasicDBObject("a", 1).append("_id", 2));
+    collection.insert(new BasicDBObject("a", 2).append("_id", 4));
+    collection.insert(new BasicDBObject("a", 1).append("_id", 3));
+
+    DBCursor cursor = collection.find().sort(new BasicDBObject("a", 1).append("_id", -1));
+    assertEquals(Arrays.asList(
+        new BasicDBObject("a", 1).append("_id", 3),
+        new BasicDBObject("a", 1).append("_id", 2),
+        new BasicDBObject("a", 1).append("_id", 1),
+        new BasicDBObject("a", 2).append("_id", 5),
+        new BasicDBObject("a", 2).append("_id", 4)
+    ), cursor.toArray());
+  }
+  
+  @Test
   public void testBasicUpdate() {
     DBCollection collection = newCollection();
     collection.insert(new BasicDBObject("_id", 1));

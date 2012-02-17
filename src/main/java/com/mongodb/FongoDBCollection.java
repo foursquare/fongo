@@ -1,6 +1,7 @@
 package com.mongodb;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -18,6 +19,7 @@ import com.foursquare.fongo.Filter;
 import com.foursquare.fongo.FongoException;
 import com.foursquare.fongo.Option;
 import com.foursquare.fongo.UpdateEngine;
+import com.foursquare.fongo.Util;
 
 public class FongoDBCollection extends DBCollection {
   
@@ -325,31 +327,30 @@ public class FongoDBCollection extends DBCollection {
   public Collection<DBObject> sortObjects(DBObject orderby) {
     Collection<DBObject> objectsToSearch = objects.values();
     if (orderby != null) {
-      Set<String> orderbyKeys = orderby.keySet();
-      if (!orderbyKeys.isEmpty()){
-        final String sortKey = orderbyKeys.iterator().next();
-        final int sortDirection = (Integer)orderby.get(sortKey);
-        ArrayList<DBObject> objectList = new ArrayList<DBObject>(objects.values());
-        Collections.sort(objectList, new Comparator<DBObject>(){
-          @Override
-          public int compare(DBObject o1, DBObject o2) {
-            List<Object> o1option = expressionParser.getEmbeddedValues(sortKey, o1);
-            List<Object> o2option = expressionParser.getEmbeddedValues(sortKey, o2);
-            if (o1option.isEmpty()) {
-              return -1 * sortDirection;
-            } else if (o2option.isEmpty()) {
-              return sortDirection;
-            } else {
-              Comparable o1Value = expressionParser.typecast(sortKey, o1option.get(0), Comparable.class);
-              Comparable o2Value = expressionParser.typecast(sortKey, o2option.get(0), Comparable.class);
-              
-              return o1Value.compareTo(o2Value) * sortDirection;
-            }
-          }});
-        return objectList;
+      Set<String> orderbyKeySet = orderby.keySet();
+      if (!orderbyKeySet.isEmpty()){
+        DBObject[] objectsToSort = objects.values().toArray(new DBObject [0]);
+        List<String> orderByKeys = new ArrayList<String>(orderbyKeySet);
+        for (int i = orderByKeys.size() - 1; i >= 0; i--) {
+          String sortKey = orderByKeys.get(i);
+          final int sortDirection = (Integer)orderby.get(sortKey);
+          sortByKey(sortKey, objectsToSort, sortDirection);
+        }
+        return Arrays.asList(objectsToSort);
       }
     }
     return objectsToSearch;
+  }
+
+  public void sortByKey(final String sortKey, DBObject [] objectList, final int sortDirection) {
+    final List<String> path = Util.split(sortKey);
+    Arrays.sort(objectList, new Comparator<DBObject>(){
+      @Override
+      public int compare(DBObject o1, DBObject o2) {
+        List<Object> o1list = expressionParser.getEmbeddedValues(path, o1);
+        List<Object> o2list = expressionParser.getEmbeddedValues(path, o2);
+        return expressionParser.compareLists(o1list, o2list) * sortDirection;
+      }});
   }
   
   @Override
