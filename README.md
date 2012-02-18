@@ -66,3 +66,4 @@ Mongo mongo = fongo.getMongo();
 * more testing
 * publish to one of the maven repos
 * find an actual use for this project
+* use some sort of logging framework
