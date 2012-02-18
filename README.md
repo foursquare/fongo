@@ -4,7 +4,19 @@ Fongo is an in-memory java implementation of mongo.  It intercepts calls to the 
 finds, updates, inserts, removes and other methods.  The primary use is for lightweight unit testing where you
 don't want to spin up a mongo process.
 
+The original hope was that this would be significantly faster than using a real mongo server, however, it's still not clear if that's the case.  Another goal was to make it easier to parallelize tests, but that could also be achieved
+by fixing each thread to a uniquely named database.
+
 ## Usage
+
+1. Clone this repo and build the jar:
+    
+    mvn package
+
+1. Copy jar to classpath
+
+1. Use in place of regular `com.mongodb.Mongo` instance:
+
 
     import com.foursquare.fongo.Fongo;
     import com.mongodb.BasicDBObject;
@@ -48,3 +60,9 @@ should be good enough for simple testing.  Fongo doesn't have any shared state (
 
     // get an instance of the hijacked com.mongodb.Mongo
     Mongo mongo = fongo.getMongo();
+
+## Todo
+
+* more testing
+* publish to one of the maven repos
+* find an actual use for this project
