@@ -10,14 +10,14 @@ by fixing each thread to a uniquely named database.
 ## Usage
 
 1. Clone this repo and build the jar:
-    
+    <pre><code>
     mvn package
-
+    </code></pre>
 1. Copy jar to classpath
 
 1. Use in place of regular `com.mongodb.Mongo` instance:
 
-
+    <pre><code>
     import com.foursquare.fongo.Fongo;
     import com.mongodb.BasicDBObject;
     import com.mongodb.DB;
@@ -30,7 +30,7 @@ by fixing each thread to a uniquely named database.
     DB db = fongo.getDB("mydb");
     DBCollection collection = db.getCollection("mycollection");
     collection.insert(new BasicDBObject("name", "jon"));
-
+    </code></pre>
 ## Scope
 
 fongo doesn't implement all mongo functionality. most query and update syntax is supported.  MapReduce,
