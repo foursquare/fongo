@@ -12,19 +12,19 @@ by fixing each thread to a uniquely named database.
 1. Clone this repo and build the jar: `mvn package`
 1. Copy jar to classpath
 1. Use in place of regular `com.mongodb.Mongo` instance:
-    <!-- language: lang-java -->
-    <pre><code>import com.foursquare.fongo.Fongo;
-    import com.mongodb.BasicDBObject;
-    import com.mongodb.DB;
-    import com.mognodb.DBCollection;
-    ...
-    Fongo fongo = new Fongo("mongo server 1");
-    
-    // once you have a DB instance, you can interact with it
-    // just like you would with a real one.
-    DB db = fongo.getDB("mydb");
-    DBCollection collection = db.getCollection("mycollection");
-    collection.insert(new BasicDBObject("name", "jon"));</code></pre>
+```java
+import com.foursquare.fongo.Fongo;
+import com.mongodb.BasicDBObject;
+import com.mongodb.DB;
+import com.mognodb.DBCollection;
+...
+Fongo fongo = new Fongo("mongo server 1");
+
+// once you have a DB instance, you can interact with it
+// just like you would with a real one.
+DB db = fongo.getDB("mydb");
+DBCollection collection = db.getCollection("mycollection");
+collection.insert(new BasicDBObject("name", "jon"));```
 
 ## Scope
 
@@ -41,21 +41,22 @@ should be good enough for simple testing.  Fongo doesn't have any shared state (
 
 ## Usage Details
 
-    <!-- language: lang-java -->
-    //create an instance with lots of debug logging (uses printlns :-/ )
-    new Fongo("mongo server 1", true)
+```java
+//create an instance with lots of debug logging (uses printlns :-/ )
+new Fongo("mongo server 1", true)
 
-    // Fongo instance methods
-    
-    // get all created databases (they are created automatically the first time requested)
-    Collection<DB> dbs = fongo.getUsedDatabases();
-    // also
-    List<String> dbNames = fongo.getDatabaseNames();
-    // also
-    fongo.dropDatabase("dbName");
+// Fongo instance methods
 
-    // get an instance of the hijacked com.mongodb.Mongo
-    Mongo mongo = fongo.getMongo();
+// get all created databases (they are created automatically the first time requested)
+Collection<DB> dbs = fongo.getUsedDatabases();
+// also
+List<String> dbNames = fongo.getDatabaseNames();
+// also
+fongo.dropDatabase("dbName");
+
+// get an instance of the hijacked com.mongodb.Mongo
+Mongo mongo = fongo.getMongo();
+```
 
 ## Todo
 
