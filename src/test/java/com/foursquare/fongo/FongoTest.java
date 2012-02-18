@@ -7,6 +7,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 
@@ -177,6 +178,26 @@ public class FongoTest {
     ), cursor.toArray());
   }
   
+  @Test
+  public void testEmbeddedSort() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1));
+    collection.insert(new BasicDBObject("_id", 2));
+    collection.insert(new BasicDBObject("_id", 3));
+    collection.insert(new BasicDBObject("_id", 4).append("counts", new BasicDBObject("done", 1)));
+    collection.insert(new BasicDBObject("_id", 5).append("counts", new BasicDBObject("done", 2)));
+
+    DBCursor cursor = collection.find(new BasicDBObject("c", new BasicDBObject("$ne", true))).sort(new BasicDBObject("counts.done", -1));
+    assertEquals(Arrays.asList(
+        new BasicDBObject("_id", 5).append("counts", new BasicDBObject("done", 2)),
+        new BasicDBObject("_id", 4).append("counts", new BasicDBObject("done", 1)),
+        new BasicDBObject("_id", 1),
+        new BasicDBObject("_id", 2),
+        new BasicDBObject("_id", 3)
+    ), cursor.toArray());
+  }
+  
+
   @Test
   public void testBasicUpdate() {
     DBCollection collection = newCollection();
@@ -419,6 +440,16 @@ public class FongoTest {
     assertTrue("not a DBList", result.get("n") instanceof BasicDBList);
     
   }
+  
+  @Test
+  public void testConvertJavaMapToDBObject() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1).append("n", Collections.singletonMap("a", 1)));
+    DBObject result = collection.findOne();
+    assertTrue("not a DBObject", result.get("n") instanceof BasicDBObject);
+    
+  }
+  
   
   @Test
   public void testDistinctQuery() {

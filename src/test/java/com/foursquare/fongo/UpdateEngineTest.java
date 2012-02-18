@@ -262,4 +262,15 @@ public class UpdateEngineTest {
         ), update));
   }
   
+  @Test 
+  public void testEmbeddedIntOperator() {
+    UpdateEngine updateEngine = new UpdateEngine();
+    DBObject update = new BasicDBObjectBuilder().push("$inc")
+        .append("a.1",1).pop().get();
+    
+    assertEquals(new BasicDBObject("a", new BasicDBObject("1", 1)),
+        updateEngine.doUpdate(new BasicDBObject(), update));
+  }
+  
+  
 }

@@ -268,7 +268,6 @@ public class ExpressionParser {
     
     for (int i = startIndex; i < path.size() - 1; i++){
       Object value = dbo.get(subKey);
-
       if (value instanceof DBObject && !(value instanceof List)){
         dbo = (DBObject) value;
       } else if (value instanceof List && isInt(path.get(i + 1))) {

@@ -21,13 +21,6 @@ import com.foursquare.fongo.UpdateEngine;
 import com.foursquare.fongo.Util;
 
 public class FongoDBCollection extends DBCollection {
-  
-  private final class IdComparator implements Comparator<Object> {
-    @Override
-    public int compare(Object o1, Object o2) {
-      return expressionParser.compareObjects(o1, o2);
-    }
-  }
 
   final static String ID_KEY = "_id";
   private final FongoDB fongoDb;
@@ -88,22 +81,28 @@ public class FongoDBCollection extends DBCollection {
     }
     for (String key : dbo.keySet()) {
       Object value = dbo.get(key);
-      Object replacementValue = replaceList(value);
+      Object replacementValue = replaceListAndMap(value);
       dbo.put(key, replacementValue);
     }
     return dbo;
   }
 
-  public Object replaceList(Object value) {
+  public Object replaceListAndMap(Object value) {
     Object replacementValue = value;
     if (value instanceof DBObject) {
       replacementValue = filterLists((DBObject) value);
-    } else if (value instanceof List && !(value instanceof BasicDBList)){
+    } else if (value instanceof List){
       BasicDBList list = new BasicDBList();
       for (Object listItem : (List) value){
-        list.add(replaceList(listItem));
+        list.add(replaceListAndMap(listItem));
       }
       replacementValue = list;
+    } else if (value instanceof Map) {
+      BasicDBObject newDbo = new BasicDBObject();
+      for (Map.Entry<String, Object>entry : (Set<Map.Entry<String, Object>>)((Map)value).entrySet()) {
+        newDbo.put(entry.getKey(), replaceListAndMap(entry.getValue()));
+      }
+      replacementValue = newDbo;
     }
     return replacementValue;
   }
@@ -123,6 +122,7 @@ public class FongoDBCollection extends DBCollection {
   @Override
   public synchronized WriteResult update(DBObject q, DBObject o, boolean upsert, boolean multi, WriteConcern concern,
       DBEncoder encoder) throws MongoException {
+
     if (isDebug){
       debug("update(" + q + ", " + o + ", " + upsert + ", " + multi +")");
     }
@@ -273,7 +273,7 @@ public class FongoDBCollection extends DBCollection {
   synchronized Iterator<DBObject> __find(DBObject ref, DBObject fields, int numToSkip, int batchSize, int limit, int options,
       ReadPreference readPref, DBDecoder decoder) throws MongoException {
     if (isDebug){
-      debug("find(" + ref + ")");
+      debug("find(" + ref + ").limit("+limit+").skip("+numToSkip+")");
       debug("the db looks like " + objects);
     }
     List<Object> idList = idsIn(ref);
@@ -336,8 +336,10 @@ public class FongoDBCollection extends DBCollection {
             for (String sortKey : orderbyKeySet) {
               final List<String> path = Util.split(sortKey);
               int sortDirection = (Integer)orderby.get(sortKey);
+
               List<Object> o1list = expressionParser.getEmbeddedValues(path, o1);
               List<Object> o2list = expressionParser.getEmbeddedValues(path, o2);
+              
               int compareValue = expressionParser.compareLists(o1list, o2list) * sortDirection;
               if (compareValue != 0){
                 return compareValue;
@@ -345,8 +347,11 @@ public class FongoDBCollection extends DBCollection {
             }
             return 0;
           }});
-        return Arrays.asList(objectsToSort);
+        objectsToSearch = Arrays.asList(objectsToSort);
       }
+    }
+    if (isDebug) {
+      debug("sorted objectsToSearch " + objectsToSearch);
     }
     return objectsToSearch;
   }
