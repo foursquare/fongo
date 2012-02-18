@@ -26,7 +26,8 @@ Fongo fongo = new Fongo("mongo server 1");
 // just like you would with a real one.
 DB db = fongo.getDB("mydb");
 DBCollection collection = db.getCollection("mycollection");
-collection.insert(new BasicDBObject("name", "jon"));```
+collection.insert(new BasicDBObject("name", "jon"));
+```
 
 ## Scope
 
