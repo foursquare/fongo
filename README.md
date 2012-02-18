@@ -12,6 +12,7 @@ by fixing each thread to a uniquely named database.
 1. Clone this repo and build the jar: `mvn package`
 1. Copy jar to classpath
 1. Use in place of regular `com.mongodb.Mongo` instance:
+    <!-- language: lang-java -->
     <pre><code>import com.foursquare.fongo.Fongo;
     import com.mongodb.BasicDBObject;
     import com.mongodb.DB;
@@ -40,6 +41,7 @@ should be good enough for simple testing.  Fongo doesn't have any shared state (
 
 ## Usage Details
 
+    <!-- language: lang-java -->
     //create an instance with lots of debug logging (uses printlns :-/ )
     new Fongo("mongo server 1", true)
 
