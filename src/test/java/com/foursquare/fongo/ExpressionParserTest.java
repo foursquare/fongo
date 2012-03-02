@@ -428,7 +428,7 @@ public class ExpressionParserTest {
   }
   
   @Test
-  public void testRegexOperator() {
+  public void testRegexPattern() {
     DBObject query = new BasicDBObject("a", Pattern.compile("^foo"));
     List<DBObject> results = doFilter(
         query,
@@ -442,6 +442,26 @@ public class ExpressionParserTest {
         new BasicDBObject("a", "fooSter"),
         new BasicDBObject("a", asList("foomania", "notfoo"))
     ), results);
+  }
+  
+  @Test
+  public void testRegexOperator() {
+    DBObject query = new BasicDBObject("a", new BasicDBObject("$regex", "^foo"));
+    System.out.println(query);
+   
+    List<DBObject> results = doFilter(
+        query,
+        new BasicDBObject("a", "fooSter")
+    );
+    assertEquals(Arrays.<DBObject>asList(
+        new BasicDBObject("a", "fooSter")
+    ), results);
+  }
+  
+  @Test
+  public void parseRegexFlags() {
+    ExpressionParser ep = new ExpressionParser();
+    assertEquals(Pattern.CASE_INSENSITIVE & Pattern.DOTALL & Pattern.COMMENTS, ep.parseRegexOptionsToPatternFlags("ixs"));
   }
   
   @Test
@@ -587,7 +607,7 @@ public class ExpressionParserTest {
     assertEquals(expected, results);
   }
 
-  public List<DBObject> doFilter(DBObject ref, BasicDBObject ... input) {
+  public List<DBObject> doFilter(DBObject ref, DBObject ... input) {
     ExpressionParser ep = new ExpressionParser(true);
     Filter filter = ep.buildFilter(ref);
     List<DBObject> results = new ArrayList<DBObject>();

@@ -22,6 +22,7 @@ import com.mongodb.DBCollection;
 import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
 import com.mongodb.MongoException;
+import com.mongodb.WriteConcern;
 
 public class FongoTest {
 
@@ -516,10 +517,17 @@ public class FongoTest {
   }
   
   @Test(expected = MongoException.DuplicateKey.class)
-  public void testInsertDuplicateThrows(){
+  public void testInsertDuplicateWithConcernThrows(){
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1));
+    collection.insert(new BasicDBObject("_id", 1), WriteConcern.SAFE);
+  }
+  
+  public void testInsertDuplicateIgnored(){
     DBCollection collection = newCollection();
     collection.insert(new BasicDBObject("_id", 1));
     collection.insert(new BasicDBObject("_id", 1));
+    assertEquals(1, collection.count());
   }
   
   @Test

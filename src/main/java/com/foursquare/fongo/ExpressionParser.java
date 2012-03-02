@@ -26,6 +26,8 @@ public class ExpressionParser {
   public final static String SIZE = "$size";
   public final static String NOT = "$not";
   public final static String OR = "$or";
+  public final static String REGEX = "$regex";
+  public final static String REGEX_OPTIONS = "$options";
   
   private final boolean isDebug;
   public ExpressionParser() {
@@ -169,6 +171,7 @@ public class ExpressionParser {
     abstract boolean singleCompare(Object queryValue, Object storedValue);
   }
   
+  
   @SuppressWarnings("all")
   List<FilterFactory> filterFactories = Arrays.<FilterFactory>asList(
       new ConditionalOperatorFilterFactory(GTE){
@@ -243,7 +246,17 @@ public class ExpressionParser {
           Integer size = typecast(command + " clause", queryValue, Integer.class);
           List storedList = typecast("value", storedValue, List.class);
           return storedList != null && storedList.size() == size;
-      }}
+      }},
+      new BasicCommandFilterFactory(REGEX){
+        @Override
+        public Filter createFilter(final List<String> path, DBObject refExpression) {
+          String flagStr = typecast(REGEX_OPTIONS, refExpression.get(REGEX_OPTIONS), String.class);
+          int flags = parseRegexOptionsToPatternFlags(flagStr);
+          final Pattern pattern = Pattern.compile(refExpression.get(this.command).toString(), flags);
+          
+          return createPatternFilter(path, pattern);
+        }
+      }
   );
 
   public boolean isInt(String s){
@@ -340,34 +353,7 @@ public class ExpressionParser {
         return andFilter;
       }
     } else if (expression instanceof Pattern) {
-      final Pattern pattern = (Pattern) expression;
-      return new Filter(){
-        public boolean apply(DBObject o) {
-          List<Object> storedOption = getEmbeddedValues(path, o);
-          if (storedOption.isEmpty()){
-            return false;
-          } else {
-            for (Object storedValue : storedOption){
-              if (storedValue != null){
-                if (storedValue instanceof List) {
-                  for (Object aValue : (List)storedValue) {
-                    if (aValue instanceof CharSequence){
-                      if (pattern.matcher((CharSequence)aValue).find()){
-                        return true;
-                      }
-                    }
-                  }
-                } else if (storedValue instanceof CharSequence){
-                  if(pattern.matcher((CharSequence)storedValue).find()){
-                    return true;
-                  }
-                }
-              }
-            }
-            return false;
-          }
-        }
-      };
+      return createPatternFilter(path, (Pattern) expression);
     } else {
       return simpleFilter(path, expression);
     }
@@ -443,6 +429,36 @@ public class ExpressionParser {
     return 0;
   }
 
+  public Filter createPatternFilter(final List<String> path, final Pattern pattern) {
+    return new Filter() {
+      public boolean apply(DBObject o) {
+        List<Object> storedOption = getEmbeddedValues(path, o);
+        if (storedOption.isEmpty()){
+          return false;
+        } else {
+          for (Object storedValue : storedOption){
+            if (storedValue != null){
+              if (storedValue instanceof List) {
+                for (Object aValue : (List)storedValue) {
+                  if (aValue instanceof CharSequence){
+                    if (pattern.matcher((CharSequence)aValue).find()){
+                      return true;
+                    }
+                  }
+                }
+              } else if (storedValue instanceof CharSequence){
+                if(pattern.matcher((CharSequence)storedValue).find()){
+                  return true;
+                }
+              }
+            }
+          }
+          return false;
+        }
+      }
+    };
+  }
+
   static class NotFilter implements Filter {
     private final Filter filter;
     public NotFilter(Filter filter) {
@@ -486,6 +502,27 @@ public class ExpressionParser {
       }
       return false;
     }
+  }
+
+  public int parseRegexOptionsToPatternFlags(String flagString) {
+    int flags = 0;
+    for (int i = 0; flagString != null && i < flagString.length(); i++) {
+      switch(flagString.charAt(i)) {
+        case 'i':
+          flags &= Pattern.CASE_INSENSITIVE;
+          break;
+        case 'x':
+          flags &= Pattern.COMMENTS;
+          break;
+        case 'm':
+          flags &= Pattern.MULTILINE;
+          break;
+        case 's':
+          flags &= Pattern.DOTALL;
+          break;
+      }
+    }
+    return flags;
   }
 
 }

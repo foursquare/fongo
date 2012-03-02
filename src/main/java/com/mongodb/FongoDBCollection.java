@@ -60,12 +60,21 @@ public class FongoDBCollection extends DBCollection {
       filterLists(obj);
       Object id = putIdIfNotPresent(obj);
 
-      if (objects.containsKey(id)){
-        throw new MongoException.DuplicateKey(0, "Attempting to insert duplicate _id: " + id);
+      if (objects.containsKey(id)) {
+        if (enforceDuplicates(concern)) {
+          throw new MongoException.DuplicateKey(0, "Attempting to insert duplicate _id: " + id);          
+        } else {
+          // TODO(jon) log          
+        }
+      } else {
+        putSizeCheck(id, obj);        
       }
-      putSizeCheck(id, obj);
     }
     return new WriteResult(fongoDb.okResult(), concern);
+  }
+  
+  boolean enforceDuplicates(WriteConcern concern) {
+    return !(WriteConcern.NONE.equals(concern) || WriteConcern.NORMAL.equals(concern));
   }
 
   public Object putIdIfNotPresent(DBObject obj) {
@@ -140,7 +149,7 @@ public class FongoDBCollection extends DBCollection {
     }
     boolean idOnlyUpdate = q.containsField(ID_KEY) && q.keySet().size() == 1;
     if (o.containsField(ID_KEY) && !idOnlyUpdate){
-      throw new MongoException.DuplicateKey(0, "can't update " + ID_KEY);
+      throw new MongoException.DuplicateKey(0, "can not change _id of a document " + ID_KEY);
     }
     filterLists(o);
     if (idOnlyUpdate && isNotUpdateCommand(o)) {
