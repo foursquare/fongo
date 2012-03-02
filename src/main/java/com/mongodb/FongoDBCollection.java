@@ -141,8 +141,9 @@ public class FongoDBCollection extends DBCollection {
     } else {
       filterLists(q);
       boolean wasFound = false;
-      if (idOnlyUpdate) {
-        for (Object id : idsIn(q)){
+      List idsIn = idsIn(q);
+      if (idOnlyUpdate && idsIn.size() > 0) {
+        for (Object id : idsIn){
           DBObject existingObject = objects.get(id);
           if (existingObject != null){
             wasFound = true;

@@ -309,6 +309,20 @@ public class FongoTest {
   }
   
   @Test
+  public void testUpdateWithIdQuery() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1),new BasicDBObject("_id", 2));
+    collection.update(new BasicDBObject("_id", new BasicDBObject("$gt", 1)), 
+        new BasicDBObject("$set", new BasicDBObject("n", 1)), false, true);
+    List<DBObject> results = collection.find().toArray();
+    assertEquals(Arrays.asList(
+        new BasicDBObject("_id", 1),
+        new BasicDBObject("_id", 2).append("n", 1)
+    ), results);
+    
+  }
+  
+  @Test
   public void testCompoundDateIdUpserts(){
     DBCollection collection = newCollection();
     DBObject query = new BasicDBObjectBuilder().push("_id")
