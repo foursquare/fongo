@@ -28,6 +28,13 @@
       <version>1.9.0</version>
     </dependency>
   </dependencies>
+  <distributionManagement>
+    <repository>
+      <id>repo.foursquare.com</id>
+      <name>Foursquare Snapshot Repo</name>
+      <url>http://nexus.prod.foursquare.com/nexus/content/repositories/snapshots/</url>
+    </repository>
+  </distributionManagement>
   <build>
     <plugins>
       <plugin>
@@ -38,6 +45,17 @@
           <source>1.6</source>
           <target>1.6</target>
         </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-source-plugin</artifactId>
+        <executions>
+            <execution>
+                <goals>
+                    <goal>jar</goal>
+                </goals>
+            </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>
