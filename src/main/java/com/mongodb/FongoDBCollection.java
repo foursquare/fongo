@@ -19,6 +19,7 @@ import com.foursquare.fongo.Filter;
 import com.foursquare.fongo.FongoException;
 import com.foursquare.fongo.UpdateEngine;
 import com.foursquare.fongo.Util;
+import com.mongodb.FongoDBCollection.ObjectComparator;
 
 public class FongoDBCollection extends DBCollection {
 
@@ -31,14 +32,23 @@ public class FongoDBCollection extends DBCollection {
   private final UpdateEngine updateEngine;
   private final boolean isDebug;
   private final boolean nonIdCollection;
+  private final ObjectComparator objectComparator;
   
   public FongoDBCollection(FongoDB db, String name) {
     super(db, name);
     this.fongoDb = db;
     this.isDebug = db.isDebug();
     this.nonIdCollection = name.startsWith("system");
-    expressionParser = new ExpressionParser(isDebug);
-    updateEngine = new UpdateEngine(isDebug);
+    this.expressionParser = new ExpressionParser(isDebug);
+    this.updateEngine = new UpdateEngine(isDebug);
+    this.objectComparator = new ObjectComparator();
+  }
+  
+  class ObjectComparator implements Comparator {
+    @Override
+    public int compare(Object o1, Object o2) {
+      return expressionParser.compareObjects(o1, o2);
+    }
   }
   
   @Override
@@ -173,6 +183,9 @@ public class FongoDBCollection extends DBCollection {
     return new WriteResult(fongoDb.okResult(), concern);
   }
   
+
+  
+  
   public List idsIn(DBObject query) {
     Object idValue = query.get(ID_KEY);
     if (idValue == null || query.keySet().size() > 1) {
@@ -187,7 +200,8 @@ public class FongoDBCollection extends DBCollection {
       // in _id index order, but feels pretty hacky.
       if (inList != null){
         Object[] inListArray = inList.toArray(new Object[0]);
-        Arrays.sort(inListArray);
+        // ids could be DBObjects, so we need a comparator that can handle that
+        Arrays.sort(inListArray, objectComparator);
         return Arrays.asList(inListArray);
       }
       if (!isNotUpdateCommand(idValue)){
