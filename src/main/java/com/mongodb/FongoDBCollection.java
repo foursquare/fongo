@@ -24,6 +24,8 @@ public class FongoDBCollection extends DBCollection {
 
   final static String ID_KEY = "_id";
   private final FongoDB fongoDb;
+  // LinkedHashMap maintains insertion order
+  // TODO(jon) separate _id index from storage
   private final Map<Object, DBObject> objects = new LinkedHashMap<Object, DBObject>();
   private final ExpressionParser expressionParser;
   private final UpdateEngine updateEngine;
@@ -170,7 +172,7 @@ public class FongoDBCollection extends DBCollection {
     return new WriteResult(fongoDb.okResult(), concern);
   }
   
-  public List<Object> idsIn(DBObject query) {
+  public List idsIn(DBObject query) {
     Object idValue = query.get(ID_KEY);
     if (idValue == null || query.keySet().size() > 1) {
       return Collections.emptyList();
@@ -178,8 +180,14 @@ public class FongoDBCollection extends DBCollection {
       DBObject idDbObject = (DBObject)idValue;
       List inList = (List)idDbObject.get(ExpressionParser.IN);
       
+      // I think sorting the inputed keys is a rough
+      // approximation of how mongo creates the bounds for walking
+      // the index.  It has the desired affect of returning results
+      // in _id index order, but feels pretty hacky.
       if (inList != null){
-        return inList;
+        Object[] inListArray = inList.toArray(new Object[0]);
+        Arrays.sort(inListArray);
+        return Arrays.asList(inListArray);
       }
       if (!isNotUpdateCommand(idValue)){
         return Collections.emptyList();
@@ -190,7 +198,7 @@ public class FongoDBCollection extends DBCollection {
 
   protected  BasicDBObject createUpsertObject(DBObject q) {
     BasicDBObject newObject = new BasicDBObject();
-    List<Object> idsIn = idsIn(q);
+    List idsIn = idsIn(q);
     
     if (!idsIn.isEmpty()){
       newObject.put(ID_KEY, idsIn.get(0));
@@ -228,7 +236,7 @@ public class FongoDBCollection extends DBCollection {
     if (isDebug){
       debug("remove: " + o);
     }
-    List<Object> idList = idsIn(o);
+    List idList = idsIn(o);
     if (!idList.isEmpty()) {
       for (Object id : idList){
         objects.remove(id);        
@@ -276,7 +284,7 @@ public class FongoDBCollection extends DBCollection {
       debug("find(" + ref + ").limit("+limit+").skip("+numToSkip+")");
       debug("the db looks like " + objects);
     }
-    List<Object> idList = idsIn(ref);
+    List idList = idsIn(ref);
     ArrayList<DBObject> results = new ArrayList<DBObject>();
     if (!idList.isEmpty()) {
       if (isDebug){
