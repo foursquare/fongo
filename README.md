@@ -38,6 +38,15 @@ Fongo uses a LinkedHashMap internally with the \_id as the key.
 ## Implementation Details
 
 Fongo depends on mockito to hijack the com.mongodb.Mongo class.  It has a "provided" dependency on the mongo-java-driver and was tested with 2.7.2.
+It also has a "provided" dependency on sl4j-api for logging.  If you don't already have sl4j in your project, you can add a maven dependency to the logback implementation like this:
+
+```
+<dependency> 
+  <groupId>ch.qos.logback</groupId>
+  <artifactId>logback-classic</artifactId>
+  <version>1.0.4</version>
+</dependency>
+```
 
 Fongo should be thread safe. All read and write operations on collections are synchronized.  It's pretty course, but
 should be good enough for simple testing.  Fongo doesn't have any shared state (no statics).  Each Fongo instance is completely independent.
