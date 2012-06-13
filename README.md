@@ -44,10 +44,6 @@ should be good enough for simple testing.  Fongo doesn't have any shared state (
 
 ## Usage Details
 
-```java
-//create an instance with lots of debug logging (uses printlns :-/ )
-new Fongo("mongo server 1", true)
-
 // Fongo instance methods
 
 // get all created databases (they are created automatically the first time requested)
@@ -66,4 +62,3 @@ Mongo mongo = fongo.getMongo();
 * more testing
 * publish to one of the maven repos
 * find an actual use for this project
-* use some sort of logging framework
