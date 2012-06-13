@@ -24,17 +24,12 @@ public class Fongo {
   private final ServerAddress serverAddress;
   private final Mongo mongo;
   private final String name;
-  private final boolean isDebug;
+
   
   public Fongo(String name) {
-    this(name, false);
-  }
-  
-  public Fongo(String name, boolean isDebug) {
     this.name = name;
     this.serverAddress = new ServerAddress(new InetSocketAddress(ServerAddress.defaultPort()));
     this.mongo = createMongo();
-    this.isDebug = isDebug;
   }
   
   public DB getDB(String dbname) {
@@ -96,10 +91,6 @@ public class Fongo {
         return null;
       }}).when(mongo).dropDatabase(Mockito.anyString());
     return mongo;
-  }
-
-  public boolean isDebug() {
-    return isDebug;
   }
 
 }

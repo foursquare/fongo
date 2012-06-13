@@ -8,10 +8,14 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.mongodb.BasicDBList;
 import com.mongodb.DBObject;
 
 public class ExpressionParser {
+  final static Logger LOG = LoggerFactory.getLogger(ExpressionParser.class);
 
   public final static String LT = "$lt";
   public final static String LTE = "$lte";
@@ -28,15 +32,6 @@ public class ExpressionParser {
   public final static String OR = "$or";
   public final static String REGEX = "$regex";
   public final static String REGEX_OPTIONS = "$options";
-  
-  private final boolean isDebug;
-  public ExpressionParser() {
-    this(false);
-  }
-
-  public ExpressionParser(boolean debug) {
-    this.isDebug = debug;
-  }
 
   public Filter buildFilter(DBObject ref){
     AndFilter andFilter = new AndFilter();
@@ -273,10 +268,8 @@ public class ExpressionParser {
   
   public List<Object> getEmbeddedValues(List<String> path, int startIndex, DBObject dbo) {
     String subKey = path.get(startIndex);
-    if (path.size() > 1) {
-      if (isDebug){
-        debug("getEmbeddedValue looking for " + path + " in " + dbo);
-      }
+    if (path.size() > 1 && LOG.isDebugEnabled()) {
+      LOG.debug("getEmbeddedValue looking for {} in {}", path, dbo);
     }
     
     for (int i = startIndex; i < path.size() - 1; i++){
@@ -309,11 +302,6 @@ public class ExpressionParser {
     }
   }
 
-  private void debug(String string) {
-    if (this.isDebug) {
-      System.out.println(string);
-    }
-  }
   
   private Filter buildExpressionFilter(final String key, final Object expression) {
     return buildExpressionFilter(Util.split(key), expression);
@@ -386,9 +374,8 @@ public class ExpressionParser {
 
   @SuppressWarnings("all")
   public int compareObjects(Object queryValue, Object storedValue) {
-    if (isDebug){
-      debug("comparing " + queryValue + " and " + storedValue);
-    }
+    LOG.debug("comparing {} and {}", queryValue, storedValue);
+
     if (queryValue instanceof DBObject && storedValue instanceof DBObject) {
       return compareDBObjects((DBObject)queryValue, (DBObject) storedValue);
     } else if (queryValue instanceof List && storedValue instanceof List){

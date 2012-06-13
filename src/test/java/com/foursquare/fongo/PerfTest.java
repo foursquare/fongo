@@ -13,7 +13,7 @@ public class PerfTest {
   }
 
   public static void doit() {
-    Fongo fongo = new Fongo("fongo", false);
+    Fongo fongo = new Fongo("fongo");
     for (int i = 0; i < 1; i++){
       DB db = fongo.getDB("db");
       DBCollection collection = db.getCollection("coll");

@@ -230,7 +230,7 @@ public class UpdateEngineTest {
   
   @Test 
   public void testPositionalOperator() {
-    UpdateEngine updateEngine = new UpdateEngine(true);
+    UpdateEngine updateEngine = new UpdateEngine();
     DBObject update = new BasicDBObjectBuilder().push("$inc")
         .append("b.$.c",1).pop().get();
     
@@ -241,7 +241,7 @@ public class UpdateEngineTest {
   
   @Test 
   public void testPositionalArrayOperator() {
-    UpdateEngine updateEngine = new UpdateEngine(true);
+    UpdateEngine updateEngine = new UpdateEngine();
     DBObject update = new BasicDBObjectBuilder().push("$inc")
         .append("b.$",1).pop().get();
     

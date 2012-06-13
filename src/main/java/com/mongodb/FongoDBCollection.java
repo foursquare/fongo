@@ -13,6 +13,8 @@ import java.util.Map;
 import java.util.Set;
 
 import org.bson.types.ObjectId;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.foursquare.fongo.ExpressionParser;
 import com.foursquare.fongo.Filter;
@@ -22,7 +24,8 @@ import com.foursquare.fongo.Util;
 import com.mongodb.FongoDBCollection.ObjectComparator;
 
 public class FongoDBCollection extends DBCollection {
-
+  final static Logger LOG = LoggerFactory.getLogger(FongoDBCollection.class);
+  
   final static String ID_KEY = "_id";
   private final FongoDB fongoDb;
   // LinkedHashMap maintains insertion order
@@ -30,17 +33,15 @@ public class FongoDBCollection extends DBCollection {
   private final Map<Object, DBObject> objects = new LinkedHashMap<Object, DBObject>();
   private final ExpressionParser expressionParser;
   private final UpdateEngine updateEngine;
-  private final boolean isDebug;
   private final boolean nonIdCollection;
   private final ObjectComparator objectComparator;
   
   public FongoDBCollection(FongoDB db, String name) {
     super(db, name);
     this.fongoDb = db;
-    this.isDebug = db.isDebug();
     this.nonIdCollection = name.startsWith("system");
-    this.expressionParser = new ExpressionParser(isDebug);
-    this.updateEngine = new UpdateEngine(isDebug);
+    this.expressionParser = new ExpressionParser();
+    this.updateEngine = new UpdateEngine();
     this.objectComparator = new ObjectComparator();
   }
   
@@ -54,8 +55,8 @@ public class FongoDBCollection extends DBCollection {
   @Override
   public synchronized WriteResult insert(DBObject[] arr, WriteConcern concern, DBEncoder encoder) throws MongoException {
     for (DBObject obj : arr) {
-      if (isDebug){
-        debug("insert: " + obj);
+      if (LOG.isDebugEnabled()){
+        LOG.debug("insert: " + obj);
       }
       filterLists(obj);
       Object id = putIdIfNotPresent(obj);
@@ -135,17 +136,13 @@ public class FongoDBCollection extends DBCollection {
     putSizeCheck(id, obj);
   }
 
-  void debug(String message) {
-    if (isDebug){
-      System.out.println("Fongo." + getName() + " " + message);
-    }
-  }
+
   @Override
   public synchronized WriteResult update(DBObject q, DBObject o, boolean upsert, boolean multi, WriteConcern concern,
       DBEncoder encoder) throws MongoException {
 
-    if (isDebug){
-      debug("update(" + q + ", " + o + ", " + upsert + ", " + multi +")");
+    if (LOG.isDebugEnabled()){
+      LOG.debug("update(" + q + ", " + o + ", " + upsert + ", " + multi +")");
     }
     boolean idOnlyUpdate = q.containsField(ID_KEY) && q.keySet().size() == 1;
     if (o.containsField(ID_KEY) && !idOnlyUpdate){
@@ -257,8 +254,8 @@ public class FongoDBCollection extends DBCollection {
 
   @Override
   public synchronized WriteResult remove(DBObject o, WriteConcern concern, DBEncoder encoder) throws MongoException {
-    if (isDebug){
-      debug("remove: " + o);
+    if (LOG.isDebugEnabled()){
+      LOG.debug("remove: " + o);
     }
     List idList = idsIn(o);
     if (!idList.isEmpty()) {
@@ -304,15 +301,15 @@ public class FongoDBCollection extends DBCollection {
   @Override
   synchronized Iterator<DBObject> __find(DBObject ref, DBObject fields, int numToSkip, int batchSize, int limit, int options,
       ReadPreference readPref, DBDecoder decoder) throws MongoException {
-    if (isDebug){
-      debug("find(" + ref + ").limit("+limit+").skip("+numToSkip+")");
-      debug("the db looks like " + objects);
+    if (LOG.isDebugEnabled()){
+      LOG.debug("find(" + ref + ").limit("+limit+").skip("+numToSkip+")");
+      LOG.debug("the db looks like " + objects);
     }
     List idList = idsIn(ref);
     ArrayList<DBObject> results = new ArrayList<DBObject>();
     if (!idList.isEmpty()) {
-      if (isDebug){
-        debug("find using id index only " + idList);
+      if (LOG.isDebugEnabled()){
+        LOG.debug("find using id index only " + idList);
       }
       for (Object id : idList){
         DBObject result = objects.get(id);
@@ -345,8 +342,8 @@ public class FongoDBCollection extends DBCollection {
         }
       }
     }
-    if (isDebug){
-      debug("found results " + results);
+    if (LOG.isDebugEnabled()){
+      LOG.debug("found results " + results);
     }
     if (results.size() == 0){
       return null;
@@ -382,8 +379,8 @@ public class FongoDBCollection extends DBCollection {
         objectsToSearch = Arrays.asList(objectsToSort);
       }
     }
-    if (isDebug) {
-      debug("sorted objectsToSearch " + objectsToSearch);
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("sorted objectsToSearch " + objectsToSearch);
     }
     return objectsToSearch;
   }

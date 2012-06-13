@@ -8,35 +8,25 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBObject;
 
 public class UpdateEngine {
+  final static Logger LOG = LoggerFactory.getLogger(UpdateEngine.class);
+  
+  private final ExpressionParser expressionParser = new ExpressionParser();
 
-  private final ExpressionParser expressionParser;
-  private final boolean isDebug;
-
-  public UpdateEngine(boolean isDebug) {
-    this.isDebug = isDebug;
-    expressionParser = new ExpressionParser(isDebug);
-  }
-
-  public UpdateEngine() {
-    this(true);
-  }
   
   void keyCheck(String key, Set<String> seenKeys) {
     if (!seenKeys.add(key)){
       throw new FongoException("attempting more than one atomic update on on " + key);
     }
   }
-  
-  void debug(String message){
-    if (isDebug) {
-      System.out.println(message);
-    }
-  }
+
   
   abstract class BasicUpdate  {
 
@@ -53,13 +43,12 @@ public class UpdateEngine {
     public DBObject doUpdate(DBObject obj, DBObject update, Set<String> seenKeys, DBObject query){
       DBObject updateObject = (DBObject) update.get(command);
       HashSet<String> keySet = new HashSet<String>(updateObject.keySet());
-      if (isDebug) {
-        debug("KeySet is of length " + keySet.size());
-      }
+      
+      LOG.debug("KeySet is of length {}", keySet.size());
+      
       for (String updateKey : keySet) {
-        if (isDebug){
-          debug("\tfound a key " + updateKey);
-        }
+        LOG.debug("\tfound a key {}", updateKey);
+
         keyCheck(updateKey, seenKeys);
         doSingleKeyUpdate(updateKey, obj, updateObject.get(updateKey), query);
       }
@@ -71,8 +60,8 @@ public class UpdateEngine {
       String subKey = path.get(0);
       DBObject obj = objOriginal;
       boolean isPositional = updateKey.contains(".$");
-      if (isPositional && isDebug){
-        debug("got a positional for query " + query);
+      if (isPositional){
+        LOG.debug("got a positional for query {}", query);
       }
       for (int i = 0; i < path.size() - 1; i++){
         if (!obj.containsField(subKey)){
@@ -97,13 +86,11 @@ public class UpdateEngine {
         subKey = path.get(i + 1);
       }
       if (!isPositional) {
-        if (isDebug) {
-          debug("Subobject is " + obj);
-        }
+        
+        LOG.debug("Subobject is {}", obj);
         mergeAction(subKey, obj, object);
-        if (isDebug) {
-          debug("Full object is " + objOriginal);
-        }
+        LOG.debug("Full object is {}", objOriginal);
+
       }
     }
 
@@ -126,8 +113,8 @@ public class UpdateEngine {
       // find the right item
       for(int i = 0; i < valueList.size(); i++){
         Object listItem = valueList.get(i);
-        if (isDebug) {
-          debug("found a positional list item " + listItem + " " + prePath + " " + postPath);
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("found a positional list item " + listItem + " " + prePath + " " + postPath);
         }
         if (listItem instanceof DBObject && !postPath.isEmpty()){
           
@@ -358,8 +345,8 @@ public class UpdateEngine {
     for (String command : update.keySet()) {
       BasicUpdate basicUpdate = commandMap.get(command);
       if (basicUpdate != null){
-        if (isDebug) {
-          debug("Doing update for command " + command);
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("Doing update for command {}", command);
         }
         basicUpdate.doUpdate(obj, update, seenKeys, query);
         updateDone = true;

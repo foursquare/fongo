@@ -608,7 +608,7 @@ public class ExpressionParserTest {
   }
 
   public List<DBObject> doFilter(DBObject ref, DBObject ... input) {
-    ExpressionParser ep = new ExpressionParser(true);
+    ExpressionParser ep = new ExpressionParser();
     Filter filter = ep.buildFilter(ref);
     List<DBObject> results = new ArrayList<DBObject>();
     for (DBObject dbo : input) {

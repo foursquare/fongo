@@ -560,7 +560,7 @@ public class FongoTest {
   
   @Test
   public void testToString() {
-    new Fongo("test", true).getMongo().toString();
+    new Fongo("test").getMongo().toString();
   }
 
   private DBCollection newCollection() {
@@ -571,7 +571,7 @@ public class FongoTest {
   }
 
   public Fongo newFongo() {
-    Fongo fongo = new Fongo("test", true);
+    Fongo fongo = new Fongo("test");
     return fongo;
   }
 

@@ -6,18 +6,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.foursquare.fongo.ExpressionParser;
 import com.foursquare.fongo.Fongo;
 
 public class FongoDB extends DB {
+  final static Logger LOG = LoggerFactory.getLogger(FongoDB.class);
 
   private final Map<String, FongoDBCollection> collMap = Collections.synchronizedMap(new HashMap<String, FongoDBCollection>());
   private final Fongo fongo;
-  private final boolean isDebug;
   
   public FongoDB(Fongo fongo, String name) {
     super(fongo.getMongo(), name);
     this.fongo = fongo;
-    isDebug = fongo.isDebug();
   }
 
   @Override
@@ -81,8 +84,8 @@ public class FongoDB extends DB {
    */
   @Override
   public CommandResult command( DBObject cmd , int options, ReadPreference readPrefs ) throws MongoException {
-    if (isDebug) {
-      System.out.println("Fongo got command " + cmd);
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("Fongo got command " + cmd);
     }
     if (cmd.containsField("getlasterror")) {
       return okResult();
@@ -104,9 +107,5 @@ public class FongoDB extends DB {
   @Override
   public String toString() {
     return "FongoDB." + this.getName();
-  }
-
-  public boolean isDebug() {
-    return isDebug;
   }
 }

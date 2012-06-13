@@ -27,6 +27,17 @@
       <artifactId>mockito-core</artifactId>
       <version>1.9.0</version>
     </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+      <version>1.6.6</version>
+    </dependency>
+    <dependency> 
+      <groupId>ch.qos.logback</groupId>
+      <artifactId>logback-classic</artifactId>
+      <version>1.0.4</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
   <distributionManagement>
     <repository>
@@ -56,6 +67,7 @@
                 </goals>
             </execution>
         </executions>
+        <version>2.1.2</version>
       </plugin>
     </plugins>
   </build>
