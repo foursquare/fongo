@@ -44,6 +44,7 @@ should be good enough for simple testing.  Fongo doesn't have any shared state (
 
 ## Usage Details
 
+```java
 // Fongo instance methods
 
 // get all created databases (they are created automatically the first time requested)
