@@ -24,14 +24,19 @@ public class Fongo {
   private final ServerAddress serverAddress;
   private final Mongo mongo;
   private final String name;
-
   
+  private static final int DEFAULT_MONGO_PORT = 27017;
+
   public Fongo(String name) {
+    this(name, DEFAULT_MONGO_PORT);
+  }
+
+  public Fongo(String name, int port) {
     this.name = name;
-    this.serverAddress = new ServerAddress(new InetSocketAddress(ServerAddress.defaultPort()));
+    this.serverAddress = new ServerAddress(new InetSocketAddress(port));
     this.mongo = createMongo();
   }
-  
+ 
   public DB getDB(String dbname) {
     synchronized(dbMap) {      
       FongoDB fongoDb = dbMap.get(dbname);
