@@ -8,11 +8,19 @@ The original hope was that this would be significantly faster than using a real 
 by fixing each thread to a uniquely named database.
 
 ## Usage
+Add dependency to your project:
 
-1. Clone this repo and build the jar: `mvn package`
-1. Copy jar to classpath
-1. Use in place of regular `com.mongodb.Mongo` instance:
+```
+<dependency>
+  <groupId>com.foursquare</groupId>
+  <artifactId>fongo</artifactId>
+  <version>1.0.2</version>
+</depedency>
+```
 
+*Alternatively: clone this repo and build the jar: `mvn package` then copy jar to your classpath*
+
+Use in place of regular `com.mongodb.Mongo` instance:
 
 ```java
 import com.foursquare.fongo.Fongo;
@@ -70,5 +78,4 @@ Mongo mongo = fongo.getMongo();
 ## Todo
 
 * more testing
-* publish to one of the maven repos
 * find an actual use for this project
