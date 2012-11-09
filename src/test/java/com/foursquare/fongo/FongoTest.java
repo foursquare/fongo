@@ -24,10 +24,9 @@ import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
 import com.mongodb.MongoException;
 import com.mongodb.WriteConcern;
+import com.mongodb.WriteResult;
 
 public class FongoTest {
-
-  private static final String BasicBSONList = null;
 
   @Test
   public void testGetDb() {
@@ -64,7 +63,6 @@ public class FongoTest {
     collection.insert(new BasicDBObject("n", 2));
     assertEquals(2, collection.count(new BasicDBObject("n", 2)));
   }
-  
   
   @Test
   public void testInsertIncrementsCount() {
@@ -483,7 +481,6 @@ public class FongoTest {
     
   }
   
-  
   @Test
   public void testDistinctQuery() {
     DBCollection collection = newCollection();
@@ -558,7 +555,33 @@ public class FongoTest {
             new BasicDBObject("_id", 1).append("a", new BasicDBObject("b", 1))
         ),results);
   }
+
+  @Test
+  public void testInsertReturnModifiedDocumentCount() {
+    DBCollection collection = newCollection();
+    WriteResult result = collection.insert(new BasicDBObject("_id", new BasicDBObject("n", 1)));
+    assertEquals(1, result.getN());
+  }
   
+  @Test
+  public void testUpdateWithIdInMultiReturnModifiedDocumentCount() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1),new BasicDBObject("_id", 2));
+    WriteResult result = collection.update(new BasicDBObject("_id", new BasicDBObject("$in", Arrays.asList(1,2))), 
+        new BasicDBObject("$set", new BasicDBObject("n", 1)), false, true);
+    assertEquals(2, result.getN());
+  }
+  
+  @Test
+  public void testUpdatetWithObjectIdReturnModifiedDocumentCount() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", new BasicDBObject("n", 1)));
+    DBObject query = new BasicDBObject("_id", new BasicDBObject("n", 1));
+    DBObject update = new BasicDBObject("$set", new BasicDBObject("a", 1));
+    WriteResult result = collection.update(query, update, false, false);
+    assertEquals(1, result.getN());
+  }
+
   @Test
   public void testToString() {
     new Fongo("test").getMongo().toString();

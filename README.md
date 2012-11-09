@@ -79,3 +79,7 @@ Mongo mongo = fongo.getMongo();
 
 * more testing
 * find an actual use for this project
+
+## Contributers
+* [Jon Hoffman](https://github.com/hoffrocket)
+* [Guido García](https://github.com/palmerabollo)
