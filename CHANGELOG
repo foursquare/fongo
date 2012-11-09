@@ -1,5 +1,5 @@
-1.0.1
-----
+1.0.2
+-----
 release: 09 November 2012
 
  - bumped mongo-java-driver to 2.9.2
