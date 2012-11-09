@@ -15,7 +15,7 @@ Add dependency to your project:
   <groupId>com.foursquare</groupId>
   <artifactId>fongo</artifactId>
   <version>1.0.2</version>
-</depedency>
+</dependency>
 ```
 
 *Alternatively: clone this repo and build the jar: `mvn package` then copy jar to your classpath*
