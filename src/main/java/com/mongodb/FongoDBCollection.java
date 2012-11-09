@@ -346,7 +346,7 @@ public class FongoDBCollection extends DBCollection {
       LOG.debug("found results " + results);
     }
     if (results.size() == 0){
-      return null;
+      return new ArrayList<DBObject>().iterator();
     } else {
       return results.iterator();      
     }
