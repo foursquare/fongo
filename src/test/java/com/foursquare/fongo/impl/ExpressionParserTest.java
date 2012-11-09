@@ -1,4 +1,4 @@
-package com.foursquare.fongo;
+package com.foursquare.fongo.impl;
 
 import static org.junit.Assert.*;
 import static org.junit.Assert.assertEquals;
@@ -12,6 +12,8 @@ import java.util.regex.Pattern;
 import org.bson.types.ObjectId;
 import org.junit.Test;
 
+import com.foursquare.fongo.impl.ExpressionParser;
+import com.foursquare.fongo.impl.Filter;
 import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
 import com.mongodb.BasicDBObjectBuilder;

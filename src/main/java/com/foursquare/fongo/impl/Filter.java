@@ -1,4 +1,4 @@
-package com.foursquare.fongo;
+package com.foursquare.fongo.impl;
 
 import com.mongodb.DBObject;
 

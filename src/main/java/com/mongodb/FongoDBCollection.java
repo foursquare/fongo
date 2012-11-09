@@ -16,12 +16,18 @@ import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.foursquare.fongo.ExpressionParser;
-import com.foursquare.fongo.Filter;
 import com.foursquare.fongo.FongoException;
-import com.foursquare.fongo.UpdateEngine;
-import com.foursquare.fongo.Util;
+import com.foursquare.fongo.impl.ExpressionParser;
+import com.foursquare.fongo.impl.Filter;
+import com.foursquare.fongo.impl.UpdateEngine;
+import com.foursquare.fongo.impl.Util;
 
+/**
+ * fongo override of com.mongodb.DBCollection
+ * you shouldn't need to use this class directly
+ * 
+ * @author jon
+ */
 public class FongoDBCollection extends DBCollection {
   final static Logger LOG = LoggerFactory.getLogger(FongoDBCollection.class);
   

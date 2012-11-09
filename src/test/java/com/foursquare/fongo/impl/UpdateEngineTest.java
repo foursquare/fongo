@@ -1,13 +1,10 @@
-package com.foursquare.fongo;
+package com.foursquare.fongo.impl;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-
-import org.junit.Ignore;
 import org.junit.Test;
 
-import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
 import com.mongodb.BasicDBObjectBuilder;
 import com.mongodb.DBObject;

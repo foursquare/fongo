@@ -13,6 +13,7 @@ import java.util.List;
 
 import org.junit.Test;
 
+import com.foursquare.fongo.impl.Util;
 import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
 import com.mongodb.BasicDBObjectBuilder;
