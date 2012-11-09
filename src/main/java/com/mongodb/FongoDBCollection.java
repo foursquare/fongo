@@ -35,6 +35,8 @@ public class FongoDBCollection extends DBCollection {
   private final UpdateEngine updateEngine;
   private final boolean nonIdCollection;
   private final ObjectComparator objectComparator;
+
+  private final Iterator<DBObject> emptyIterator = new ArrayList<DBObject>().iterator();
   
   public FongoDBCollection(FongoDB db, String name) {
     super(db, name);
@@ -346,10 +348,15 @@ public class FongoDBCollection extends DBCollection {
       LOG.debug("found results " + results);
     }
     if (results.size() == 0){
-      return null;
+      return emptyIterator;
     } else {
       return results.iterator();      
     }
+  }
+
+  @Override
+  Iterator<DBObject> __find(DBObject ref, DBObject fields, int numToSkip, int batchSize, int limit, int options, ReadPreference readPref, DBDecoder decoder, DBEncoder encoder) {
+    return __find(ref, fields, numToSkip, batchSize, limit, options, readPref, decoder);
   }
 
   public Collection<DBObject> sortObjects(final DBObject orderby) {
