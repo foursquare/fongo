@@ -352,6 +352,11 @@ public class FongoDBCollection extends DBCollection {
     }
   }
 
+  @Override
+  Iterator<DBObject> __find(DBObject ref, DBObject fields, int numToSkip, int batchSize, int limit, int options, ReadPreference readPref, DBDecoder decoder, DBEncoder encoder) {
+    return __find(ref, fields, numToSkip, batchSize, limit, options, readPref, decoder);
+  }
+
   public Collection<DBObject> sortObjects(final DBObject orderby) {
     Collection<DBObject> objectsToSearch = objects.values();
     if (orderby != null) {
