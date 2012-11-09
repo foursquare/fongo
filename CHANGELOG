@@ -1,0 +1,12 @@
+1.0.1
+----
+release: 09 November 2012
+
+ - bumped mongo-java-driver to 2.9.2
+
+1.0.0
+-----
+release: 13 June 2012
+
+ - Initial Release. All basic query and update syntax supported
+ - mongo-java-driver 2.7.2
