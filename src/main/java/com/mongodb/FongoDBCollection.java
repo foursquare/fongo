@@ -21,7 +21,6 @@ import com.foursquare.fongo.Filter;
 import com.foursquare.fongo.FongoException;
 import com.foursquare.fongo.UpdateEngine;
 import com.foursquare.fongo.Util;
-import com.mongodb.FongoDBCollection.ObjectComparator;
 
 public class FongoDBCollection extends DBCollection {
   final static Logger LOG = LoggerFactory.getLogger(FongoDBCollection.class);
@@ -297,7 +296,19 @@ public class FongoDBCollection extends DBCollection {
     indexColl.insert(rec);
   }
 
+  /**
+   * note: encoder, decoder, readPref, options are ignored
+   */
+  @Override
+  Iterator<DBObject> __find(DBObject ref, DBObject fields, int numToSkip, int batchSize, int limit, int options,
+      ReadPreference readPref, DBDecoder decoder, DBEncoder encoder) {
+    
+    return __find(ref, fields, numToSkip, batchSize, limit, options, readPref, decoder);
+  }
   
+  /**
+   * note: decoder, readPref, options are ignored
+   */
   @Override
   synchronized Iterator<DBObject> __find(DBObject ref, DBObject fields, int numToSkip, int batchSize, int limit, int options,
       ReadPreference readPref, DBDecoder decoder) throws MongoException {
@@ -345,11 +356,8 @@ public class FongoDBCollection extends DBCollection {
     if (LOG.isDebugEnabled()){
       LOG.debug("found results " + results);
     }
-    if (results.size() == 0){
-      return null;
-    } else {
-      return results.iterator();      
-    }
+
+    return results.iterator();
   }
 
   public Collection<DBObject> sortObjects(final DBObject orderby) {
