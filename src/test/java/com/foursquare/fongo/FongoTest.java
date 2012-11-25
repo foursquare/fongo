@@ -582,6 +582,27 @@ public class FongoTest {
     assertEquals(1, result.getN());
   }
 
+  /**
+   * Test that ObjectId is getting generated even if _id is present in
+   * DBObject but it's value is null
+   *
+   * @throws Exception
+   */
+  @Test
+  public void testIdGenerated() throws Exception {
+    DBObject toSave = new BasicDBObject();
+    toSave.put("_id", null);
+    toSave.put("name", "test");
+    Fongo fongo = newFongo();
+    DB fongoDB = fongo.getDB("testDB");
+    DBCollection collection = fongoDB.getCollection("testCollection");
+    collection.save(toSave);
+    DBObject result = collection.findOne(new BasicDBObject("name", "test"));
+    //default index in mongoDB
+    final String ID_KEY = "_id";
+    assertNotNull("Expected _id to be generated" + result.get(ID_KEY));
+  }
+
   @Test
   public void testToString() {
     new Fongo("test").getMongo().toString();
