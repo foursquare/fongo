@@ -1,5 +1,6 @@
 package com.foursquare.fongo;
 
+import static org.junit.Assert.*;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
@@ -601,6 +602,34 @@ public class FongoTest {
     //default index in mongoDB
     final String ID_KEY = "_id";
     assertNotNull("Expected _id to be generated" + result.get(ID_KEY));
+  }
+  
+  @Test
+  public void testDropDatabaseAlsoDropsCollectionData() throws Exception {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject());
+    collection.getDB().dropDatabase();
+    assertEquals("Collection should have no data", 0, collection.count());
+  }
+  
+  @Test
+  public void testDropCollectionAlsoDropsFromDB() throws Exception {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject());
+    collection.drop();
+    assertEquals("Collection should have no data", 0, collection.count());
+    assertFalse("Collection shouldn't exist in DB", collection.getDB().getCollectionNames().contains(collection.getName()));
+  }
+  
+  @Test
+  public void testDropDatabaseFromFongoDropsAllData() throws Exception {
+    Fongo fongo = newFongo();
+    DBCollection collection = fongo.getDB("db").getCollection("coll");
+    collection.insert(new BasicDBObject());
+    fongo.dropDatabase("db");
+    assertEquals("Collection should have no data", 0, collection.count());
+    assertFalse("Collection shouldn't exist in DB", collection.getDB().getCollectionNames().contains(collection.getName()));
+    assertFalse("DB shouldn't exist in fongo", fongo.getDatabaseNames().contains("db"));
   }
 
   @Test

@@ -74,6 +74,9 @@ public class FongoDB extends DB {
   @Override
   public void dropDatabase() throws MongoException {
     this.fongo.dropDatabase(this.getName());
+    for (FongoDBCollection c : collMap.values()) {
+      c.drop();
+    }
   }
   
   /**
@@ -111,5 +114,9 @@ public class FongoDB extends DB {
   @Override
   public String toString() {
     return "FongoDB." + this.getName();
+  }
+
+  public void removeCollection(FongoDBCollection collection) {
+    collMap.remove(collection.getName());
   }
 }

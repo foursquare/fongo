@@ -485,4 +485,10 @@ public class FongoDBCollection extends DBCollection {
   public void dropIndexes(String name) throws MongoException {
     // do nothing
   }
+  
+  @Override
+  public void drop() {
+    objects.clear();
+    fongoDb.removeCollection(this);
+  }
 }
