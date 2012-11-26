@@ -90,7 +90,7 @@ public class FongoDBCollection extends DBCollection {
   }
 
   public Object putIdIfNotPresent(DBObject obj) {
-    if (!obj.containsField(ID_KEY) || obj.get(ID_KEY) == null) {
+    if (obj.get(ID_KEY) == null) {
       ObjectId id = new ObjectId();
       if (!nonIdCollection){
         obj.put(ID_KEY, id);
@@ -142,8 +142,7 @@ public class FongoDBCollection extends DBCollection {
 
 
   protected void fInsert(DBObject obj) {
-    putIdIfNotPresent(obj);
-    Object id = obj.get(ID_KEY);
+    Object id = putIdIfNotPresent(obj);
     putSizeCheck(id, obj);
   }
 
