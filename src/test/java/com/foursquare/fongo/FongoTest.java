@@ -582,6 +582,15 @@ public class FongoTest {
     assertEquals(1, result.getN());
   }
 
+  @Test 
+  public void testDropDatabase() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("n", 1));
+    assertEquals(1, collection.count(new BasicDBObject()));
+    collection.getDB().dropDatabase();
+    assertEquals(0, collection.count(new BasicDBObject()));
+  }
+
   @Test
   public void testToString() {
     new Fongo("test").getMongo().toString();
