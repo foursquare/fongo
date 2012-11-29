@@ -14,7 +14,7 @@ Add dependency to your project:
 <dependency>
   <groupId>com.foursquare</groupId>
   <artifactId>fongo</artifactId>
-  <version>1.0.2</version>
+  <version>1.0.3</version>
 </dependency>
 ```
 
@@ -80,6 +80,13 @@ Mongo mongo = fongo.getMongo();
 * more testing
 * find an actual use for this project
 
-## Contributers
+## Author
 * [Jon Hoffman](https://github.com/hoffrocket)
+
+## Patch Contributers
 * [Guido García](https://github.com/palmerabollo)
+* [rid9](https://github.com/rid9)
+* [aakhmerov](https://github.com/aakhmerov)
+* [Eduardo Franceschi](https://github.com/efranceschi)
+
+

@@ -1,3 +1,11 @@
+1.0.3
+-----
+release: 29 November 2012
+
+ - properly pass updated count in WriteResult (@palmerabollo)
+ - replace null _id in DBObject (@aakhmerov)
+ - drop commands clear out children (@efranceschi)
+
 1.0.2
 -----
 release: 09 November 2012
