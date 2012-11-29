@@ -65,7 +65,11 @@ public class FongoDBCollection extends DBCollection {
   
   @Override
   public synchronized WriteResult insert(DBObject[] arr, WriteConcern concern, DBEncoder encoder) throws MongoException {
-    for (DBObject obj : arr) {
+    return insert(Arrays.asList(arr), concern, encoder);
+  }
+  
+  public WriteResult insert(List<DBObject> toInsert, WriteConcern concern, DBEncoder encoder) {
+    for (DBObject obj : toInsert) {
       if (LOG.isDebugEnabled()) {
         LOG.debug("insert: " + obj);
       }
@@ -82,7 +86,7 @@ public class FongoDBCollection extends DBCollection {
         putSizeCheck(id, obj);        
       }
     }
-    return new WriteResult(updateResult(arr.length), concern);
+    return new WriteResult(updateResult(toInsert.size()), concern);
   }
   
   boolean enforceDuplicates(WriteConcern concern) {
