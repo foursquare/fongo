@@ -14,7 +14,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -474,10 +473,9 @@ public class FongoDBCollection extends DBCollection {
   public synchronized List distinct(String key, DBObject query) {
     List<Object> results = new ArrayList<Object>();
     Filter filter = expressionParser.buildFilter(query);
-    Set<Object> seen = new HashSet<Object>();
     for (Iterator<DBObject> iter = objects.values().iterator(); iter.hasNext();) {
       DBObject value = iter.next();
-      if (filter.apply(value) && seen.add(value.get(key))){
+      if (filter.apply(value) && !results.contains(value.get(key))){
         results.add(value.get(key));
       }
     }
