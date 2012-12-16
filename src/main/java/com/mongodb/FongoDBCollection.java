@@ -1,5 +1,14 @@
 package com.mongodb;
 
+import com.foursquare.fongo.FongoException;
+import com.foursquare.fongo.impl.ExpressionParser;
+import com.foursquare.fongo.impl.Filter;
+import com.foursquare.fongo.impl.UpdateEngine;
+import com.foursquare.fongo.impl.Util;
+import org.bson.types.ObjectId;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -11,16 +20,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
-import org.bson.types.ObjectId;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.foursquare.fongo.FongoException;
-import com.foursquare.fongo.impl.ExpressionParser;
-import com.foursquare.fongo.impl.Filter;
-import com.foursquare.fongo.impl.UpdateEngine;
-import com.foursquare.fongo.impl.Util;
 
 /**
  * fongo override of com.mongodb.DBCollection
@@ -158,14 +157,15 @@ public class FongoDBCollection extends DBCollection {
     if (LOG.isDebugEnabled()){
       LOG.debug("update(" + q + ", " + o + ", " + upsert + ", " + multi +")");
     }
-    boolean idOnlyUpdate = q.containsField(ID_KEY) && q.keySet().size() == 1;
-    if (o.containsField(ID_KEY) && !idOnlyUpdate){
+
+    if (o.containsField(ID_KEY) && q.containsField(ID_KEY) && !o.get(ID_KEY).equals(q.get(ID_KEY))){
       throw new MongoException.DuplicateKey(0, "can not change _id of a document " + ID_KEY);
     }
     filterLists(o);
     
     int updatedDocuments = 0;
-    
+    boolean idOnlyUpdate = q.containsField(ID_KEY) && q.keySet().size() == 1;
+
     if (idOnlyUpdate && isNotUpdateCommand(o)) {
       if (!o.containsField(ID_KEY)) {
         o.put(ID_KEY, q.get(ID_KEY));

@@ -1,19 +1,5 @@
 package com.foursquare.fongo;
 
-import static org.junit.Assert.*;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-
-import org.junit.Test;
-
 import com.foursquare.fongo.impl.Util;
 import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
@@ -26,6 +12,19 @@ import com.mongodb.DBObject;
 import com.mongodb.MongoException;
 import com.mongodb.WriteConcern;
 import com.mongodb.WriteResult;
+import org.junit.Test;
+
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class FongoTest {
 
@@ -229,13 +228,30 @@ public class FongoTest {
     assertEquals(new BasicDBObject("_id", 2).append("a", 5), 
         collection.findOne(new BasicDBObject("_id",2)));
   }
-  
+
   @Test
-  public void testNoUpdateId() {
+  public void testFullUpdateWithSameId() throws Exception {
     DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1));
+    collection.insert(new BasicDBObject("_id", 2).append("b", 5));
+    collection.insert(new BasicDBObject("_id", 3));
+    collection.insert(new BasicDBObject("_id", 4));
+
+    collection.update(
+        new BasicDBObject("_id", 2).append("b", 5),
+        new BasicDBObject("_id", 2).append("a", 5));
+
+    assertEquals(new BasicDBObject("_id", 2).append("a", 5),
+            collection.findOne(new BasicDBObject("_id", 2)));
+  }
+
+  @Test
+  public void testIdNotAllowedToBeUpdated() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1));
     
     try {
-      collection.update(new BasicDBObject("_id", 1).append("b", 2), new BasicDBObject("_id", 1));
+      collection.update(new BasicDBObject("_id", 1), new BasicDBObject("_id", 2).append("a", 5));
       fail("should throw exception");
     } catch (MongoException e) {
       
@@ -273,7 +289,7 @@ public class FongoTest {
   }
   
   @Test
-  public void testUpdatetWithIdIn() {
+  public void testUpdateWithIdIn() {
     DBCollection collection = newCollection();
     collection.insert(new BasicDBObject("_id", 1));
     DBObject query = new BasicDBObjectBuilder().push("_id").append("$in", Arrays.asList(1)).pop().get();
@@ -286,7 +302,7 @@ public class FongoTest {
   }
   
   @Test
-  public void testUpdatetWithObjectId() {
+  public void testUpdateWithObjectId() {
     DBCollection collection = newCollection();
     collection.insert(new BasicDBObject("_id", new BasicDBObject("n", 1)));
     DBObject query = new BasicDBObject("_id", new BasicDBObject("n", 1));
@@ -346,7 +362,6 @@ public class FongoTest {
         new BasicDBObject("_id", new BasicDBObject("n","a").append("t", 2)).append("foo", "bar"),
         new BasicDBObject("_id", new BasicDBObject("n","a").append("t", 3)).append("foo", "bar")
     ), results);
-    
   }
   
   @Test
@@ -574,7 +589,7 @@ public class FongoTest {
   }
   
   @Test
-  public void testUpdatetWithObjectIdReturnModifiedDocumentCount() {
+  public void testUpdateWithObjectIdReturnModifiedDocumentCount() {
     DBCollection collection = newCollection();
     collection.insert(new BasicDBObject("_id", new BasicDBObject("n", 1)));
     DBObject query = new BasicDBObject("_id", new BasicDBObject("n", 1));
