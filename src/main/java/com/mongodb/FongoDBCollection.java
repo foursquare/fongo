@@ -59,6 +59,7 @@ public class FongoDBCollection extends DBCollection {
   private CommandResult updateResult(int updateCount) {
     CommandResult result = fongoDb.okResult();
     result.put("n", updateCount);
+    result.put("updatedExisting", !(updateCount == 0));
     return result;
   }
 
