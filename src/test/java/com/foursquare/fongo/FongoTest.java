@@ -1,19 +1,5 @@
 package com.foursquare.fongo;
 
-import static org.junit.Assert.*;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-
-import org.junit.Test;
-
 import com.foursquare.fongo.impl.Util;
 import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
@@ -26,6 +12,19 @@ import com.mongodb.DBObject;
 import com.mongodb.MongoException;
 import com.mongodb.WriteConcern;
 import com.mongodb.WriteResult;
+import org.junit.Test;
+
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class FongoTest {
 
@@ -321,6 +320,49 @@ public class FongoTest {
         new BasicDBObject("_id", 2).append("n", 1)
     ), results);
     
+  }
+
+  @Test
+  public void testUpdateWithUnknownId() throws Exception {
+    DBCollection collection = newCollection();
+    collection.update(new BasicDBObject("_id", 1), new BasicDBObject("a", 5), false, false);
+    assertEquals(null, collection.findOne());
+  }
+
+  @Test
+  public void testLastErrorUpdatedExistingTrueOnUpdate() throws Exception {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1).append("b", 10));
+    WriteResult result = collection.update(new BasicDBObject("_id", 1), new BasicDBObject("a", 5));
+    CommandResult lastError = result.getLastError();
+    assertEquals(true, lastError.get("updatedExisting"));
+  }
+
+  @Test
+  public void testLastErrorUpdatedExistingTrueOnUpdateMulti() throws Exception {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1).append("b", 10));
+    collection.insert(new BasicDBObject("_id", 2).append("b", 10));
+    WriteResult result = collection.update(new BasicDBObject("b", 10), new BasicDBObject("$set", new BasicDBObject("b", 20)));
+    CommandResult lastError = result.getLastError();
+    assertEquals(true, lastError.get("updatedExisting"));
+  }
+
+  @Test
+  public void testLastErrorUpdatedExistingFalseOnUpsert() throws Exception {
+    DBCollection collection = newCollection();
+    WriteResult result = collection.update(new BasicDBObject("_id", 2), new BasicDBObject("a", 5), true, false);
+    CommandResult lastError = result.getLastError();
+    assertEquals(false, lastError.get("updatedExisting"));
+  }
+
+  @Test
+  public void testLastErrorUpdatedExistingFalseOnNoQueryMatches() throws Exception {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1).append("b", 10));
+    WriteResult result = collection.update(new BasicDBObject("_id", 2), new BasicDBObject("a", 5));
+    CommandResult lastError = result.getLastError();
+    assertEquals(false, lastError.get("updatedExisting"));
   }
   
   @Test
