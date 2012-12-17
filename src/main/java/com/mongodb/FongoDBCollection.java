@@ -1,26 +1,24 @@
 package com.mongodb;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import org.bson.types.ObjectId;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.foursquare.fongo.FongoException;
 import com.foursquare.fongo.impl.ExpressionParser;
 import com.foursquare.fongo.impl.Filter;
 import com.foursquare.fongo.impl.UpdateEngine;
 import com.foursquare.fongo.impl.Util;
+import org.bson.types.ObjectId;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * fongo override of com.mongodb.DBCollection
@@ -472,14 +470,13 @@ public class FongoDBCollection extends DBCollection {
   }
   
   @Override
-  public synchronized List<DBObject> distinct(String key, DBObject query) {
-    List<DBObject> results = new ArrayList<DBObject>();
+  public synchronized List distinct(String key, DBObject query) {
+    List<Object> results = new ArrayList<Object>();
     Filter filter = expressionParser.buildFilter(query);
-    Set<Object> seen = new HashSet<Object>();
     for (Iterator<DBObject> iter = objects.values().iterator(); iter.hasNext();) {
       DBObject value = iter.next();
-      if (filter.apply(value) && seen.add(value.get(key))){
-        results.add(value);
+      if (filter.apply(value) && !results.contains(value.get(key))){
+        results.add(value.get(key));
       }
     }
     return results;
