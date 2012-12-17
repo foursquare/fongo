@@ -1,19 +1,20 @@
 package com.foursquare.fongo.impl;
 
+import com.foursquare.fongo.FongoException;
+import com.mongodb.BasicDBList;
+import com.mongodb.BasicDBObject;
+import com.mongodb.DBObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.foursquare.fongo.FongoException;
-import com.mongodb.BasicDBList;
-import com.mongodb.DBObject;
 
 public class ExpressionParser {
   final static Logger LOG = LoggerFactory.getLogger(ExpressionParser.class);
@@ -309,8 +310,7 @@ public class ExpressionParser {
   }
   
 
-  private Filter buildExpressionFilter(final List<String> path, final Object expression) {
-
+  private Filter buildExpressionFilter(final List<String> path, Object expression) {
     if (path.get(0) == OR) {
       List<DBObject> queryList = typecast(path + " operator", expression, List.class);
       OrFilter orFilter = new OrFilter();
@@ -318,8 +318,8 @@ public class ExpressionParser {
         orFilter.addFilter(buildFilter(query));
       }
       return orFilter;
-    } else if (expression instanceof DBObject) {
-      DBObject ref = (DBObject) expression;
+    } else if (expression instanceof DBObject || expression instanceof Map) {
+      DBObject ref = expression instanceof DBObject ? (DBObject) expression : new BasicDBObject((Map) expression);
       Object notExpression = ref.get(NOT);
       if (notExpression != null) {
         return new NotFilter(buildExpressionFilter(path, notExpression));

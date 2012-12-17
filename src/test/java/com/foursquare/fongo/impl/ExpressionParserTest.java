@@ -1,24 +1,21 @@
 package com.foursquare.fongo.impl;
 
-import static org.junit.Assert.*;
-import static org.junit.Assert.assertEquals;
+import com.mongodb.BasicDBList;
+import com.mongodb.BasicDBObject;
+import com.mongodb.BasicDBObjectBuilder;
+import com.mongodb.DBObject;
+import org.bson.types.ObjectId;
+import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.regex.Pattern;
 
-import org.bson.types.ObjectId;
-import org.junit.Test;
-
-import com.foursquare.fongo.impl.ExpressionParser;
-import com.foursquare.fongo.impl.Filter;
-import com.mongodb.BasicDBList;
-import com.mongodb.BasicDBObject;
-import com.mongodb.BasicDBObjectBuilder;
-import com.mongodb.DBCollection;
-import com.mongodb.DBObject;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 
 public class ExpressionParserTest {
@@ -593,6 +590,21 @@ public class ExpressionParserTest {
         rec1,
         rec2
     ), results);
+  }
+
+  @Test
+  public void testOperatorInMap() throws Exception {
+    HashMap<String, Object> operatorMap = new HashMap<String, Object>();
+    operatorMap.put("$in", asList(1, 2, 3));
+    BasicDBObject query = new BasicDBObject("a", operatorMap);
+    BasicDBObject rec1 = new BasicDBObject("_id", 1).append("a", 1).append("b", "5").append("c", 1);
+    BasicDBObject rec2 = new BasicDBObject("_id", 2).append("a", 4).append("b", "8").append("c", 1);
+    List<DBObject> results = doFilter(
+        query,
+        rec1,
+        rec2
+    );
+    assertEquals(Arrays.<DBObject>asList(rec1), results);
   }
 
   private void assertQuery(BasicDBObject query, List<DBObject> expected) {
