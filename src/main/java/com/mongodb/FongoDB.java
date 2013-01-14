@@ -99,6 +99,10 @@ public class FongoDB extends DB {
     } else if (cmd.containsField("drop")) {
       this.collMap.remove(cmd.get("drop").toString());
       return okResult();
+    } else if(cmd.containsField("create")) {
+        String collectionName = (String) cmd.get("create");
+        doGetCollection(collectionName);
+        return okResult();
     }
     CommandResult errorResult = new CommandResult(fongo.getServerAddress());
     errorResult.put("err", "undefined command: " + cmd);
