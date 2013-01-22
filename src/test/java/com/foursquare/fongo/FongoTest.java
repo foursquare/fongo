@@ -49,6 +49,14 @@ public class FongoTest {
     assertEquals(new HashSet<String>(Arrays.asList("coll")), db.getCollectionNames());
   }
   
+  @Test
+  public void testCreateCollection() {
+      Fongo fongo = newFongo();
+      DB db = fongo.getDB("db");
+      db.createCollection("coll", null);
+      assertEquals(Collections.singleton("coll"), db.getCollectionNames());
+  }
+
   @Test 
   public void testCountCommand() {
     DBCollection collection = newCollection();
