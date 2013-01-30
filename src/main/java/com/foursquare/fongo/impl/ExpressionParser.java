@@ -311,7 +311,7 @@ public class ExpressionParser {
   
 
   private Filter buildExpressionFilter(final List<String> path, Object expression) {
-    if (path.get(0) == OR) {
+    if (OR.equals(path.get(0))) {
       List<DBObject> queryList = typecast(path + " operator", expression, List.class);
       OrFilter orFilter = new OrFilter();
       for (DBObject query : queryList) {

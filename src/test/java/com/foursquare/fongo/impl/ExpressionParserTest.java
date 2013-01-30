@@ -376,7 +376,7 @@ public class ExpressionParserTest {
   
   @Test
   public void testOrOperator(){
-    DBObject query = new BasicDBObject("$or", asList(
+    DBObject query = new BasicDBObject(new String("$or"), asList(
         new BasicDBObject("a",3),
         new BasicDBObject("b", new BasicDBObject("$ne", 3))
     ));
