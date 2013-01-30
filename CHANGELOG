@@ -1,3 +1,15 @@
+1.0.4
+-----
+release: 30 January 2012
+
+ - bumped mongo-java-driver to 2.10.1
+ - proper distinct handling (@tobyclemson)
+ - fix update _id handling (@tobyclemson)
+ - allow Map in query object (@tobyclemson)
+ - fix for createCollection (@dagi)
+ - fix for $or operator bug
+ - fix for remove query with List value bug
+  
 1.0.3
 -----
 release: 29 November 2012
