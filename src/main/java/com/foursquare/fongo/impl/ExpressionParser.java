@@ -320,9 +320,9 @@ public class ExpressionParser {
       return orFilter;
     } else if (expression instanceof DBObject || expression instanceof Map) {
       DBObject ref = expression instanceof DBObject ? (DBObject) expression : new BasicDBObject((Map) expression);
-      Object notExpression = ref.get(NOT);
-      if (notExpression != null) {
-        return new NotFilter(buildExpressionFilter(path, notExpression));
+      
+      if (ref.containsField(NOT)) {
+        return new NotFilter(buildExpressionFilter(path, ref.get(NOT)));
       } else {
 
         AndFilter andFilter = new AndFilter();

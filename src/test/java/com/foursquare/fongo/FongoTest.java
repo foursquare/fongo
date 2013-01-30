@@ -463,6 +463,15 @@ public class FongoTest {
   }
   
   @Test
+  public void testFindAndRemoveFromEmbeddedList() {
+    DBCollection collection = newCollection();
+    BasicDBObject obj = new BasicDBObject("_id", 1).append("a", Arrays.asList(1));
+    collection.insert(obj);
+    DBObject result = collection.findAndRemove(new BasicDBObject("_id",1));
+    assertEquals(obj, result);
+  }
+  
+  @Test
   public void testFindAndModifyRemove() {
     DBCollection collection = newCollection();
     collection.insert(new BasicDBObject("_id", 1).append("a", 1));
