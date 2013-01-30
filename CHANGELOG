@@ -1,6 +1,6 @@
 1.0.4
 -----
-release: 30 January 2012
+release: 30 January 2013
 
  - bumped mongo-java-driver to 2.10.1
  - proper distinct handling (@tobyclemson)
