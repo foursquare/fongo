@@ -66,6 +66,7 @@ public class FongoDBCollection extends DBCollection {
     return insert(Arrays.asList(arr), concern, encoder);
   }
   
+  @Override
   public WriteResult insert(List<DBObject> toInsert, WriteConcern concern, DBEncoder encoder) {
     for (DBObject obj : toInsert) {
       if (LOG.isDebugEnabled()) {
@@ -432,7 +433,14 @@ public class FongoDBCollection extends DBCollection {
     }
     return count;
   }
+  
+  @Override
+  public synchronized long getCount(DBObject query, DBObject fields, ReadPreference readPrefs){
+    //as we're in memory we don't need to worry about readPrefs
+    return getCount(query, fields, 0, 0);
+  }
 
+  @Override
   public synchronized DBObject findAndModify(DBObject query, DBObject fields, DBObject sort, boolean remove, DBObject update, boolean returnNew, boolean upsert) {
     filterLists(query);
     filterLists(update);
