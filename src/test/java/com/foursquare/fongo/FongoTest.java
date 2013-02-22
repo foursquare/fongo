@@ -10,6 +10,7 @@ import com.mongodb.DBCollection;
 import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
 import com.mongodb.MongoException;
+import com.mongodb.QueryBuilder;
 import com.mongodb.WriteConcern;
 import com.mongodb.WriteResult;
 import org.junit.Test;
@@ -70,6 +71,15 @@ public class FongoTest {
     collection.insert(new BasicDBObject("n", 2));
     collection.insert(new BasicDBObject("n", 2));
     assertEquals(2, collection.count(new BasicDBObject("n", 2)));
+  }
+  
+  @Test
+  public void testCountOnCursor() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("n", 1));
+    collection.insert(new BasicDBObject("n", 2));
+    collection.insert(new BasicDBObject("n", 2));
+    assertEquals(3,collection.find(QueryBuilder.start("n").exists(true).get()).count());
   }
   
   @Test

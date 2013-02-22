@@ -11,3 +11,4 @@ target
 .cache
 .settings
 test-output
+bin
