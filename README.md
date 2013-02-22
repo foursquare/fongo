@@ -74,6 +74,23 @@ fongo.dropDatabase("dbName");
 // get an instance of the hijacked com.mongodb.Mongo
 Mongo mongo = fongo.getMongo();
 ```
+configure it in an XML application context
+
+```
+<bean name="fongo" class="com.foursquare.fongo.Fongo">
+    <constructor-arg value="InMemoryMongo" />
+</bean>
+<bean id="mongo" factory-bean="fongo" factory-method="getMongo" />
+
+<mongo:db-factory id="mongoDbFactory" mongo-ref="mongo" />
+
+<!-- localhost settings for mongo -->
+<!--<mongo:db-factory id="mongoDbFactory" />-->
+
+<bean id="mongoTemplate" class="org.springframework.data.mongodb.core.MongoTemplate">
+    <constructor-arg ref="mongoDbFactory"/>
+</bean>
+```
 
 ## Todo
 
