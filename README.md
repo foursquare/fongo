@@ -74,9 +74,9 @@ fongo.dropDatabase("dbName");
 // get an instance of the hijacked com.mongodb.Mongo
 Mongo mongo = fongo.getMongo();
 ```
-configure it in an XML application context
+If you use Spring, you can configure fongo in your XML configuration context:
 
-```
+```xml
 <bean name="fongo" class="com.foursquare.fongo.Fongo">
     <constructor-arg value="InMemoryMongo" />
 </bean>
