@@ -55,9 +55,16 @@ public class FongoDBCollection extends DBCollection {
     }
   }
   
-  private CommandResult updateResult(int updateCount) {
+  private CommandResult insertResult(int updateCount) {
     CommandResult result = fongoDb.okResult();
     result.put("n", updateCount);
+    return result;
+  }
+  
+  private CommandResult updateResult(int updateCount, boolean updatedExisting) {
+    CommandResult result = fongoDb.okResult();
+    result.put("n", updateCount);
+    result.put("updatedExisting", updatedExisting);
     return result;
   }
   
@@ -85,7 +92,7 @@ public class FongoDBCollection extends DBCollection {
         putSizeCheck(id, obj);        
       }
     }
-    return new WriteResult(updateResult(toInsert.size()), concern);
+    return new WriteResult(insertResult(toInsert.size()), concern);
   }
   
   boolean enforceDuplicates(WriteConcern concern) {
@@ -165,6 +172,7 @@ public class FongoDBCollection extends DBCollection {
     
     int updatedDocuments = 0;
     boolean idOnlyUpdate = q.containsField(ID_KEY) && q.keySet().size() == 1;
+    boolean updatedExisting = false;
 
     if (idOnlyUpdate && isNotUpdateCommand(o)) {
       if (!o.containsField(ID_KEY)) {
@@ -180,6 +188,7 @@ public class FongoDBCollection extends DBCollection {
           DBObject existingObject = objects.get(id);
           if (existingObject != null){
             updatedDocuments++;
+            updatedExisting = true;
             updateEngine.doUpdate(existingObject, o, q);
             if (!multi){
               break;
@@ -191,6 +200,7 @@ public class FongoDBCollection extends DBCollection {
         for (DBObject obj : objects.values()) {
           if (filter.apply(obj)){
             updatedDocuments++;
+            updatedExisting = true;
             updateEngine.doUpdate(obj, o, q);
             if (!multi){
               break;
@@ -203,7 +213,7 @@ public class FongoDBCollection extends DBCollection {
         fInsert(updateEngine.doUpdate(newObject, o, q));
       }
     }
-    return new WriteResult(updateResult(updatedDocuments), concern);
+    return new WriteResult(updateResult(updatedDocuments, updatedExisting), concern);
   }
   
 
@@ -292,7 +302,7 @@ public class FongoDBCollection extends DBCollection {
         }
       }
     }
-    return new WriteResult(updateResult(updatedDocuments), concern);
+    return new WriteResult(updateResult(updatedDocuments, false), concern);
   }
 
   @Override

@@ -279,10 +279,22 @@ public class FongoTest {
   @Test
   public void testUpsert() {
     DBCollection collection = newCollection();
-    collection.update(new BasicDBObject("_id", 1).append("n", "jon"), 
+    WriteResult result = collection.update(new BasicDBObject("_id", 1).append("n", "jon"), 
         new BasicDBObject("$inc", new BasicDBObject("a", 1)), true, false);
     assertEquals(new BasicDBObject("_id", 1).append("n", "jon").append("a", 1),
         collection.findOne());
+    assertFalse(result.getLastError().getBoolean("updatedExisting"));
+  }
+  
+  @Test
+  public void testUpsertExisting() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1));
+    WriteResult result = collection.update(new BasicDBObject("_id", 1), 
+        new BasicDBObject("$inc", new BasicDBObject("a", 1)), true, false);
+    assertEquals(new BasicDBObject("_id", 1).append("a", 1),
+        collection.findOne());
+    assertTrue(result.getLastError().getBoolean("updatedExisting"));
   }
   
   @Test
