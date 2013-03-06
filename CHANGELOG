@@ -1,3 +1,10 @@
+1.0.5
+-----
+release: 6 March 2013
+
+ - fixed override for getCount (@philnate)
+ - included updateExisting in update WriteResult
+
 1.0.4
 -----
 release: 30 January 2013
