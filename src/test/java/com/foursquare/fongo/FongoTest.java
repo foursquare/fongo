@@ -684,6 +684,18 @@ public class FongoTest {
   }
 
   @Test
+  public void testDropDatabaseFromFongoWithMultipleCollectionsDropsBothCollections() throws Exception {
+    Fongo fongo = newFongo();
+    DB db = fongo.getDB("db");
+    DBCollection collection1 = db.getCollection("coll1");
+    DBCollection collection2= db.getCollection("coll2");
+    db.dropDatabase();
+    assertFalse("Collection 1 shouldn't exist in DB", db.collectionExists(collection1.getName()));
+    assertFalse("Collection 2 shouldn't exist in DB", db.collectionExists(collection2.getName()));
+    assertFalse("DB shouldn't exist in fongo", fongo.getDatabaseNames().contains("db"));
+  }
+
+  @Test
   public void testToString() {
     new Fongo("test").getMongo().toString();
   }
