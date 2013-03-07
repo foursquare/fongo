@@ -1,5 +1,6 @@
 package com.mongodb;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -74,7 +75,7 @@ public class FongoDB extends DB {
   @Override
   public void dropDatabase() throws MongoException {
     this.fongo.dropDatabase(this.getName());
-    for (FongoDBCollection c : collMap.values()) {
+    for (FongoDBCollection c : new ArrayList<FongoDBCollection>(collMap.values())) {
       c.drop();
     }
   }
