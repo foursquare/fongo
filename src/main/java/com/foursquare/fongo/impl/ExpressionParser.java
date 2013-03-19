@@ -32,6 +32,7 @@ public class ExpressionParser {
   public final static String SIZE = "$size";
   public final static String NOT = "$not";
   public final static String OR = "$or";
+  public final static String AND = "$and";
   public final static String REGEX = "$regex";
   public final static String REGEX_OPTIONS = "$options";
 
@@ -318,6 +319,13 @@ public class ExpressionParser {
         orFilter.addFilter(buildFilter(query));
       }
       return orFilter;
+    } else if (AND.equals(path.get(0))) {
+      List<DBObject> queryList = typecast(path + " operator", expression, List.class);
+      AndFilter andFilter = new AndFilter();
+      for (DBObject query : queryList) {
+        andFilter.addFilter(buildFilter(query));
+      }
+      return andFilter;
     } else if (expression instanceof DBObject || expression instanceof Map) {
       DBObject ref = expression instanceof DBObject ? (DBObject) expression : new BasicDBObject((Map) expression);
       
