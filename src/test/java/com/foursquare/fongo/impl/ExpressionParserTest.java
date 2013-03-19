@@ -7,6 +7,7 @@ import com.mongodb.DBObject;
 import org.bson.types.ObjectId;
 import org.junit.Test;
 
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
@@ -33,6 +34,24 @@ public class ExpressionParserTest {
     assertEquals(Arrays.<DBObject>asList(
         new BasicDBObject("a", asList(1,3)).append("n", "j"),
         new BasicDBObject("a", 3).append("n", "j")
+    ), results);
+  }
+  
+  @Test
+  public void topLevelAndFilter() {
+    DBObject query = new BasicDBObject("$and", Arrays.asList(new BasicDBObject("a", 3), new BasicDBObject("b", 4)));
+    
+    List<DBObject> results = doFilter(
+        query,
+        new BasicDBObject("a", 3).append("b", 4),
+        new BasicDBObject("a", 3).append("b", 5),
+        new BasicDBObject("b", 4),
+        new BasicDBObject("a", 3),
+        new BasicDBObject("a", 5).append("b", 4)
+    );
+    
+    assertEquals(Arrays.<DBObject>asList(
+        new BasicDBObject("a", 3).append("b", 4)
     ), results);
   }
   
