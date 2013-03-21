@@ -225,14 +225,19 @@ public class FongoDBCollection extends DBCollection {
       return Collections.emptyList();
     } else if (idValue instanceof DBObject ){
       DBObject idDbObject = (DBObject)idValue;
-      List inList = (List)idDbObject.get(ExpressionParser.IN);
+      Object inObject = idDbObject.get(ExpressionParser.IN);
       
       // I think sorting the inputed keys is a rough
       // approximation of how mongo creates the bounds for walking
       // the index.  It has the desired affect of returning results
       // in _id index order, but feels pretty hacky.
-      if (inList != null){
-        Object[] inListArray = inList.toArray(new Object[0]);
+      if (inObject != null){
+        Object[] inListArray;
+        if(inObject instanceof List) {
+            inListArray = ((List)inObject).toArray(new Object[0]);
+        } else {
+            inListArray = (Object[]) inObject;
+        }
         // ids could be DBObjects, so we need a comparator that can handle that
         Arrays.sort(inListArray, objectComparator);
         return Arrays.asList(inListArray);
