@@ -38,6 +38,26 @@ public class ExpressionParserTest {
   }
   
   @Test
+  public void nestedAllRegexFilter() {
+    DBObject query = new BasicDBObject("_keywords", new BasicDBObject("$all", Arrays.asList("john", Pattern.compile("^doe"))));
+    
+    List<DBObject> results = doFilter(
+        query,
+        new BasicDBObject("_keywords", Arrays.asList("john", "more")),
+        new BasicDBObject("_keywords", Arrays.asList("tim", "norton")),
+        new BasicDBObject("_keywords", Arrays.asList("john", new BasicDBObject("doe", ""))),
+        new BasicDBObject("_keywords", Arrays.asList("john", "doeson")),
+        new BasicDBObject("_keywords", Arrays.asList("john", "don")),
+        new BasicDBObject("_keywords", Arrays.asList("john", "doe"))
+    );
+    
+    assertEquals(Arrays.<DBObject>asList(
+        new BasicDBObject("_keywords", Arrays.asList("john", "doeson")),
+        new BasicDBObject("_keywords", Arrays.asList("john", "doe"))
+    ), results);
+  }
+  
+  @Test
   public void topLevelAndFilter() {
     DBObject query = new BasicDBObject("$and", Arrays.asList(new BasicDBObject("a", 3), new BasicDBObject("b", 4)));
     
