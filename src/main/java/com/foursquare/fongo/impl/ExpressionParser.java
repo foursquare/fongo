@@ -1,14 +1,9 @@
 package com.foursquare.fongo.impl;
 
-import static org.hamcrest.CoreMatchers.instanceOf;
-
 import com.foursquare.fongo.FongoException;
 import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBObject;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -17,6 +12,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ExpressionParser {
   final static Logger LOG = LoggerFactory.getLogger(ExpressionParser.class);
@@ -224,19 +221,13 @@ public class ExpressionParser {
             return false;
           }
           
-          top:
-          for (Object q: queryList) {
-            if (q instanceof Pattern) {
-              for (Object s: storedList) {
-                if (s instanceof CharSequence) {
-                  if (((Pattern) q).matcher((CharSequence) s).find()) {
-                    break top;
-                  }
-                }
+          for (Object queryObject : queryList) {
+            if (queryObject instanceof Pattern) {
+              if (!listContainsPattern(storedList, (Pattern)queryObject)){
+                return false;
               }
-              return false;
             } else {
-              if (!storedList.contains(q)) {
+              if (!storedList.contains(queryObject)) {
                 return false;
               }
             }
@@ -285,6 +276,24 @@ public class ExpressionParser {
     return s.matches("[0-9]+");
   }
   
+  boolean objectMatchesPattern(Object obj, Pattern pattern) {
+    if (obj instanceof CharSequence) {
+      if (pattern.matcher((CharSequence) obj).find()) {
+        return true;
+      }
+    }
+    return false;
+  }
+  
+  boolean listContainsPattern(List<Object> list, Pattern pattern) {
+    for (Object obj : list) {
+      if (objectMatchesPattern(obj, pattern)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   public List<Object> getEmbeddedValues(List<String> path, DBObject dbo) {
     return getEmbeddedValues(path, 0, dbo);
   }
@@ -459,17 +468,11 @@ public class ExpressionParser {
           for (Object storedValue : storedOption){
             if (storedValue != null){
               if (storedValue instanceof List) {
-                for (Object aValue : (List)storedValue) {
-                  if (aValue instanceof CharSequence){
-                    if (pattern.matcher((CharSequence)aValue).find()){
-                      return true;
-                    }
-                  }
-                }
-              } else if (storedValue instanceof CharSequence){
-                if(pattern.matcher((CharSequence)storedValue).find()){
+                if (listContainsPattern((List)storedValue, pattern)) {
                   return true;
                 }
+              } else if (objectMatchesPattern(storedValue, pattern)){
+                return true;
               }
             }
           }
