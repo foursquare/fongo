@@ -1,5 +1,7 @@
 package com.foursquare.fongo.impl;
 
+import static org.hamcrest.CoreMatchers.instanceOf;
+
 import com.foursquare.fongo.FongoException;
 import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
@@ -218,7 +220,29 @@ public class ExpressionParser {
         boolean compare(Object queryValue, Object storedValue) {
           List queryList = typecast(command + " clause", queryValue, List.class);
           List storedList = typecast("value", storedValue, List.class);
-          return storedList != null && storedList.containsAll(queryList);
+          if (storedList == null) {
+            return false;
+          }
+          
+          top:
+          for (Object q: queryList) {
+            if (q instanceof Pattern) {
+              for (Object s: storedList) {
+                if (s instanceof CharSequence) {
+                  if (((Pattern) q).matcher((CharSequence) s).find()) {
+                    break top;
+                  }
+                }
+              }
+              return false;
+            } else {
+              if (!storedList.contains(q)) {
+                return false;
+              }
+            }
+          }
+          
+          return true;
       }},
       new BasicCommandFilterFactory(EXISTS){
         public Filter createFilter(final List<String> path, final DBObject refExpression) {
