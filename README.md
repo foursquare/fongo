@@ -14,7 +14,7 @@ Add dependency to your project:
 <dependency>
   <groupId>com.foursquare</groupId>
   <artifactId>fongo</artifactId>
-  <version>1.0.5</version>
+  <version>1.0.6</version>
 </dependency>
 ```
 
@@ -107,3 +107,6 @@ If you use Spring, you can configure fongo in your XML configuration context:
 * [Eduardo Franceschi](https://github.com/efranceschi)
 * [Tobias Clemson](https://github.com/tobyclemson)
 * [Philipp Knobel](https://github.com/philnate)
+* Roger Lindsjö
+* [Vadim Platono](https://github.com/dm3)
+* [grahamar](https://github.com/grahamar)
