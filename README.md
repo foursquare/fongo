@@ -107,6 +107,6 @@ If you use Spring, you can configure fongo in your XML configuration context:
 * [Eduardo Franceschi](https://github.com/efranceschi)
 * [Tobias Clemson](https://github.com/tobyclemson)
 * [Philipp Knobel](https://github.com/philnate)
-* Roger Lindsjö
+* [Roger Lindsjö](https://github.com/rlindsjo)
 * [Vadim Platono](https://github.com/dm3)
 * [grahamar](https://github.com/grahamar)
