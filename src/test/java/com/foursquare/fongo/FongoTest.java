@@ -694,6 +694,20 @@ public class FongoTest {
     assertFalse("Collection 2 shouldn't exist in DB", db.collectionExists(collection2.getName()));
     assertFalse("DB shouldn't exist in fongo", fongo.getDatabaseNames().contains("db"));
   }
+  
+  @Test
+  public void testDropCollectionsFromGetCollectionNames() {
+    Fongo fongo = newFongo();
+    DB db = fongo.getDB("db");
+    db.getCollection("coll1");
+    db.getCollection("coll2");
+    int dropCount = 0;
+    for (String name : db.getCollectionNames()){
+      db.getCollection(name).drop();
+      dropCount++;
+    }
+    assertEquals("should drop two collections", 2, dropCount);
+  }
 
   @Test
   public void testToString() {

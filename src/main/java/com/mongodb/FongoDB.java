@@ -1,5 +1,7 @@
 package com.mongodb;
 
+import java.util.HashSet;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -51,7 +53,7 @@ public class FongoDB extends DB {
   
   @Override
   public Set<String> getCollectionNames() throws MongoException {
-    return Collections.unmodifiableSet(collMap.keySet());
+    return new HashSet<String>(collMap.keySet());
   }
 
   @Override
