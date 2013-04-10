@@ -59,7 +59,7 @@ public class FongoTest {
   }
 
   @Test 
-  public void testCountCommand() {
+  public void testCountMethod() {
     DBCollection collection = newCollection();
     assertEquals(0, collection.count());
   }
@@ -712,6 +712,28 @@ public class FongoTest {
   @Test
   public void testToString() {
     new Fongo("test").getMongo().toString();
+  }
+  
+  @Test
+  public void testUndefinedCommand() {
+    Fongo fongo = newFongo();
+    DB db = fongo.getDB("db");
+    CommandResult result = db.command("undefined");
+    assertEquals("ok should always be defined", false, result.get("ok"));
+    assertEquals("undefined command: { \"undefined\" : true}", result.get("err"));
+  }
+  
+  @Test
+  public void testCountCommand() {
+    DBObject countCmd = new BasicDBObject("count", "coll");
+    Fongo fongo = newFongo();
+    DB db = fongo.getDB("db");
+    DBCollection coll = db.getCollection("coll");
+    coll.insert(new BasicDBObject());
+    coll.insert(new BasicDBObject());
+    CommandResult result = db.command(countCmd);
+    assertEquals("The command should have been succesful", true, result.get("ok"));
+    assertEquals("The count should be in the result", 2L, result.get("n"));
   }
 
   private DBCollection newCollection() {

@@ -431,7 +431,7 @@ public class FongoDBCollection extends DBCollection {
   
   @Override
   public synchronized long getCount(DBObject query, DBObject fields, long limit, long skip ) {
-    Filter filter = expressionParser.buildFilter(query);
+    Filter filter = query == null ? ExpressionParser.AllFilter : expressionParser.buildFilter(query);
     long count = 0;
     long upperLimit = Long.MAX_VALUE;
     if (limit > 0) {

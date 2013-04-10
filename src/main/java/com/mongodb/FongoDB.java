@@ -106,9 +106,22 @@ public class FongoDB extends DB {
         String collectionName = (String) cmd.get("create");
         doGetCollection(collectionName);
         return okResult();
+    } else if (cmd.containsField("count")) {
+      String collectionName = (String) cmd.get("count");
+      Number limit = (Number) cmd.get("limit");
+      Number skip = (Number) cmd.get("skip");
+      long result = doGetCollection(collectionName).getCount(
+          (DBObject) cmd.get("query"), 
+          null, 
+          limit == null ? 0L : limit.longValue(), 
+          skip == null ? 0L : skip.longValue());
+      CommandResult okResult = okResult();
+      okResult.append("n", result);
+      return okResult;
     }
     CommandResult errorResult = new CommandResult(fongo.getServerAddress());
     errorResult.put("err", "undefined command: " + cmd);
+    errorResult.put("ok", false);
     return errorResult;
   }
 

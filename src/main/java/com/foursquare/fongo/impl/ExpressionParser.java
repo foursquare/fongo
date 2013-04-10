@@ -35,7 +35,7 @@ public class ExpressionParser {
   public final static String REGEX = "$regex";
   public final static String REGEX_OPTIONS = "$options";
 
-  public Filter buildFilter(DBObject ref){
+  public Filter buildFilter(DBObject ref) {
     AndFilter andFilter = new AndFilter();
     for (String key : ref.keySet()) {
       Object expression = ref.get(key);
@@ -526,6 +526,13 @@ public class ExpressionParser {
       return false;
     }
   }
+  
+  public static Filter AllFilter = new Filter(){
+    @Override
+    public boolean apply(DBObject o) {
+      return true;
+    }
+  };
 
   public int parseRegexOptionsToPatternFlags(String flagString) {
     int flags = 0;
