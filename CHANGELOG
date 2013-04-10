@@ -1,3 +1,9 @@
+1.0.7
+-----
+ - fix for CME while iterating getCollectionNames and dropping each collection (@hoffrocket)
+ - support for "count" via command interface (@hoffrocket)
+ - fix for unidentified command result (@hoffrocket)
+ 
 1.0.6
 -----
 release: 25 March 2013
