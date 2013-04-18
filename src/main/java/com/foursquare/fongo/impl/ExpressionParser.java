@@ -1,19 +1,19 @@
 package com.foursquare.fongo.impl;
 
+import com.foursquare.fongo.FongoException;
+import com.mongodb.BasicDBList;
+import com.mongodb.BasicDBObject;
+import com.mongodb.DBObject;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.foursquare.fongo.FongoException;
-import com.mongodb.BasicDBList;
-import com.mongodb.DBObject;
 
 public class ExpressionParser {
   final static Logger LOG = LoggerFactory.getLogger(ExpressionParser.class);
@@ -31,10 +31,11 @@ public class ExpressionParser {
   public final static String SIZE = "$size";
   public final static String NOT = "$not";
   public final static String OR = "$or";
+  public final static String AND = "$and";
   public final static String REGEX = "$regex";
   public final static String REGEX_OPTIONS = "$options";
 
-  public Filter buildFilter(DBObject ref){
+  public Filter buildFilter(DBObject ref) {
     AndFilter andFilter = new AndFilter();
     for (String key : ref.keySet()) {
       Object expression = ref.get(key);
@@ -216,7 +217,23 @@ public class ExpressionParser {
         boolean compare(Object queryValue, Object storedValue) {
           List queryList = typecast(command + " clause", queryValue, List.class);
           List storedList = typecast("value", storedValue, List.class);
-          return storedList != null && storedList.containsAll(queryList);
+          if (storedList == null) {
+            return false;
+          }
+          
+          for (Object queryObject : queryList) {
+            if (queryObject instanceof Pattern) {
+              if (!listContainsPattern(storedList, (Pattern)queryObject)){
+                return false;
+              }
+            } else {
+              if (!storedList.contains(queryObject)) {
+                return false;
+              }
+            }
+          }
+          
+          return true;
       }},
       new BasicCommandFilterFactory(EXISTS){
         public Filter createFilter(final List<String> path, final DBObject refExpression) {
@@ -259,6 +276,24 @@ public class ExpressionParser {
     return s.matches("[0-9]+");
   }
   
+  boolean objectMatchesPattern(Object obj, Pattern pattern) {
+    if (obj instanceof CharSequence) {
+      if (pattern.matcher((CharSequence) obj).find()) {
+        return true;
+      }
+    }
+    return false;
+  }
+  
+  boolean listContainsPattern(List<Object> list, Pattern pattern) {
+    for (Object obj : list) {
+      if (objectMatchesPattern(obj, pattern)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   public List<Object> getEmbeddedValues(List<String> path, DBObject dbo) {
     return getEmbeddedValues(path, 0, dbo);
   }
@@ -309,20 +344,26 @@ public class ExpressionParser {
   }
   
 
-  private Filter buildExpressionFilter(final List<String> path, final Object expression) {
-
-    if (path.get(0) == OR) {
+  private Filter buildExpressionFilter(final List<String> path, Object expression) {
+    if (OR.equals(path.get(0))) {
       List<DBObject> queryList = typecast(path + " operator", expression, List.class);
       OrFilter orFilter = new OrFilter();
       for (DBObject query : queryList) {
         orFilter.addFilter(buildFilter(query));
       }
       return orFilter;
-    } else if (expression instanceof DBObject) {
-      DBObject ref = (DBObject) expression;
-      Object notExpression = ref.get(NOT);
-      if (notExpression != null) {
-        return new NotFilter(buildExpressionFilter(path, notExpression));
+    } else if (AND.equals(path.get(0))) {
+      List<DBObject> queryList = typecast(path + " operator", expression, List.class);
+      AndFilter andFilter = new AndFilter();
+      for (DBObject query : queryList) {
+        andFilter.addFilter(buildFilter(query));
+      }
+      return andFilter;
+    } else if (expression instanceof DBObject || expression instanceof Map) {
+      DBObject ref = expression instanceof DBObject ? (DBObject) expression : new BasicDBObject((Map) expression);
+      
+      if (ref.containsField(NOT)) {
+        return new NotFilter(buildExpressionFilter(path, ref.get(NOT)));
       } else {
 
         AndFilter andFilter = new AndFilter();
@@ -427,17 +468,11 @@ public class ExpressionParser {
           for (Object storedValue : storedOption){
             if (storedValue != null){
               if (storedValue instanceof List) {
-                for (Object aValue : (List)storedValue) {
-                  if (aValue instanceof CharSequence){
-                    if (pattern.matcher((CharSequence)aValue).find()){
-                      return true;
-                    }
-                  }
-                }
-              } else if (storedValue instanceof CharSequence){
-                if(pattern.matcher((CharSequence)storedValue).find()){
+                if (listContainsPattern((List)storedValue, pattern)) {
                   return true;
                 }
+              } else if (objectMatchesPattern(storedValue, pattern)){
+                return true;
               }
             }
           }
@@ -491,6 +526,13 @@ public class ExpressionParser {
       return false;
     }
   }
+  
+  public static Filter AllFilter = new Filter(){
+    @Override
+    public boolean apply(DBObject o) {
+      return true;
+    }
+  };
 
   public int parseRegexOptionsToPatternFlags(String flagString) {
     int flags = 0;

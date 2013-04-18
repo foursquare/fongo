@@ -1,26 +1,24 @@
 package com.mongodb;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import org.bson.types.ObjectId;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.foursquare.fongo.FongoException;
 import com.foursquare.fongo.impl.ExpressionParser;
 import com.foursquare.fongo.impl.Filter;
 import com.foursquare.fongo.impl.UpdateEngine;
 import com.foursquare.fongo.impl.Util;
+import org.bson.types.ObjectId;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * fongo override of com.mongodb.DBCollection
@@ -57,15 +55,27 @@ public class FongoDBCollection extends DBCollection {
     }
   }
   
-  private CommandResult updateResult(int updateCount) {
+  private CommandResult insertResult(int updateCount) {
     CommandResult result = fongoDb.okResult();
     result.put("n", updateCount);
     return result;
   }
   
+  private CommandResult updateResult(int updateCount, boolean updatedExisting) {
+    CommandResult result = fongoDb.okResult();
+    result.put("n", updateCount);
+    result.put("updatedExisting", updatedExisting);
+    return result;
+  }
+  
   @Override
   public synchronized WriteResult insert(DBObject[] arr, WriteConcern concern, DBEncoder encoder) throws MongoException {
-    for (DBObject obj : arr) {
+    return insert(Arrays.asList(arr), concern, encoder);
+  }
+  
+  @Override
+  public WriteResult insert(List<DBObject> toInsert, WriteConcern concern, DBEncoder encoder) {
+    for (DBObject obj : toInsert) {
       if (LOG.isDebugEnabled()) {
         LOG.debug("insert: " + obj);
       }
@@ -82,7 +92,7 @@ public class FongoDBCollection extends DBCollection {
         putSizeCheck(id, obj);        
       }
     }
-    return new WriteResult(updateResult(arr.length), concern);
+    return new WriteResult(insertResult(toInsert.size()), concern);
   }
   
   boolean enforceDuplicates(WriteConcern concern) {
@@ -90,7 +100,7 @@ public class FongoDBCollection extends DBCollection {
   }
 
   public Object putIdIfNotPresent(DBObject obj) {
-    if (!obj.containsField(ID_KEY) || obj.get(ID_KEY) == null) {
+    if (obj.get(ID_KEY) == null) {
       ObjectId id = new ObjectId();
       if (!nonIdCollection){
         obj.put(ID_KEY, id);
@@ -142,8 +152,7 @@ public class FongoDBCollection extends DBCollection {
 
 
   protected void fInsert(DBObject obj) {
-    putIdIfNotPresent(obj);
-    Object id = obj.get(ID_KEY);
+    Object id = putIdIfNotPresent(obj);
     putSizeCheck(id, obj);
   }
 
@@ -155,14 +164,16 @@ public class FongoDBCollection extends DBCollection {
     if (LOG.isDebugEnabled()){
       LOG.debug("update(" + q + ", " + o + ", " + upsert + ", " + multi +")");
     }
-    boolean idOnlyUpdate = q.containsField(ID_KEY) && q.keySet().size() == 1;
-    if (o.containsField(ID_KEY) && !idOnlyUpdate){
+
+    if (o.containsField(ID_KEY) && q.containsField(ID_KEY) && !o.get(ID_KEY).equals(q.get(ID_KEY))){
       throw new MongoException.DuplicateKey(0, "can not change _id of a document " + ID_KEY);
     }
     filterLists(o);
     
     int updatedDocuments = 0;
-    
+    boolean idOnlyUpdate = q.containsField(ID_KEY) && q.keySet().size() == 1;
+    boolean updatedExisting = false;
+
     if (idOnlyUpdate && isNotUpdateCommand(o)) {
       if (!o.containsField(ID_KEY)) {
         o.put(ID_KEY, q.get(ID_KEY));
@@ -177,6 +188,7 @@ public class FongoDBCollection extends DBCollection {
           DBObject existingObject = objects.get(id);
           if (existingObject != null){
             updatedDocuments++;
+            updatedExisting = true;
             updateEngine.doUpdate(existingObject, o, q);
             if (!multi){
               break;
@@ -188,6 +200,7 @@ public class FongoDBCollection extends DBCollection {
         for (DBObject obj : objects.values()) {
           if (filter.apply(obj)){
             updatedDocuments++;
+            updatedExisting = true;
             updateEngine.doUpdate(obj, o, q);
             if (!multi){
               break;
@@ -200,7 +213,7 @@ public class FongoDBCollection extends DBCollection {
         fInsert(updateEngine.doUpdate(newObject, o, q));
       }
     }
-    return new WriteResult(updateResult(updatedDocuments), concern);
+    return new WriteResult(updateResult(updatedDocuments, updatedExisting), concern);
   }
   
 
@@ -212,14 +225,19 @@ public class FongoDBCollection extends DBCollection {
       return Collections.emptyList();
     } else if (idValue instanceof DBObject ){
       DBObject idDbObject = (DBObject)idValue;
-      List inList = (List)idDbObject.get(ExpressionParser.IN);
+      Object inObject = idDbObject.get(ExpressionParser.IN);
       
       // I think sorting the inputed keys is a rough
       // approximation of how mongo creates the bounds for walking
       // the index.  It has the desired affect of returning results
       // in _id index order, but feels pretty hacky.
-      if (inList != null){
-        Object[] inListArray = inList.toArray(new Object[0]);
+      if (inObject != null){
+        Object[] inListArray;
+        if(inObject instanceof List) {
+            inListArray = ((List)inObject).toArray(new Object[0]);
+        } else {
+            inListArray = (Object[]) inObject;
+        }
         // ids could be DBObjects, so we need a comparator that can handle that
         Arrays.sort(inListArray, objectComparator);
         return Arrays.asList(inListArray);
@@ -289,7 +307,7 @@ public class FongoDBCollection extends DBCollection {
         }
       }
     }
-    return new WriteResult(updateResult(updatedDocuments), concern);
+    return new WriteResult(updateResult(updatedDocuments, false), concern);
   }
 
   @Override
@@ -413,7 +431,7 @@ public class FongoDBCollection extends DBCollection {
   
   @Override
   public synchronized long getCount(DBObject query, DBObject fields, long limit, long skip ) {
-    Filter filter = expressionParser.buildFilter(query);
+    Filter filter = query == null ? ExpressionParser.AllFilter : expressionParser.buildFilter(query);
     long count = 0;
     long upperLimit = Long.MAX_VALUE;
     if (limit > 0) {
@@ -430,7 +448,14 @@ public class FongoDBCollection extends DBCollection {
     }
     return count;
   }
+  
+  @Override
+  public synchronized long getCount(DBObject query, DBObject fields, ReadPreference readPrefs){
+    //as we're in memory we don't need to worry about readPrefs
+    return getCount(query, fields, 0, 0);
+  }
 
+  @Override
   public synchronized DBObject findAndModify(DBObject query, DBObject fields, DBObject sort, boolean remove, DBObject update, boolean returnNew, boolean upsert) {
     filterLists(query);
     filterLists(update);
@@ -469,14 +494,13 @@ public class FongoDBCollection extends DBCollection {
   }
   
   @Override
-  public synchronized List<DBObject> distinct(String key, DBObject query) {
-    List<DBObject> results = new ArrayList<DBObject>();
+  public synchronized List distinct(String key, DBObject query) {
+    List<Object> results = new ArrayList<Object>();
     Filter filter = expressionParser.buildFilter(query);
-    Set<Object> seen = new HashSet<Object>();
     for (Iterator<DBObject> iter = objects.values().iterator(); iter.hasNext();) {
       DBObject value = iter.next();
-      if (filter.apply(value) && seen.add(value.get(key))){
-        results.add(value);
+      if (filter.apply(value) && !results.contains(value.get(key))){
+        results.add(value.get(key));
       }
     }
     return results;
@@ -485,5 +509,11 @@ public class FongoDBCollection extends DBCollection {
   @Override
   public void dropIndexes(String name) throws MongoException {
     // do nothing
+  }
+  
+  @Override
+  public void drop() {
+    objects.clear();
+    fongoDb.removeCollection(this);
   }
 }

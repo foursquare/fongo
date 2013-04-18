@@ -1,18 +1,5 @@
 package com.foursquare.fongo;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-
-import org.junit.Test;
-
 import com.foursquare.fongo.impl.Util;
 import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
@@ -23,8 +10,22 @@ import com.mongodb.DBCollection;
 import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
 import com.mongodb.MongoException;
+import com.mongodb.QueryBuilder;
 import com.mongodb.WriteConcern;
 import com.mongodb.WriteResult;
+import org.junit.Test;
+
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class FongoTest {
 
@@ -49,8 +50,16 @@ public class FongoTest {
     assertEquals(new HashSet<String>(Arrays.asList("coll")), db.getCollectionNames());
   }
   
+  @Test
+  public void testCreateCollection() {
+      Fongo fongo = newFongo();
+      DB db = fongo.getDB("db");
+      db.createCollection("coll", null);
+      assertEquals(Collections.singleton("coll"), db.getCollectionNames());
+  }
+
   @Test 
-  public void testCountCommand() {
+  public void testCountMethod() {
     DBCollection collection = newCollection();
     assertEquals(0, collection.count());
   }
@@ -62,6 +71,15 @@ public class FongoTest {
     collection.insert(new BasicDBObject("n", 2));
     collection.insert(new BasicDBObject("n", 2));
     assertEquals(2, collection.count(new BasicDBObject("n", 2)));
+  }
+  
+  @Test
+  public void testCountOnCursor() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("n", 1));
+    collection.insert(new BasicDBObject("n", 2));
+    collection.insert(new BasicDBObject("n", 2));
+    assertEquals(3,collection.find(QueryBuilder.start("n").exists(true).get()).count());
   }
   
   @Test
@@ -228,13 +246,30 @@ public class FongoTest {
     assertEquals(new BasicDBObject("_id", 2).append("a", 5), 
         collection.findOne(new BasicDBObject("_id",2)));
   }
-  
+
   @Test
-  public void testNoUpdateId() {
+  public void testFullUpdateWithSameId() throws Exception {
     DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1));
+    collection.insert(new BasicDBObject("_id", 2).append("b", 5));
+    collection.insert(new BasicDBObject("_id", 3));
+    collection.insert(new BasicDBObject("_id", 4));
+
+    collection.update(
+        new BasicDBObject("_id", 2).append("b", 5),
+        new BasicDBObject("_id", 2).append("a", 5));
+
+    assertEquals(new BasicDBObject("_id", 2).append("a", 5),
+            collection.findOne(new BasicDBObject("_id", 2)));
+  }
+
+  @Test
+  public void testIdNotAllowedToBeUpdated() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1));
     
     try {
-      collection.update(new BasicDBObject("_id", 1).append("b", 2), new BasicDBObject("_id", 1));
+      collection.update(new BasicDBObject("_id", 1), new BasicDBObject("_id", 2).append("a", 5));
       fail("should throw exception");
     } catch (MongoException e) {
       
@@ -244,10 +279,22 @@ public class FongoTest {
   @Test
   public void testUpsert() {
     DBCollection collection = newCollection();
-    collection.update(new BasicDBObject("_id", 1).append("n", "jon"), 
+    WriteResult result = collection.update(new BasicDBObject("_id", 1).append("n", "jon"), 
         new BasicDBObject("$inc", new BasicDBObject("a", 1)), true, false);
     assertEquals(new BasicDBObject("_id", 1).append("n", "jon").append("a", 1),
         collection.findOne());
+    assertFalse(result.getLastError().getBoolean("updatedExisting"));
+  }
+  
+  @Test
+  public void testUpsertExisting() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1));
+    WriteResult result = collection.update(new BasicDBObject("_id", 1), 
+        new BasicDBObject("$inc", new BasicDBObject("a", 1)), true, false);
+    assertEquals(new BasicDBObject("_id", 1).append("a", 1),
+        collection.findOne());
+    assertTrue(result.getLastError().getBoolean("updatedExisting"));
   }
   
   @Test
@@ -272,7 +319,7 @@ public class FongoTest {
   }
   
   @Test
-  public void testUpdatetWithIdIn() {
+  public void testUpdateWithIdIn() {
     DBCollection collection = newCollection();
     collection.insert(new BasicDBObject("_id", 1));
     DBObject query = new BasicDBObjectBuilder().push("_id").append("$in", Arrays.asList(1)).pop().get();
@@ -285,7 +332,7 @@ public class FongoTest {
   }
   
   @Test
-  public void testUpdatetWithObjectId() {
+  public void testUpdateWithObjectId() {
     DBCollection collection = newCollection();
     collection.insert(new BasicDBObject("_id", new BasicDBObject("n", 1)));
     DBObject query = new BasicDBObject("_id", new BasicDBObject("n", 1));
@@ -345,7 +392,6 @@ public class FongoTest {
         new BasicDBObject("_id", new BasicDBObject("n","a").append("t", 2)).append("foo", "bar"),
         new BasicDBObject("_id", new BasicDBObject("n","a").append("t", 3)).append("foo", "bar")
     ), results);
-    
   }
   
   @Test
@@ -439,6 +485,15 @@ public class FongoTest {
   }
   
   @Test
+  public void testFindAndRemoveFromEmbeddedList() {
+    DBCollection collection = newCollection();
+    BasicDBObject obj = new BasicDBObject("_id", 1).append("a", Arrays.asList(1));
+    collection.insert(obj);
+    DBObject result = collection.findAndRemove(new BasicDBObject("_id",1));
+    assertEquals(obj, result);
+  }
+  
+  @Test
   public void testFindAndModifyRemove() {
     DBCollection collection = newCollection();
     collection.insert(new BasicDBObject("_id", 1).append("a", 1));
@@ -489,11 +544,7 @@ public class FongoTest {
     collection.insert(new BasicDBObject("n", 3).append("_id", 3));
     collection.insert(new BasicDBObject("n", 1).append("_id", 4));
     collection.insert(new BasicDBObject("n", 1).append("_id", 5));
-    assertEquals(Arrays.asList(
-        new BasicDBObject("n", 1).append("_id", 1), 
-        new BasicDBObject("n", 2).append("_id", 2), 
-        new BasicDBObject("n", 3).append("_id", 3)
-    ), collection.distinct("n"));
+    assertEquals(Arrays.asList(1, 2, 3), collection.distinct("n"));
   }
   
   @Test
@@ -520,7 +571,8 @@ public class FongoTest {
     collection.insert(new BasicDBObject("_id", 1));
     collection.insert(new BasicDBObject("_id", 1), WriteConcern.SAFE);
   }
-  
+
+  @Test
   public void testInsertDuplicateIgnored(){
     DBCollection collection = newCollection();
     collection.insert(new BasicDBObject("_id", 1));
@@ -573,7 +625,7 @@ public class FongoTest {
   }
   
   @Test
-  public void testUpdatetWithObjectIdReturnModifiedDocumentCount() {
+  public void testUpdateWithObjectIdReturnModifiedDocumentCount() {
     DBCollection collection = newCollection();
     collection.insert(new BasicDBObject("_id", new BasicDBObject("n", 1)));
     DBObject query = new BasicDBObject("_id", new BasicDBObject("n", 1));
@@ -602,10 +654,86 @@ public class FongoTest {
     final String ID_KEY = "_id";
     assertNotNull("Expected _id to be generated" + result.get(ID_KEY));
   }
+  
+  @Test
+  public void testDropDatabaseAlsoDropsCollectionData() throws Exception {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject());
+    collection.getDB().dropDatabase();
+    assertEquals("Collection should have no data", 0, collection.count());
+  }
+  
+  @Test
+  public void testDropCollectionAlsoDropsFromDB() throws Exception {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject());
+    collection.drop();
+    assertEquals("Collection should have no data", 0, collection.count());
+    assertFalse("Collection shouldn't exist in DB", collection.getDB().getCollectionNames().contains(collection.getName()));
+  }
+  
+  @Test
+  public void testDropDatabaseFromFongoDropsAllData() throws Exception {
+    Fongo fongo = newFongo();
+    DBCollection collection = fongo.getDB("db").getCollection("coll");
+    collection.insert(new BasicDBObject());
+    fongo.dropDatabase("db");
+    assertEquals("Collection should have no data", 0, collection.count());
+    assertFalse("Collection shouldn't exist in DB", collection.getDB().getCollectionNames().contains(collection.getName()));
+    assertFalse("DB shouldn't exist in fongo", fongo.getDatabaseNames().contains("db"));
+  }
+
+  @Test
+  public void testDropDatabaseFromFongoWithMultipleCollectionsDropsBothCollections() throws Exception {
+    Fongo fongo = newFongo();
+    DB db = fongo.getDB("db");
+    DBCollection collection1 = db.getCollection("coll1");
+    DBCollection collection2= db.getCollection("coll2");
+    db.dropDatabase();
+    assertFalse("Collection 1 shouldn't exist in DB", db.collectionExists(collection1.getName()));
+    assertFalse("Collection 2 shouldn't exist in DB", db.collectionExists(collection2.getName()));
+    assertFalse("DB shouldn't exist in fongo", fongo.getDatabaseNames().contains("db"));
+  }
+  
+  @Test
+  public void testDropCollectionsFromGetCollectionNames() {
+    Fongo fongo = newFongo();
+    DB db = fongo.getDB("db");
+    db.getCollection("coll1");
+    db.getCollection("coll2");
+    int dropCount = 0;
+    for (String name : db.getCollectionNames()){
+      db.getCollection(name).drop();
+      dropCount++;
+    }
+    assertEquals("should drop two collections", 2, dropCount);
+  }
 
   @Test
   public void testToString() {
     new Fongo("test").getMongo().toString();
+  }
+  
+  @Test
+  public void testUndefinedCommand() {
+    Fongo fongo = newFongo();
+    DB db = fongo.getDB("db");
+    CommandResult result = db.command("undefined");
+    assertEquals("ok should always be defined", false, result.get("ok"));
+    assertEquals("undefined command: { \"undefined\" : true}", result.get("err"));
+  }
+  
+  @Test
+  public void testCountCommand() {
+    DBObject countCmd = new BasicDBObject("count", "coll");
+    Fongo fongo = newFongo();
+    DB db = fongo.getDB("db");
+    DBCollection coll = db.getCollection("coll");
+    coll.insert(new BasicDBObject());
+    coll.insert(new BasicDBObject());
+    CommandResult result = db.command(countCmd);
+    assertEquals("The command should have been succesful", true, result.get("ok"));
+    assertEquals("The count should be in the result", 2L, result.get("n"));
   }
 
   private DBCollection newCollection() {

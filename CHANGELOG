@@ -1,3 +1,45 @@
+1.0.7
+-----
+ - fix for CME while iterating getCollectionNames and dropping each collection (@hoffrocket)
+ - support for "count" via command interface (@hoffrocket)
+ - fix for unidentified command result (@hoffrocket)
+ 
+1.0.6
+-----
+release: 25 March 2013
+
+ - fix for ConcurrentModificationException in dropDatabase (@rlindsjo)
+ - support for top level $and queries (@dm3)
+ - support for Arrays with $in queries (@grahamar)
+ - support for regex in $all queries (@dm3)
+
+1.0.5
+-----
+release: 6 March 2013
+
+ - fixed override for getCount (@philnate)
+ - included updateExisting in update WriteResult
+
+1.0.4
+-----
+release: 30 January 2013
+
+ - bumped mongo-java-driver to 2.10.1
+ - proper distinct handling (@tobyclemson)
+ - fix update _id handling (@tobyclemson)
+ - allow Map in query object (@tobyclemson)
+ - fix for createCollection (@dagi)
+ - fix for $or operator bug
+ - fix for remove query with List value bug
+  
+1.0.3
+-----
+release: 29 November 2012
+
+ - properly pass updated count in WriteResult (@palmerabollo)
+ - replace null _id in DBObject (@aakhmerov)
+ - drop commands clear out children (@efranceschi)
+
 1.0.2
 -----
 release: 09 November 2012

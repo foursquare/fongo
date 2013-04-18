@@ -87,7 +87,10 @@ public class Fongo {
    * @param dbName
    */
   public void dropDatabase(String dbName) {
-    dbMap.remove(dbName);
+    FongoDB db = dbMap.remove(dbName);
+    if (db != null) {
+      db.dropDatabase();
+    }
   }
   
   /**

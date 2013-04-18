@@ -1,24 +1,22 @@
 package com.foursquare.fongo.impl;
 
-import static org.junit.Assert.*;
-import static org.junit.Assert.assertEquals;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.List;
-import java.util.regex.Pattern;
-
-import org.bson.types.ObjectId;
-import org.junit.Test;
-
-import com.foursquare.fongo.impl.ExpressionParser;
-import com.foursquare.fongo.impl.Filter;
 import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
 import com.mongodb.BasicDBObjectBuilder;
-import com.mongodb.DBCollection;
 import com.mongodb.DBObject;
+import org.bson.types.ObjectId;
+import org.junit.Test;
+
+import java.lang.reflect.Array;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.regex.Pattern;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 
 public class ExpressionParserTest {
@@ -36,6 +34,44 @@ public class ExpressionParserTest {
     assertEquals(Arrays.<DBObject>asList(
         new BasicDBObject("a", asList(1,3)).append("n", "j"),
         new BasicDBObject("a", 3).append("n", "j")
+    ), results);
+  }
+  
+  @Test
+  public void nestedAllRegexFilter() {
+    DBObject query = new BasicDBObject("_keywords", new BasicDBObject("$all", Arrays.asList("john", Pattern.compile("^doe"))));
+    
+    List<DBObject> results = doFilter(
+        query,
+        new BasicDBObject("_keywords", Arrays.asList("john", "more")),
+        new BasicDBObject("_keywords", Arrays.asList("tim", "norton")),
+        new BasicDBObject("_keywords", Arrays.asList("john", new BasicDBObject("doe", ""))),
+        new BasicDBObject("_keywords", Arrays.asList("john", "doeson")),
+        new BasicDBObject("_keywords", Arrays.asList("john", "don")),
+        new BasicDBObject("_keywords", Arrays.asList("john", "doe"))
+    );
+    
+    assertEquals(Arrays.<DBObject>asList(
+        new BasicDBObject("_keywords", Arrays.asList("john", "doeson")),
+        new BasicDBObject("_keywords", Arrays.asList("john", "doe"))
+    ), results);
+  }
+  
+  @Test
+  public void topLevelAndFilter() {
+    DBObject query = new BasicDBObject("$and", Arrays.asList(new BasicDBObject("a", 3), new BasicDBObject("b", 4)));
+    
+    List<DBObject> results = doFilter(
+        query,
+        new BasicDBObject("a", 3).append("b", 4),
+        new BasicDBObject("a", 3).append("b", 5),
+        new BasicDBObject("b", 4),
+        new BasicDBObject("a", 3),
+        new BasicDBObject("a", 5).append("b", 4)
+    );
+    
+    assertEquals(Arrays.<DBObject>asList(
+        new BasicDBObject("a", 3).append("b", 4)
     ), results);
   }
   
@@ -379,7 +415,7 @@ public class ExpressionParserTest {
   
   @Test
   public void testOrOperator(){
-    DBObject query = new BasicDBObject("$or", asList(
+    DBObject query = new BasicDBObject(new String("$or"), asList(
         new BasicDBObject("a",3),
         new BasicDBObject("b", new BasicDBObject("$ne", 3))
     ));
@@ -593,6 +629,21 @@ public class ExpressionParserTest {
         rec1,
         rec2
     ), results);
+  }
+
+  @Test
+  public void testOperatorInMap() throws Exception {
+    HashMap<String, Object> operatorMap = new HashMap<String, Object>();
+    operatorMap.put("$in", asList(1, 2, 3));
+    BasicDBObject query = new BasicDBObject("a", operatorMap);
+    BasicDBObject rec1 = new BasicDBObject("_id", 1).append("a", 1).append("b", "5").append("c", 1);
+    BasicDBObject rec2 = new BasicDBObject("_id", 2).append("a", 4).append("b", "8").append("c", 1);
+    List<DBObject> results = doFilter(
+        query,
+        rec1,
+        rec2
+    );
+    assertEquals(Arrays.<DBObject>asList(rec1), results);
   }
 
   private void assertQuery(BasicDBObject query, List<DBObject> expected) {

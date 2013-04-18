@@ -1,5 +1,8 @@
 package com.mongodb;
 
+import java.util.HashSet;
+
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -50,7 +53,7 @@ public class FongoDB extends DB {
   
   @Override
   public Set<String> getCollectionNames() throws MongoException {
-    return Collections.unmodifiableSet(collMap.keySet());
+    return new HashSet<String>(collMap.keySet());
   }
 
   @Override
@@ -74,6 +77,9 @@ public class FongoDB extends DB {
   @Override
   public void dropDatabase() throws MongoException {
     this.fongo.dropDatabase(this.getName());
+    for (FongoDBCollection c : new ArrayList<FongoDBCollection>(collMap.values())) {
+      c.drop();
+    }
   }
   
   /**
@@ -96,9 +102,26 @@ public class FongoDB extends DB {
     } else if (cmd.containsField("drop")) {
       this.collMap.remove(cmd.get("drop").toString());
       return okResult();
+    } else if(cmd.containsField("create")) {
+        String collectionName = (String) cmd.get("create");
+        doGetCollection(collectionName);
+        return okResult();
+    } else if (cmd.containsField("count")) {
+      String collectionName = (String) cmd.get("count");
+      Number limit = (Number) cmd.get("limit");
+      Number skip = (Number) cmd.get("skip");
+      long result = doGetCollection(collectionName).getCount(
+          (DBObject) cmd.get("query"), 
+          null, 
+          limit == null ? 0L : limit.longValue(), 
+          skip == null ? 0L : skip.longValue());
+      CommandResult okResult = okResult();
+      okResult.append("n", result);
+      return okResult;
     }
     CommandResult errorResult = new CommandResult(fongo.getServerAddress());
     errorResult.put("err", "undefined command: " + cmd);
+    errorResult.put("ok", false);
     return errorResult;
   }
 
@@ -111,5 +134,9 @@ public class FongoDB extends DB {
   @Override
   public String toString() {
     return "FongoDB." + this.getName();
+  }
+
+  public void removeCollection(FongoDBCollection collection) {
+    collMap.remove(collection.getName());
   }
 }
