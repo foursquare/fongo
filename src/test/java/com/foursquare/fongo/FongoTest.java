@@ -115,11 +115,11 @@ public class FongoTest {
     
     assertEquals(null, collection.findOne(new BasicDBObject("_id", 2)));
   }
-  
+
   @Test
   public void testFindWithQuery() {
     DBCollection collection = newCollection();
-    
+
     collection.insert(new BasicDBObject("name", "jon"));
     collection.insert(new BasicDBObject("name", "leo"));
     collection.insert(new BasicDBObject("name", "neil"));
@@ -127,7 +127,32 @@ public class FongoTest {
     DBCursor cursor = collection.find(new BasicDBObject("name", "neil"));
     assertEquals("should have two neils", 2, cursor.toArray().size());
   }
-  
+
+  @Test
+  public void testFindWithNullOrNoFieldFilter() {
+    DBCollection collection = newCollection();
+
+    collection.insert(new BasicDBObject("name", "jon").append("group", "group1"));
+    collection.insert(new BasicDBObject("name", "leo").append("group", "group1"));
+    collection.insert(new BasicDBObject("name", "neil1").append("group", "group2"));
+    collection.insert(new BasicDBObject("name", "neil2").append("group", null));
+    collection.insert(new BasicDBObject("name", "neil3"));
+
+    // check {group: null} vs {group: {$exists: false}} filter
+    DBCursor cursor1 = collection.find(new BasicDBObject("group", null));
+    assertEquals("should have two neils (neil2, neil3)", 2, cursor1.toArray().size());
+
+    DBCursor cursor2 = collection.find(new BasicDBObject("group", new BasicDBObject("$exists", false)));
+    assertEquals("should have one neil (neil3)", 1, cursor2.toArray().size());
+
+    // same check but for fields which don't exist in DB
+    DBCursor cursor3 = collection.find(new BasicDBObject("other", null));
+    assertEquals("should return all documents", 5, cursor3.toArray().size());
+
+    DBCursor cursor4 = collection.find(new BasicDBObject("other", new BasicDBObject("$exists", false)));
+    assertEquals("should return all documents", 5, cursor4.toArray().size());
+  }
+
   @Test
   public void testFindWithLimit() {
     DBCollection collection = newCollection();

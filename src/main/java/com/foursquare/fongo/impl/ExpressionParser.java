@@ -394,7 +394,7 @@ public class ExpressionParser {
       public boolean apply(DBObject o) {
         List<Object> storedOption = getEmbeddedValues(path, o);
         if (storedOption.isEmpty()){
-          return false;
+          return (expression == null);
         } else {
           for(Object storedValue : storedOption) {
             if (storedValue instanceof List) {
@@ -402,7 +402,10 @@ public class ExpressionParser {
                 return true;
               }
             } else {
-              if (expression.equals(storedValue)){
+			        if (expression == null) {
+				        return (storedValue == null);
+			        }
+              if (expression.equals(storedValue)) {
                 return true;
               }
             }            
