@@ -651,7 +651,12 @@ public class FongoTest {
     /**
      *
      * Check that DBRefs get updated in objects that are cached across
-     * collections once entity that is referred gets updated <b>(NB! not saved).</b>
+     * collections once entity that is referred gets updated.
+     *
+     * problem is reproduced after fetch of referring object is performed before update.
+     * DBRef object contains cache which is used by fetch() method.
+     *
+     * @see DBRefBase
      *
      * 1. save referred object
      * 2. insert object with ref into collection
@@ -695,7 +700,7 @@ public class FongoTest {
         referredObject.put("changingProperty","updated");
         DBObject id = new BasicDBObject();
         id.put("_id","test_ref_id");
-        refferredCollection.update(id,referredObject);
+        refferredCollection.save(referredObject);
 
 //      5. assert that initial object got update
         toAssert = referringCollection.findOne();
