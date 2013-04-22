@@ -709,6 +709,22 @@ public class FongoTest {
         assertThat(ref.fetch().get("changingProperty").toString(),is("updated"));
     }
 
+
+    @Test
+    public void testMongoFindById() throws Exception {
+        Fongo fongo = newFongo();
+        DB fongoDB = fongo.getDB("testDB");
+        DBCollection col = fongoDB.getCollection("test");
+        DBObject testObj = new BasicDBObject();
+        try {
+//          my best clue why this unit test doesn't reproduce NPE is usage of reflection in spring-data
+            col.findOne(testObj);
+        } catch( RuntimeException e ){
+            fail("seems like you have forgot to initialize _connector private member in Mongo.class");
+        }
+//      test went fine
+    }
+
     @Test
     public void testDropDatabaseAlsoDropsCollectionData() throws Exception {
         DBCollection collection = newCollection();

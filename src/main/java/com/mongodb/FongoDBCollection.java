@@ -8,8 +8,6 @@ import com.foursquare.fongo.impl.Util;
 import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -389,6 +387,91 @@ public class FongoDBCollection extends DBCollection {
         rec.append("name", sb.toString());
         rec.putAll(options);
         indexColl.insert(rec);
+    }
+
+    /**
+     * Queries for all objects in this collection.
+     * @return a cursor which will iterate over every object
+     * @dochub find
+     */
+    public DBCursor find(){
+        return new FongoDBCursor( this, null, null, getReadPreference());
+    }
+
+    /**
+     * Queries for an object in this collection.
+     *
+     * <p>
+     * An empty DBObject will match every document in the collection.
+     * Regardless of fields specified, the _id fields are always returned.
+     * </p>
+     * <p>
+     * An example that returns the "x" and "_id" fields for every document
+     * in the collection that has an "x" field:
+     * </p>
+     * <blockquote><pre>
+     * BasicDBObject keys = new BasicDBObject();
+     * keys.put("x", 1);
+     *
+     * DBCursor cursor = collection.find(new BasicDBObject(), keys);
+     * </pre></blockquote>
+     *
+     * @param ref object for which to search
+     * @param keys fields to return
+     * @return a cursor to iterate over results
+     * @dochub find
+     */
+    public DBCursor find( DBObject ref , DBObject keys ){
+        return new FongoDBCursor( this, ref, keys, getReadPreference());
+    }
+
+    /**
+     * Queries for an object in this collection.
+     * @param ref object for which to search
+     * @return an iterator over the results
+     * @dochub find
+     */
+    public DBCursor find( DBObject ref ){
+        return new FongoDBCursor( this, ref, null, getReadPreference());
+    }
+
+    /**
+     * NOTE: Method implementation taken from mongo driver lines 719-734 to put
+     * check for connector initialization before executing code and prevent
+     * NPE. I cannot reproduce it through unit test at the moment.
+     *
+     *
+     * Returns a single object from this collection matching the query.
+     * @param o the query object
+     * @param fields fields to return
+     * @param orderBy fields to order by
+     * @return the object found, or <code>null</code> if no such object exists
+     * @throws MongoException
+     * @dochub find
+     */
+    public DBObject findOne( DBObject o, DBObject fields, DBObject orderBy, ReadPreference readPref ){
+        LOG.debug("finding single object");
+        QueryOpBuilder queryOpBuilder = new QueryOpBuilder().addQuery(o).addOrderBy(orderBy);
+
+//      Direct method invocation here causes NPE, which is not reproduced by unit test!
+        if (getDB().getMongo().getConnector() != null && getDB().getMongo().isMongosConnection()) {
+            queryOpBuilder.addReadPreference(readPref.toDBObject());
+        }
+
+        Iterator<DBObject> i = __find(queryOpBuilder.get(), fields , 0 , -1 , 0, getOptions(), readPref, getDecoder() );
+
+        DBObject obj = (i.hasNext() ? i.next() : null);
+        if ( obj != null && ( fields != null && fields.keySet().size() > 0 ) ){
+            obj.markAsPartialObject();
+        }
+        return obj;
+    }
+
+    // Required for previous method
+    // Only create a new decoder if there is a decoder factory explicitly set on the collection.  Otherwise return null
+    // so that DBPort will use a cached decoder from the default factory.
+    private DBDecoder getDecoder() {
+        return getDBDecoderFactory() != null ? getDBDecoderFactory().create() : null;
     }
 
     /**
