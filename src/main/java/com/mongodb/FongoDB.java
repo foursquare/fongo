@@ -139,4 +139,17 @@ public class FongoDB extends DB {
   public void removeCollection(FongoDBCollection collection) {
     collMap.remove(collection.getName());
   }
+
+    /**
+     * Method that updates loaded references to objects that match by _id.
+     * Iterate through loaded Fongo collections and ask them to update
+     * references.
+     *
+     * @param o - updated object
+     */
+    public void updateLoadedRefs(DBObject o) {
+        for (Map.Entry<String, FongoDBCollection> e : collMap.entrySet()) {
+            e.getValue().updateLoadedReferences(o);
+        }
+    }
 }
