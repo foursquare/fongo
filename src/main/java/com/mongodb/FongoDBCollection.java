@@ -83,13 +83,13 @@ public class FongoDBCollection extends DBCollection {
         } else if (object instanceof DBRef) {
             DBRef cast = (DBRef) object;
             DBObject obj = cast.fetch();
-            if (obj.get("_id") != null && obj.get("_id").equals(o.get("_id"))) {
+            if (obj != null && obj.get("_id") != null && obj.get("_id").equals(o.get("_id"))) {
                 obj.putAll(o);
             }
         } else if (object instanceof DBRefBase) {
             DBRefBase cast = (DBRefBase) object;
             DBObject obj = cast.fetch();
-            if (obj.get("_id") != null && obj.get("_id").equals(o.get("_id"))) {
+            if (obj != null && obj.get("_id") != null && obj.get("_id").equals(o.get("_id"))) {
                 obj.putAll(o);
             }
         }
