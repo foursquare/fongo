@@ -1,3 +1,8 @@
+1.0.8
+-----
+ - fix for inserted oid's marked as new (@hoffrocket)
+ - fix for handling of {field: null} filters (@bgranvea)
+ 
 1.0.7
 -----
  - fix for CME while iterating getCollectionNames and dropping each collection (@hoffrocket)
