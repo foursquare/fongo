@@ -1,10 +1,14 @@
 1.0.8
 -----
+release: 15 May 2013
+
  - fix for inserted oid's marked as new (@hoffrocket)
  - fix for handling of {field: null} filters (@bgranvea)
  
 1.0.7
 -----
+release: 17 April 2013
+
  - fix for CME while iterating getCollectionNames and dropping each collection (@hoffrocket)
  - support for "count" via command interface (@hoffrocket)
  - fix for unidentified command result (@hoffrocket)
