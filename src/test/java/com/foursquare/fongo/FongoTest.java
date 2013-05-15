@@ -1,5 +1,7 @@
 package com.foursquare.fongo;
 
+import org.bson.types.ObjectId;
+
 import com.foursquare.fongo.impl.Util;
 import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
@@ -759,6 +761,29 @@ public class FongoTest {
     CommandResult result = db.command(countCmd);
     assertEquals("The command should have been succesful", true, result.get("ok"));
     assertEquals("The count should be in the result", 2L, result.get("n"));
+  }
+  
+  @Test
+  public void testExplicitlyAddedObjectIdNotNew() {
+    Fongo fongo = newFongo();
+    DB db = fongo.getDB("db");
+    DBCollection coll = db.getCollection("coll");
+    ObjectId oid = new ObjectId();
+    assertTrue("new should be true", oid.isNew());
+    coll.save(new BasicDBObject("_id", oid ));
+    ObjectId retrievedOid = (ObjectId) coll.findOne().get("_id");
+    assertEquals("retrieved should still equal the inserted", oid, retrievedOid);
+    assertFalse("retrieved should not be new", retrievedOid.isNew());
+  }
+  
+  @Test
+  public void testAutoCreatedObjectIdNotNew() {
+    Fongo fongo = newFongo();
+    DB db = fongo.getDB("db");
+    DBCollection coll = db.getCollection("coll");
+    coll.save(new BasicDBObject());
+    ObjectId retrievedOid = (ObjectId) coll.findOne().get("_id");
+    assertFalse("retrieved should not be new", retrievedOid.isNew());
   }
 
   private DBCollection newCollection() {

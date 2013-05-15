@@ -102,6 +102,7 @@ public class FongoDBCollection extends DBCollection {
   public Object putIdIfNotPresent(DBObject obj) {
     if (obj.get(ID_KEY) == null) {
       ObjectId id = new ObjectId();
+      id.notNew();
       if (!nonIdCollection){
         obj.put(ID_KEY, id);
       }
