@@ -11,6 +11,7 @@ import com.mongodb.DB;
 import com.mongodb.DBCollection;
 import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
+import com.mongodb.DBRef;
 import com.mongodb.MongoException;
 import com.mongodb.QueryBuilder;
 import com.mongodb.WriteConcern;
@@ -784,6 +785,24 @@ public class FongoTest {
     coll.save(new BasicDBObject());
     ObjectId retrievedOid = (ObjectId) coll.findOne().get("_id");
     assertFalse("retrieved should not be new", retrievedOid.isNew());
+  }
+  
+  @Test
+  public void testDbRefs(){
+    Fongo fong = newFongo();
+    DB db = fong.getDB("db");
+    DBCollection coll1 = db.getCollection("coll");
+    DBCollection coll2 = db.getCollection("coll2");
+    final String coll2oid = "coll2id";
+    BasicDBObject coll2doc = new BasicDBObject("_id", coll2oid);
+    coll2.insert(coll2doc);
+    coll1.insert(new BasicDBObject("ref", new DBRef(db, "coll2", coll2oid)));
+    
+    DBRef ref = (DBRef)coll1.findOne().get("ref");
+    assertEquals("db", ref.getDB().getName());
+    assertEquals("coll2", ref.getRef());
+    assertEquals(coll2oid, ref.getId());
+    assertEquals(coll2doc, ref.fetch());
   }
 
   private DBCollection newCollection() {
