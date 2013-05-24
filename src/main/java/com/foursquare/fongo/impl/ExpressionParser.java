@@ -339,7 +339,7 @@ public class ExpressionParser {
         if (!results.isEmpty()) {
           return results;
         }
-      } else if (value instanceof DBRefBase && i == path.size() - 2) {
+      } else if (value instanceof DBRefBase) {
         return extractDBRefValue((DBRefBase) value, path.get(i + 1));
       } else {
         return Collections.emptyList();
