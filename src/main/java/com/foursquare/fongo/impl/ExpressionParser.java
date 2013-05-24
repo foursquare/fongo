@@ -4,6 +4,7 @@ import com.foursquare.fongo.FongoException;
 import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBObject;
+import com.mongodb.DBRefBase;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -302,6 +303,16 @@ public class ExpressionParser {
     return getEmbeddedValues(Util.split(key), 0, dbo);
   }
   
+  public List<Object> extractDBRefValue(DBRefBase ref, String refKey) {
+    if ("$id".equals(refKey)) {
+      return Collections.singletonList(ref.getId());
+    } else if ("$ref".equals(refKey)) {
+      return Collections.<Object>singletonList(ref.getRef());
+    } else if ("$db".equals(refKey)) {
+      return Collections.<Object>singletonList(ref.getDB());
+    } else return Collections.emptyList();
+  }
+  
   public List<Object> getEmbeddedValues(List<String> path, int startIndex, DBObject dbo) {
     String subKey = path.get(startIndex);
     if (path.size() > 1 && LOG.isDebugEnabled()) {
@@ -321,18 +332,22 @@ public class ExpressionParser {
           if (listValue instanceof DBObject){
             List<Object> embeddedListValue = getEmbeddedValues(path, i + 1, (DBObject)listValue);
             results.addAll(embeddedListValue);
+          } else if (listValue instanceof DBRefBase) {
+            results.addAll(extractDBRefValue((DBRefBase) listValue, path.get(i + 1)));
           }
         }
         if (!results.isEmpty()) {
           return results;
         }
+      } else if (value instanceof DBRefBase && i == path.size() - 2) {
+        return extractDBRefValue((DBRefBase) value, path.get(i + 1));
       } else {
         return Collections.emptyList();
       }
       subKey = path.get(i + 1);
     }
     if (dbo.containsField(subKey)) {
-      return Collections.singletonList((dbo.get(subKey)));      
+      return Collections.singletonList((dbo.get(subKey)));
     } else {
       return Collections.emptyList();
     }

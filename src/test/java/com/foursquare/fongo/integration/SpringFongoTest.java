@@ -6,6 +6,8 @@ import static org.junit.Assert.assertNotNull;
 import com.foursquare.fongo.Fongo;
 import com.mongodb.Mongo;
 import java.io.Serializable;
+
+import org.bson.types.ObjectId;
 import org.junit.Test;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
@@ -21,27 +23,29 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.hateoas.Identifiable;
 
 public class SpringFongoTest {
-  
+
   @Test
   public void dBRefFindWorks() {
     ApplicationContext ctx = new AnnotationConfigApplicationContext(MongoConfig.class);
     MongoOperations mongoOperations = (MongoOperations) ctx.getBean("mongoTemplate");
-    
-    TestDoc tdoc = new TestDoc();
-    tdoc.setIdTest("1");
-    TestSuite ts = new TestSuite();
-    ts.setIdTestSuite("2");
-    tdoc.setTestSuite(ts);
-    mongoOperations.save(ts);
-    mongoOperations.save(tdoc);
-    
-    TestDoc foundDoc = mongoOperations.findOne(new Query(Criteria.where("_id").is("1")), TestDoc.class);
-    assertNotNull("should have found a doc", foundDoc);
-    assertEquals("should find a ref to a testsuite", "2", foundDoc.getTestSuite().getId());
-    
+
+    MainObject mainObject = new MainObject();
+
+    ReferencedObject referencedObject = new ReferencedObject();
+
+    mainObject.setReferencedObject(referencedObject);
+
+    mongoOperations.save(referencedObject);
+    mongoOperations.save(mainObject);
+
+    MainObject foundObject = mongoOperations.findOne(
+        new Query(Criteria.where("referencedObject.$id").is(ObjectId.massageToObjectId(referencedObject.getId()))),
+        MainObject.class);
+
+    assertNotNull("should have found an object", foundObject);
+    assertEquals("should find a ref to an object", referencedObject.getId(), foundObject.getReferencedObject().getId());
   }
 
-  
   @Configuration
   public static class MongoConfig extends AbstractMongoConfiguration {
 
@@ -56,57 +60,52 @@ public class SpringFongoTest {
       return new Fongo("spring-test").getMongo();
     }
   }
-  
-  @Document
-  public static class TestSuite implements Serializable, Identifiable<String> {
 
+  @Document
+  public static class ReferencedObject implements Serializable, Identifiable<String> {
+
+    private static final long serialVersionUID = 1L;
     @Id
-    private String idTestSuite;
-    
+    private String id;
+
     @Override
     public String getId() {
-      return idTestSuite;
+      return this.id;
     }
 
-    public String getIdTestSuite() {
-      return idTestSuite;
+    public void setId(String id) {
+      this.id = id;
     }
 
-    public void setIdTestSuite(String idTestSuite) {
-      this.idTestSuite = idTestSuite;
-    }
   }
 
   @Document
-  public static class TestDoc implements Serializable, Identifiable<String> {
+  public static class MainObject implements Serializable, Identifiable<String> {
 
-    public static final String TEST_SUITE = "test_suite";
+    private static final long serialVersionUID = 1L;
 
     @Id
-    private String idTest;
+    private String id;
 
     @DBRef
-    private TestSuite testSuite;
+    private ReferencedObject referencedObject;
 
     @Override
     public String getId() {
-      return this.idTest;
+      return this.id;
     }
 
-    public String getIdTest() {
-      return idTest;
+    public void setId(String id) {
+      this.id = id;
     }
 
-    public void setIdTest(String idTest) {
-      this.idTest = idTest;
+    public ReferencedObject getReferencedObject() {
+      return referencedObject;
     }
 
-    public void setTestSuite(TestSuite testSuite) {
-      this.testSuite = testSuite;
+    public void setReferencedObject(ReferencedObject referencedObject) {
+      this.referencedObject = referencedObject;
     }
 
-    public TestSuite getTestSuite() {
-      return testSuite;
-    }
   }
 }

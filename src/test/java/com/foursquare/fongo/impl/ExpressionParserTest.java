@@ -1,5 +1,7 @@
 package com.foursquare.fongo.impl;
 
+import com.mongodb.DBRef;
+
 import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
 import com.mongodb.BasicDBObjectBuilder;
@@ -643,6 +645,27 @@ public class ExpressionParserTest {
         rec1,
         rec2
     );
+    assertEquals(Arrays.<DBObject>asList(rec1), results);
+  }
+  
+  @Test
+  public void testDBRef() throws Exception {
+    BasicDBObject rec1 = new BasicDBObject("a", new DBRef(null, "c", 1));
+    List<DBObject> results = doFilter(
+        new BasicDBObject("a.$id", 1),
+        rec1,
+        new BasicDBObject("a", new DBRef(null, "c", 2)));
+    assertEquals(Arrays.<DBObject>asList(rec1), results);
+  }
+  
+  @Test
+  public void testDBRefList() throws Exception {
+    BasicDBObject rec1 = new BasicDBObject("a", asList(new DBRef(null, "c", 1), new DBRef(null, "c", 2)));
+    List<DBObject> results = doFilter(
+        new BasicDBObject("a.$id", 1),
+        rec1,
+        new BasicDBObject("a", asList(new DBRef(null, "c", 2))));
+    
     assertEquals(Arrays.<DBObject>asList(rec1), results);
   }
 
