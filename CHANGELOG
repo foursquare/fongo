@@ -1,3 +1,9 @@
+1.0.9
+-----
+release: 24 May 2013
+
+ - fix for DBRef field.$id queries (@hoffrocket)
+ 
 1.0.8
 -----
 release: 15 May 2013

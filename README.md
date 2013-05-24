@@ -14,7 +14,7 @@ Add dependency to your project:
 <dependency>
   <groupId>com.foursquare</groupId>
   <artifactId>fongo</artifactId>
-  <version>1.0.8</version>
+  <version>1.0.9</version>
 </dependency>
 ```
 
