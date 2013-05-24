@@ -6,6 +6,8 @@ import static org.junit.Assert.assertNotNull;
 import com.foursquare.fongo.Fongo;
 import com.mongodb.Mongo;
 import java.io.Serializable;
+
+import org.bson.types.ObjectId;
 import org.junit.Test;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
@@ -21,92 +23,90 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.hateoas.Identifiable;
 
 public class SpringFongoTest {
-  
-  @Test
-  public void dBRefFindWorks() {
-    ApplicationContext ctx = new AnnotationConfigApplicationContext(MongoConfig.class);
-    MongoOperations mongoOperations = (MongoOperations) ctx.getBean("mongoTemplate");
-    
-    TestDoc tdoc = new TestDoc();
-    tdoc.setIdTest("1");
-    TestSuite ts = new TestSuite();
-    ts.setIdTestSuite("2");
-    tdoc.setTestSuite(ts);
-    mongoOperations.save(ts);
-    mongoOperations.save(tdoc);
-    
-    TestDoc foundDoc = mongoOperations.findOne(new Query(Criteria.where("_id").is("1")), TestDoc.class);
-    assertNotNull("should have found a doc", foundDoc);
-    assertEquals("should find a ref to a testsuite", "2", foundDoc.getTestSuite().getId());
-    
-  }
 
-  
-  @Configuration
-  public static class MongoConfig extends AbstractMongoConfiguration {
+	@Test
+	public void dBRefFindWorks() {
+		ApplicationContext ctx = new AnnotationConfigApplicationContext(MongoConfig.class);
+		MongoOperations mongoOperations = (MongoOperations) ctx.getBean("mongoTemplate");
 
-    @Override
-    protected String getDatabaseName() {
-      return "db";
-    }
+		MainObject mainObject = new MainObject();
 
-    @Override
-    @Bean
-    public Mongo mongo() throws Exception {
-      return new Fongo("spring-test").getMongo();
-    }
-  }
-  
-  @Document
-  public static class TestSuite implements Serializable, Identifiable<String> {
+		ReferencedObject referencedObject = new ReferencedObject();
 
-    @Id
-    private String idTestSuite;
-    
-    @Override
-    public String getId() {
-      return idTestSuite;
-    }
+		mainObject.setReferencedObject(referencedObject);
 
-    public String getIdTestSuite() {
-      return idTestSuite;
-    }
+		mongoOperations.save(referencedObject);
+		mongoOperations.save(mainObject);
 
-    public void setIdTestSuite(String idTestSuite) {
-      this.idTestSuite = idTestSuite;
-    }
-  }
+		MainObject foundObject = mongoOperations.findOne(
+				new Query(Criteria.where("referencedObject.$id").is(ObjectId.massageToObjectId(referencedObject.getId()))),
+				MainObject.class);
 
-  @Document
-  public static class TestDoc implements Serializable, Identifiable<String> {
+		assertNotNull("should have found an object", foundObject);
+		assertEquals("should find a ref to an object", referencedObject.getId(), foundObject.getId());
 
-    public static final String TEST_SUITE = "test_suite";
+	}
 
-    @Id
-    private String idTest;
+	@Configuration
+	public static class MongoConfig extends AbstractMongoConfiguration {
 
-    @DBRef
-    private TestSuite testSuite;
+		@Override
+		protected String getDatabaseName() {
+			return "db";
+		}
 
-    @Override
-    public String getId() {
-      return this.idTest;
-    }
+		@Override
+		@Bean
+		public Mongo mongo() throws Exception {
+			return new Fongo("spring-test").getMongo();
+		}
+	}
 
-    public String getIdTest() {
-      return idTest;
-    }
+	@Document
+	public static class ReferencedObject implements Serializable, Identifiable<String> {
 
-    public void setIdTest(String idTest) {
-      this.idTest = idTest;
-    }
+		private static final long serialVersionUID = 1L;
+		@Id
+		private String id;
 
-    public void setTestSuite(TestSuite testSuite) {
-      this.testSuite = testSuite;
-    }
+		@Override
+		public String getId() {
+			return this.id;
+		}
 
-    public TestSuite getTestSuite() {
-      return testSuite;
-    }
-  }
+		public void setId(String id) {
+			this.id = id;
+		}
+
+	}
+
+	@Document
+	public static class MainObject implements Serializable, Identifiable<String> {
+
+		private static final long serialVersionUID = 1L;
+
+		@Id
+		private String id;
+
+		@DBRef
+		private ReferencedObject referencedObject;
+
+		@Override
+		public String getId() {
+			return this.id;
+		}
+
+		public void setId(String id) {
+			this.id = id;
+		}
+
+		public ReferencedObject getReferencedObject() {
+			return referencedObject;
+		}
+
+		public void setReferencedObject(ReferencedObject referencedObject) {
+			this.referencedObject = referencedObject;
+		}
+
+	}
 }
