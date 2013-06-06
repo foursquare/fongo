@@ -1,7 +1,5 @@
 package com.mongodb;
 
-import ch.qos.logback.classic.db.names.SimpleDBNameResolver;
-
 import com.foursquare.fongo.FongoException;
 import com.foursquare.fongo.impl.ExpressionParser;
 import com.foursquare.fongo.impl.Filter;
