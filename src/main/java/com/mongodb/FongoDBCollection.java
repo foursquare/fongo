@@ -470,8 +470,7 @@ public class FongoDBCollection extends DBCollection {
       if (filter.apply(dbo)) {
         beforeObject = dbo;
         if (!remove) {
-          afterObject = new BasicDBObject();
-          afterObject.putAll(beforeObject);
+          afterObject = Util.clone(beforeObject);
           fInsert(updateEngine.doUpdate(afterObject, update, query));
         } else {
           remove(dbo);
