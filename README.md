@@ -93,7 +93,7 @@ If you use Spring, you can configure fongo in your XML configuration context:
 ## Todo
 
 * more testing
-* the DBObject comparison code is quite right, so sorting is slightly incorrect
+* the DBObject comparison code isn't quite right, so sorting is slightly incorrect
 
 ## Reporting Bugs and submitting patches
 
