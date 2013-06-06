@@ -1,5 +1,7 @@
 package com.mongodb;
 
+import ch.qos.logback.classic.db.names.SimpleDBNameResolver;
+
 import com.foursquare.fongo.FongoException;
 import com.foursquare.fongo.impl.ExpressionParser;
 import com.foursquare.fongo.impl.Filter;
@@ -470,8 +472,7 @@ public class FongoDBCollection extends DBCollection {
       if (filter.apply(dbo)) {
         beforeObject = dbo;
         if (!remove) {
-          afterObject = new BasicDBObject();
-          afterObject.putAll(beforeObject);
+          afterObject = Util.clone(beforeObject);
           fInsert(updateEngine.doUpdate(afterObject, update, query));
         } else {
           remove(dbo);
