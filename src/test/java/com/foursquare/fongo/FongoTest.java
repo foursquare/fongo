@@ -471,23 +471,29 @@ public class FongoTest {
   
   @Test
   public void testFindAndModifyReturnOld() {
-    DBCollection collection = newCollection();
-    collection.insert(new BasicDBObject("_id", 1).append("a", 1));
-    DBObject result = collection.findAndModify(new BasicDBObject("_id", 1), 
-        null, null, false, new BasicDBObject("$inc", new BasicDBObject("a", 1)), false, false);
-    
-    assertEquals(new BasicDBObject("_id", 1).append("a", 1), result);
-    assertEquals(new BasicDBObject("_id", 1).append("a", 2), collection.findOne());
+    final DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1).append("a", 1).append("b", new BasicDBObject("c", 1)));
+
+    final BasicDBObject query = new BasicDBObject("_id", 1);
+    final BasicDBObject update = new BasicDBObject("$inc", new BasicDBObject("a", 1).append("b.c", 1));
+    System.out.println("update: " + update);
+    final DBObject result = collection.findAndModify(query, null, null, false, update, false, false);
+
+    assertEquals(new BasicDBObject("_id", 1).append("a", 1).append("b", new BasicDBObject("c", 1)), result);
+    assertEquals(new BasicDBObject("_id", 1).append("a", 2).append("b", new BasicDBObject("c", 2)), collection.findOne());
   }
-  
+
   @Test
   public void testFindAndModifyReturnNew() {
-    DBCollection collection = newCollection();
-    collection.insert(new BasicDBObject("_id", 1).append("a", 1));
-    DBObject result = collection.findAndModify(new BasicDBObject("_id", 1), 
-        null, null, false, new BasicDBObject("$inc", new BasicDBObject("a", 1)), true, false);
-    
-    assertEquals(new BasicDBObject("_id", 1).append("a", 2), result);
+    final DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1).append("a", 1).append("b", new BasicDBObject("c", 1)));
+
+    final BasicDBObject query = new BasicDBObject("_id", 1);
+    final BasicDBObject update = new BasicDBObject("$inc", new BasicDBObject("a", 1).append("b.c", 1));
+    System.out.println("update: " + update);
+    final DBObject result = collection.findAndModify(query, null, null, false, update, true, false);
+
+    assertEquals(new BasicDBObject("_id", 1).append("a", 2).append("b", new BasicDBObject("c", 2)), result);
   }
   
   @Test
