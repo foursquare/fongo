@@ -5,7 +5,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import com.mongodb.BasicDBList;
+import com.mongodb.*;
 
 public class Util {
   public static <T> BasicDBList list(T ... ts){
@@ -33,5 +33,21 @@ public class Util {
       path.add(key);
       return path;
     }
+  }
+
+  public static <T extends DBObject> T clone(T source) {
+    if (source instanceof BasicDBObject) {
+      @SuppressWarnings("unchecked")
+      T clone = (T) ((BasicDBObject) source).copy();
+      return clone;
+    }
+    
+    if (source instanceof BasicDBList) {
+      @SuppressWarnings("unchecked")
+      T clone = (T) ((BasicDBList) source).copy();
+      return clone;
+    }
+    
+    throw new IllegalArgumentException("Don't know how to clone: " + source);
   }
 }
