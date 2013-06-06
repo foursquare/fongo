@@ -1,11 +1,9 @@
 # fongo
 
-Fongo is an in-memory java implementation of mongo.  It intercepts calls to the standard mongo-java-driver for 
-finds, updates, inserts, removes and other methods.  The primary use is for lightweight unit testing where you
+Fongo is an in-memory java implementation of mongo. It intercepts calls to the standard mongo-java-driver for 
+finds, updates, inserts, removes and other methods. The primary use is for lightweight unit testing where you
 don't want to spin up a mongo process.
 
-The original hope was that this would be significantly faster than using a real mongo server, however, it's still not clear if that's the case.  Another goal was to make it easier to parallelize tests, but that could also be achieved
-by fixing each thread to a uniquely named database.
 
 ## Usage
 Add dependency to your project:
@@ -95,7 +93,16 @@ If you use Spring, you can configure fongo in your XML configuration context:
 ## Todo
 
 * more testing
-* find an actual use for this project
+* the DBObject comparison code is quite right, so sorting is slightly incorrect
+
+## Reporting Bugs and submitting patches
+
+If you discover a bug with fongo you can file an issue in github. At the very least, please include a complete description of the problem with steps to reproduce.
+If there were exceptions thrown, please include the complete stack traces. If it's not easy to explain the problem, failing test code would be helpful.
+You can fork the project and add a new failing test case. 
+
+It's even better if you can both add the test case and fix the bug. I will merge pull requests with test cases and add 
+your name to the patch contributers below. Please maintain the same code formatting and style as the rest of the project.
 
 ## Author
 * [Jon Hoffman](https://github.com/hoffrocket)
