@@ -84,7 +84,7 @@ public class FongoDB extends DB {
 
   @Override
   CommandResult doAuthenticate(MongoCredential credentials) {
-    return null;
+    return okResult();
   }
 
   /**
