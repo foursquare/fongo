@@ -81,7 +81,12 @@ public class FongoDB extends DB {
       c.drop();
     }
   }
-  
+
+  @Override
+  CommandResult doAuthenticate(MongoCredential credentials) {
+    return okResult();
+  }
+
   /**
    * Executes a database command.
    * @see <a href="http://mongodb.onconfluence.com/display/DOCS/List+of+Database+Commands">List of Commands</a>
@@ -119,15 +124,25 @@ public class FongoDB extends DB {
       okResult.append("n", result);
       return okResult;
     }
-    CommandResult errorResult = new CommandResult(fongo.getServerAddress());
-    errorResult.put("err", "undefined command: " + cmd);
-    errorResult.put("ok", false);
-    return errorResult;
+    return errorResult("undefined command: " + cmd);
   }
 
   public CommandResult okResult() {
     CommandResult result = new CommandResult(fongo.getServerAddress());
     result.put("ok", true);
+    return result;
+  }
+
+  public CommandResult errorResult(String err) {
+    CommandResult result = new CommandResult(fongo.getServerAddress());
+    result.put("ok", false);
+    result.put("err", err);
+    return result;
+  }
+
+  public CommandResult errorResult(int code, String err) {
+    CommandResult result = errorResult(err);
+    result.put("err", err);
     return result;
   }
 
