@@ -84,7 +84,7 @@ public class FongoDBCollection extends DBCollection {
 
       if (objects.containsKey(id)) {
         if (enforceDuplicates(concern)) {
-          throw new MongoException.DuplicateKey(0, "Attempting to insert duplicate _id: " + id);          
+          throw new MongoException.DuplicateKey(fongoDb.errorResult(0, "Attempting to insert duplicate _id: " + id));
         } else {
           // TODO(jon) log          
         }
@@ -167,7 +167,7 @@ public class FongoDBCollection extends DBCollection {
     }
 
     if (o.containsField(ID_KEY) && q.containsField(ID_KEY) && !o.get(ID_KEY).equals(q.get(ID_KEY))){
-      throw new MongoException.DuplicateKey(0, "can not change _id of a document " + ID_KEY);
+      throw new MongoException.DuplicateKey(fongoDb.errorResult(0, "can not change _id of a document " + ID_KEY));
     }
     filterLists(o);
     
@@ -366,9 +366,9 @@ public class FongoDBCollection extends DBCollection {
       }
     } else {
       DBObject orderby = null;
-      if (ref.containsField("query") && ref.containsField("orderby")) {
-        orderby = (DBObject)ref.get("orderby");
-        ref = (DBObject)ref.get("query");
+      if (ref.containsField("$query") && ref.containsField("$orderby")) {
+        orderby = (DBObject)ref.get("$orderby");
+        ref = (DBObject)ref.get("$query");
       }
       
       Filter filter = expressionParser.buildFilter(ref);
