@@ -12,7 +12,7 @@ Add dependency to your project:
 <dependency>
   <groupId>com.foursquare</groupId>
   <artifactId>fongo</artifactId>
-  <version>1.0.9</version>
+  <version>1.1.0</version>
 </dependency>
 ```
 
@@ -43,7 +43,7 @@ Fongo uses a LinkedHashMap internally with the \_id as the key.
 
 ## Implementation Details
 
-Fongo depends on mockito to hijack the com.mongodb.Mongo class.  It has a "provided" dependency on the mongo-java-driver and was tested with 2.10.1.
+Fongo depends on mockito to hijack the com.mongodb.Mongo class.  It has a "provided" dependency on the mongo-java-driver and was tested with 2.11.1.
 It also has a "provided" dependency on sl4j-api for logging.  If you don't already have sl4j in your project, you can add a maven dependency to the logback implementation like this:
 
 ```
@@ -118,3 +118,5 @@ your name to the patch contributers below. Please maintain the same code formatt
 * [Vadim Platono](https://github.com/dm3)
 * [grahamar](https://github.com/grahamar)
 * [Boris Granveaud](https://github.com/bgranvea)
+* [Philipp Jardas](https://github.com/phjardas)
+* [Sergey Passichenko](https://github.com/serj-de-sudden)

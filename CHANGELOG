@@ -1,3 +1,11 @@
+1.1.0
+-----
+release: 10 June 2013
+
+ - setting WriteConcern on mongo instance propagates to collection (@hoffrocket)
+ - upgraded mongo-java-driver to 2.11.1 (@serj-de-sudden)
+ - fix for findAndModify to return original object before update with new: false (@phjardas)
+ 
 1.0.9
 -----
 release: 24 May 2013
