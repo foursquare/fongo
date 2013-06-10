@@ -1,5 +1,7 @@
 package com.foursquare.fongo;
 
+import com.mongodb.WriteConcern;
+
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -41,6 +43,7 @@ public class Fongo {
   private final ServerAddress serverAddress;
   private final Mongo mongo;
   private final String name;
+  private WriteConcern concern = WriteConcern.NONE;
 
   /**
    * 
@@ -108,6 +111,10 @@ public class Fongo {
     return this.mongo;
   }
   
+  public WriteConcern getWriteConcern() {
+    return concern ;
+  }
+  
   private Mongo createMongo() {
     Mongo mongo = Mockito.mock(Mongo.class);
     Mockito.when(mongo.toString()).thenReturn(toString());
@@ -135,6 +142,13 @@ public class Fongo {
         dropDatabase(dbName);
         return null;
       }}).when(mongo).dropDatabase(Mockito.anyString());
+    Mockito.when(mongo.getWriteConcern()).thenReturn(getWriteConcern());
+    Mockito.doAnswer(new Answer<Void>(){
+      @Override
+      public Void answer(InvocationOnMock invocation) throws Throwable {
+        concern = (WriteConcern) invocation.getArguments()[0];
+        return null;
+      }}).when(mongo).setWriteConcern(Mockito.any(WriteConcern.class));
     return mongo;
   }
   

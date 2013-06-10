@@ -66,7 +66,7 @@ public class FongoDB extends DB {
   
   @Override
   public WriteConcern getWriteConcern() {
-    return WriteConcern.NONE;
+    return fongo.getWriteConcern();
   }
   
   @Override

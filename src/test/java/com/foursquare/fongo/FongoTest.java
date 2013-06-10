@@ -605,6 +605,14 @@ public class FongoTest {
     collection.insert(new BasicDBObject("_id", 1));
     collection.insert(new BasicDBObject("_id", 1), WriteConcern.SAFE);
   }
+  
+  @Test(expected = MongoException.DuplicateKey.class)
+  public void testInsertDuplicateWithConcernOnMongo(){
+    DBCollection collection = newCollection();
+    collection.getDB().getMongo().setWriteConcern(WriteConcern.ACKNOWLEDGED);
+    collection.insert(new BasicDBObject("_id", 1));
+    collection.insert(new BasicDBObject("_id", 1));
+  }
 
   @Test
   public void testInsertDuplicateIgnored(){
