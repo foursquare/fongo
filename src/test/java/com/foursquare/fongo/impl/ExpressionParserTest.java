@@ -499,6 +499,21 @@ public class ExpressionParserTest {
   }
   
   @Test
+  public void testRegexOperatorWithMultilineDoc() {
+	BasicDBObject regexPattern = new BasicDBObject(ExpressionParser.REGEX, "foo.*Ster");
+    DBObject query = new BasicDBObject("a", regexPattern.append(ExpressionParser.REGEX_OPTIONS, "s"));
+    System.out.println(query);
+   
+    List<DBObject> results = doFilter(
+        query,
+        new BasicDBObject("a", "foo\nSter")
+    );
+    assertEquals(Arrays.<DBObject>asList(
+        new BasicDBObject("a", "foo\nSter")
+    ), results);
+  }
+  
+  @Test
   public void parseRegexFlags() {
     ExpressionParser ep = new ExpressionParser();
     assertEquals(Pattern.CASE_INSENSITIVE & Pattern.DOTALL & Pattern.COMMENTS, ep.parseRegexOptionsToPatternFlags("ixs"));
