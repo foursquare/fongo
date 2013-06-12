@@ -417,9 +417,9 @@ public class ExpressionParser {
                 return true;
               }
             } else {
-			        if (expression == null) {
-				        return (storedValue == null);
-			        }
+              if (expression == null) {
+                return (storedValue == null);
+              }
               if (expression.equals(storedValue)) {
                 return true;
               }
@@ -557,16 +557,16 @@ public class ExpressionParser {
     for (int i = 0; flagString != null && i < flagString.length(); i++) {
       switch(flagString.charAt(i)) {
         case 'i':
-          flags &= Pattern.CASE_INSENSITIVE;
+          flags |= Pattern.CASE_INSENSITIVE;
           break;
         case 'x':
-          flags &= Pattern.COMMENTS;
+          flags |= Pattern.COMMENTS;
           break;
         case 'm':
-          flags &= Pattern.MULTILINE;
+          flags |= Pattern.MULTILINE;
           break;
         case 's':
-          flags &= Pattern.DOTALL;
+          flags |= Pattern.DOTALL;
           break;
       }
     }

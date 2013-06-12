@@ -501,7 +501,7 @@ public class ExpressionParserTest {
   @Test
   public void parseRegexFlags() {
     ExpressionParser ep = new ExpressionParser();
-    assertEquals(Pattern.CASE_INSENSITIVE & Pattern.DOTALL & Pattern.COMMENTS, ep.parseRegexOptionsToPatternFlags("ixs"));
+    assertEquals(Pattern.CASE_INSENSITIVE | Pattern.DOTALL | Pattern.COMMENTS, ep.parseRegexOptionsToPatternFlags("ixs"));
   }
   
   @Test
@@ -520,6 +520,21 @@ public class ExpressionParserTest {
             new BasicDBObject("b","bar"), 
             new BasicDBObject("b","fooBar")
         ))
+    ), results);
+  }
+  
+  @Test
+  public void testRegexOperatorWithMultilineDoc() {
+    BasicDBObject regexPattern = new BasicDBObject(ExpressionParser.REGEX, "foo.*Ster")
+      .append(ExpressionParser.REGEX_OPTIONS, "s");
+    DBObject query = new BasicDBObject("a", regexPattern);
+   
+    List<DBObject> results = doFilter(
+        query,
+        new BasicDBObject("a", "foo\nSter")
+    );
+    assertEquals(Arrays.<DBObject>asList(
+        new BasicDBObject("a", "foo\nSter")
     ), results);
   }
   
