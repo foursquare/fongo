@@ -9,16 +9,7 @@ import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
  * fongo override of com.mongodb.DBCollection
@@ -349,14 +340,16 @@ public class FongoDBCollection extends DBCollection {
   synchronized Iterator<DBObject> __find(DBObject ref, DBObject fields, int numToSkip, int batchSize, int limit, int options,
       ReadPreference readPref, DBDecoder decoder) throws MongoException {
     if (LOG.isDebugEnabled()){
-      LOG.debug("find(" + ref + ").limit("+limit+").skip("+numToSkip+")");
-      LOG.debug("the db looks like " + objects);
+      LOG.debug("find({}, {}).skip({}).limit({})", new Object[] { ref, fields, numToSkip, limit, });
+      LOG.debug("the db looks like {}", objects);
     }
+    
     List idList = idsIn(ref);
-    ArrayList<DBObject> results = new ArrayList<DBObject>();
+    List<DBObject> results = new ArrayList<DBObject>();
+    
     if (!idList.isEmpty()) {
       if (LOG.isDebugEnabled()){
-        LOG.debug("find using id index only " + idList);
+        LOG.debug("find using id index only {}", idList);
       }
       for (Object id : idList){
         DBObject result = objects.get(id);
@@ -389,11 +382,87 @@ public class FongoDBCollection extends DBCollection {
         }
       }
     }
-    if (LOG.isDebugEnabled()){
-      LOG.debug("found results " + results);
+    
+    if (fields != null && !fields.keySet().isEmpty()) {
+    	LOG.info("applying projections {}", fields);
+    	results = applyProjections(results, fields);
     }
+    
+    LOG.debug("found results {}", results);
 
     return results.iterator();
+  }
+
+  private List<DBObject> applyProjections(List<DBObject> results, DBObject projection) {
+    final List<DBObject> ret = new ArrayList<DBObject>(results.size());
+    
+    for (DBObject result : results) {
+      ret.add(applyProjections(result, projection));
+    }
+    
+    return ret;
+  }
+
+  /**
+   * Applies the requested
+   * <a href="http://docs.mongodb.org/manual/core/read-operations/#result-projections">projections</a>
+   * to the given object.
+   */
+  protected DBObject applyProjections(DBObject result, DBObject projection) {
+	  Set<String> projectedFields = getProjectedFields(result, projection);
+	  LOG.debug("fields after projection of {}: {}", projection, projectedFields);
+	  
+	  BasicDBObject ret = new BasicDBObject();
+	  
+	  for (String field : projectedFields) {
+		  Object value = result.get(field);
+		  
+		  if (value instanceof DBObject) {
+			  value = Util.clone((DBObject) value);
+		  }
+		  
+		  ret.append(field, value);
+	  }
+	  
+	  return ret;
+  }
+
+  private Set<String> getProjectedFields(DBObject result, DBObject projections) {
+	Set<String> includedFields = new HashSet<String>();
+	  Set<String> excludedFields = new HashSet<String>();
+
+	  for (String field : projections.keySet()) {
+		boolean included = ((Number) projections.get(field)).intValue() > 0;
+		
+		if (included) {
+			includedFields.add(field);
+		} else {
+			excludedFields.add(field);
+		}
+	  }
+	  
+	  boolean including = !includedFields.isEmpty();
+	  boolean excluding = excludedFields.size() > (excludedFields.contains("_id") ? 1 : 0);
+	  
+	  if (including && excluding) {
+		  throw new IllegalArgumentException(
+				"You cannot combine inclusion and exclusion semantics in a single projection with the exception of the _id field: "
+				+ projections);
+	  }
+	  
+	  // the _id is always returned unless explicitly excluded
+	  if (including && !excludedFields.contains("_id")) {
+	    includedFields.add("_id");
+	  }
+	  
+	  Set<String> fieldsToRetain = new HashSet<String>(result.keySet());
+	  if (including) {
+		  fieldsToRetain.retainAll(includedFields);
+	  } else {
+		  fieldsToRetain.removeAll(excludedFields);
+	  }
+	
+	  return fieldsToRetain;
   }
 
   public Collection<DBObject> sortObjects(final DBObject orderby) {
