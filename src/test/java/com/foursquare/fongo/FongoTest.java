@@ -23,12 +23,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 public class FongoTest {
 
@@ -117,6 +112,17 @@ public class FongoTest {
     assertEquals(new BasicDBObject("_id", 1), result);
     
     assertEquals(null, collection.findOne(new BasicDBObject("_id", 2)));
+  }
+
+  @Test
+  public void testFindOneWithFields() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject().append("name", "jon").append("foo","bar"));
+    DBObject result = collection.findOne(null, new BasicDBObject("foo", 1));
+    assertNotNull(result);
+    assertNotNull("should have an _id", result.get("_id"));
+    assertEquals("property 'foo'", "bar", result.get("foo"));
+    assertNull("should not have the property 'name'", result.get("name"));
   }
 
   @Test
