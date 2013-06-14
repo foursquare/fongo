@@ -332,6 +332,12 @@ public class FongoDBCollection extends DBCollection {
     indexColl.insert(rec);
   }
 
+  @Override
+  public DBObject findOne(DBObject ref, DBObject fields, DBObject orderBy, ReadPreference readPref ) {
+    Iterator<DBObject> resultIterator = __find(ref, fields, 0, 1, -1, 0, readPref, null);
+    return resultIterator.hasNext() ? resultIterator.next() : null;
+  }
+  
   /**
    * note: encoder, decoder, readPref, options are ignored
    */

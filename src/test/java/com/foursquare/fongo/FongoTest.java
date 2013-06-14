@@ -26,6 +26,7 @@ import java.util.List;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -99,6 +100,13 @@ public class FongoTest {
     DBObject result = collection.findOne();
     assertNotNull(result);
     assertNotNull("should have an _id", result.get("_id"));
+  }
+  
+  @Test
+  public void testFindOneNoData() {
+    DBCollection collection = newCollection();
+    DBObject result = collection.findOne();
+    assertNull(result);
   }
   
   @Test
