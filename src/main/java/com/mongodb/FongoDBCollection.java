@@ -5,20 +5,12 @@ import com.foursquare.fongo.impl.ExpressionParser;
 import com.foursquare.fongo.impl.Filter;
 import com.foursquare.fongo.impl.UpdateEngine;
 import com.foursquare.fongo.impl.Util;
+import org.bson.BSON;
 import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
  * fongo override of com.mongodb.DBCollection
@@ -76,10 +68,10 @@ public class FongoDBCollection extends DBCollection {
   @Override
   public WriteResult insert(List<DBObject> toInsert, WriteConcern concern, DBEncoder encoder) {
     for (DBObject obj : toInsert) {
+      filterLists(obj);
       if (LOG.isDebugEnabled()) {
         LOG.debug("insert: " + obj);
       }
-      filterLists(obj);
       Object id = putIdIfNotPresent(obj);
 
       if (objects.containsKey(id)) {
@@ -132,18 +124,24 @@ public class FongoDBCollection extends DBCollection {
   }
 
   public Object replaceListAndMap(Object value) {
-    Object replacementValue = value;
-    if (value instanceof DBObject) {
-      replacementValue = filterLists((DBObject) value);
-    } else if (value instanceof List){
+    Object replacementValue = BSON.applyEncodingHooks(value);
+    if (replacementValue instanceof DBObject) {
+      replacementValue = filterLists((DBObject) replacementValue);
+    } else if (replacementValue instanceof List){
       BasicDBList list = new BasicDBList();
-      for (Object listItem : (List) value){
+      for (Object listItem : (List) replacementValue){
         list.add(replaceListAndMap(listItem));
       }
       replacementValue = list;
-    } else if (value instanceof Map) {
+    } else if (replacementValue instanceof Object[]) {
+      BasicDBList list = new BasicDBList();
+      for (Object listItem : (Object[]) replacementValue){
+        list.add(replaceListAndMap(listItem));
+      }
+      replacementValue = list;
+    } else if (replacementValue instanceof Map) {
       BasicDBObject newDbo = new BasicDBObject();
-      for (Map.Entry<String, Object>entry : (Set<Map.Entry<String, Object>>)((Map)value).entrySet()) {
+      for (Map.Entry<String, Object>entry : (Set<Map.Entry<String, Object>>)((Map)replacementValue).entrySet()) {
         newDbo.put(entry.getKey(), replaceListAndMap(entry.getValue()));
       }
       replacementValue = newDbo;
@@ -162,6 +160,9 @@ public class FongoDBCollection extends DBCollection {
   public synchronized WriteResult update(DBObject q, DBObject o, boolean upsert, boolean multi, WriteConcern concern,
       DBEncoder encoder) throws MongoException {
 
+    filterLists(q);
+    filterLists(o);
+
     if (LOG.isDebugEnabled()){
       LOG.debug("update(" + q + ", " + o + ", " + upsert + ", " + multi +")");
     }
@@ -169,8 +170,7 @@ public class FongoDBCollection extends DBCollection {
     if (o.containsField(ID_KEY) && q.containsField(ID_KEY) && !o.get(ID_KEY).equals(q.get(ID_KEY))){
       throw new MongoException.DuplicateKey(fongoDb.errorResult(0, "can not change _id of a document " + ID_KEY));
     }
-    filterLists(o);
-    
+
     int updatedDocuments = 0;
     boolean idOnlyUpdate = q.containsField(ID_KEY) && q.keySet().size() == 1;
     boolean updatedExisting = false;
@@ -182,7 +182,6 @@ public class FongoDBCollection extends DBCollection {
       fInsert(o);
       updatedDocuments++;
     } else {
-      filterLists(q);
       List idsIn = idsIn(q);
       if (idOnlyUpdate && idsIn.size() > 0) {
         for (Object id : idsIn){
@@ -226,19 +225,14 @@ public class FongoDBCollection extends DBCollection {
       return Collections.emptyList();
     } else if (idValue instanceof DBObject ){
       DBObject idDbObject = (DBObject)idValue;
-      Object inObject = idDbObject.get(ExpressionParser.IN);
+      List inList = (List)idDbObject.get(ExpressionParser.IN);
       
       // I think sorting the inputed keys is a rough
       // approximation of how mongo creates the bounds for walking
       // the index.  It has the desired affect of returning results
       // in _id index order, but feels pretty hacky.
-      if (inObject != null){
-        Object[] inListArray;
-        if(inObject instanceof List) {
-            inListArray = ((List)inObject).toArray(new Object[0]);
-        } else {
-            inListArray = (Object[]) inObject;
-        }
+      if (inList != null){
+        Object[] inListArray = inList.toArray(new Object[0]);
         // ids could be DBObjects, so we need a comparator that can handle that
         Arrays.sort(inListArray, objectComparator);
         return Arrays.asList(inListArray);
@@ -287,6 +281,7 @@ public class FongoDBCollection extends DBCollection {
 
   @Override
   public synchronized WriteResult remove(DBObject o, WriteConcern concern, DBEncoder encoder) throws MongoException {
+    filterLists(o);
     if (LOG.isDebugEnabled()){
       LOG.debug("remove: " + o);
     }
@@ -354,6 +349,7 @@ public class FongoDBCollection extends DBCollection {
   @Override
   synchronized Iterator<DBObject> __find(DBObject ref, DBObject fields, int numToSkip, int batchSize, int limit, int options,
       ReadPreference readPref, DBDecoder decoder) throws MongoException {
+    filterLists(ref);
     if (LOG.isDebugEnabled()){
       LOG.debug("find(" + ref + ").limit("+limit+").skip("+numToSkip+")");
       LOG.debug("the db looks like " + objects);
@@ -438,6 +434,7 @@ public class FongoDBCollection extends DBCollection {
   
   @Override
   public synchronized long getCount(DBObject query, DBObject fields, long limit, long skip ) {
+    filterLists(query);
     Filter filter = query == null ? ExpressionParser.AllFilter : expressionParser.buildFilter(query);
     long count = 0;
     long upperLimit = Long.MAX_VALUE;
@@ -501,6 +498,7 @@ public class FongoDBCollection extends DBCollection {
   
   @Override
   public synchronized List distinct(String key, DBObject query) {
+    filterLists(query);
     List<Object> results = new ArrayList<Object>();
     Filter filter = expressionParser.buildFilter(query);
     for (Iterator<DBObject> iter = objects.values().iterator(); iter.hasNext();) {
