@@ -1,5 +1,7 @@
 package com.foursquare.fongo;
 
+import org.bson.BSON;
+import org.bson.Transformer;
 import org.bson.types.ObjectId;
 
 import com.foursquare.fongo.impl.Util;
@@ -116,7 +118,27 @@ public class FongoTest {
     DBObject result = collection.findOne(new BasicDBObject("_id", new BasicDBObject("$in", Arrays.asList(1,2))));
     assertEquals(new BasicDBObject("_id", 1), result);
   }
-  
+
+  @Test
+  public void testFindOneInWithArray() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1));
+    collection.insert(new BasicDBObject("_id", 2));
+
+    DBObject result = collection.findOne(new BasicDBObject("_id", new BasicDBObject("$in", new Integer[] {1, 3})));
+    assertEquals(new BasicDBObject("_id", 1), result);
+  }
+
+  @Test
+  public void testFindOneNinWithArray() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1));
+    collection.insert(new BasicDBObject("_id", 2));
+
+    DBObject result = collection.findOne(new BasicDBObject("_id", new BasicDBObject("$nin", new Integer[] {1, 3})));
+    assertEquals(new BasicDBObject("_id", 2), result);
+  }
+
   @Test
   public void testFindOneById() {
     DBCollection collection = newCollection();
@@ -825,6 +847,31 @@ public class FongoTest {
     assertEquals("coll2", ref.getRef());
     assertEquals(coll2oid, ref.getId());
     assertEquals(coll2doc, ref.fetch());
+  }
+
+  @Test
+  public void testEncodingHooks() {
+    BSON.addEncodingHook(Seq.class, new Transformer() {
+      @Override
+      public Object transform(Object o) {
+        return (o instanceof Seq) ? ((Seq) o).data : o;
+      }
+    });
+
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1));
+    collection.insert(new BasicDBObject("_id", 2));
+
+    DBObject result1 = collection.findOne(new BasicDBObject("_id", new BasicDBObject("$in", new Seq(1, 3))));
+    assertEquals(new BasicDBObject("_id", 1), result1);
+
+    DBObject result2 = collection.findOne(new BasicDBObject("_id", new BasicDBObject("$nin", new Seq(1, 3))));
+    assertEquals(new BasicDBObject("_id", 2), result2);
+  }
+
+  class Seq {
+    Object[] data;
+    Seq(Object... data) { this.data = data; }
   }
 
   private DBCollection newCollection() {
