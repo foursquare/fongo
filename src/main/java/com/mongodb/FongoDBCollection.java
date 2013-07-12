@@ -395,13 +395,25 @@ public class FongoDBCollection extends DBCollection {
     }
     
     if (fields != null && !fields.keySet().isEmpty()) {
-    	LOG.info("applying projections {}", fields);
-    	results = applyProjections(results, fields);
+      LOG.info("applying projections {}", fields);
+      results = applyProjections(results, fields);
+    } else {
+      results = copyResults(results);
     }
     
     LOG.debug("found results {}", results);
 
     return results.iterator();
+  }
+  
+  private List<DBObject> copyResults(final List<DBObject> results) {
+    final List<DBObject> ret = new ArrayList<DBObject>(results.size());
+    
+    for (DBObject result : results) {
+      ret.add(Util.clone(result));
+    }
+    
+    return ret;
   }
 
   private List<DBObject> applyProjections(List<DBObject> results, DBObject projection) {
@@ -415,65 +427,65 @@ public class FongoDBCollection extends DBCollection {
   }
 
   /**
-   * Applies the requested
-   * <a href="http://docs.mongodb.org/manual/core/read-operations/#result-projections">projections</a>
-   * to the given object.
+   * Applies the requested <a href=
+   * "http://docs.mongodb.org/manual/core/read-operations/#result-projections"
+   * >projections</a> to the given object.
    */
   protected DBObject applyProjections(DBObject result, DBObject projection) {
-	  Set<String> projectedFields = getProjectedFields(result, projection);
-	  LOG.debug("fields after projection of {}: {}", projection, projectedFields);
-	  
-	  BasicDBObject ret = new BasicDBObject();
-	  
-	  for (String field : projectedFields) {
-		  Object value = result.get(field);
-		  
-		  if (value instanceof DBObject) {
-			  value = Util.clone((DBObject) value);
-		  }
-		  
-		  ret.append(field, value);
-	  }
-	  
-	  return ret;
+    Set<String> projectedFields = getProjectedFields(result, projection);
+    LOG.debug("fields after projection of {}: {}", projection, projectedFields);
+
+    BasicDBObject ret = new BasicDBObject();
+
+    for (String field : projectedFields) {
+      Object value = result.get(field);
+
+      if (value instanceof DBObject) {
+        value = Util.clone((DBObject) value);
+      }
+
+      ret.append(field, value);
+    }
+
+    return ret;
   }
 
   private Set<String> getProjectedFields(DBObject result, DBObject projections) {
-	Set<String> includedFields = new HashSet<String>();
-	  Set<String> excludedFields = new HashSet<String>();
+    Set<String> includedFields = new HashSet<String>();
+    Set<String> excludedFields = new HashSet<String>();
 
-	  for (String field : projections.keySet()) {
-		boolean included = ((Number) projections.get(field)).intValue() > 0;
-		
-		if (included) {
-			includedFields.add(field);
-		} else {
-			excludedFields.add(field);
-		}
-	  }
-	  
-	  boolean including = !includedFields.isEmpty();
-	  boolean excluding = excludedFields.size() > (excludedFields.contains("_id") ? 1 : 0);
-	  
-	  if (including && excluding) {
-		  throw new IllegalArgumentException(
-				"You cannot combine inclusion and exclusion semantics in a single projection with the exception of the _id field: "
-				+ projections);
-	  }
-	  
-	  // the _id is always returned unless explicitly excluded
-	  if (including && !excludedFields.contains("_id")) {
-	    includedFields.add("_id");
-	  }
-	  
-	  Set<String> fieldsToRetain = new HashSet<String>(result.keySet());
-	  if (including) {
-		  fieldsToRetain.retainAll(includedFields);
-	  } else {
-		  fieldsToRetain.removeAll(excludedFields);
-	  }
-	
-	  return fieldsToRetain;
+    for (String field : projections.keySet()) {
+      boolean included = ((Number) projections.get(field)).intValue() > 0;
+
+      if (included) {
+        includedFields.add(field);
+      } else {
+        excludedFields.add(field);
+      }
+    }
+
+    boolean including = !includedFields.isEmpty();
+    boolean excluding = excludedFields.size() > (excludedFields.contains("_id") ? 1 : 0);
+
+    if (including && excluding) {
+      throw new IllegalArgumentException(
+          "You cannot combine inclusion and exclusion semantics in a single projection with the exception of the _id field: "
+              + projections);
+    }
+
+    // the _id is always returned unless explicitly excluded
+    if (including && !excludedFields.contains("_id")) {
+      includedFields.add("_id");
+    }
+
+    Set<String> fieldsToRetain = new HashSet<String>(result.keySet());
+    if (including) {
+      fieldsToRetain.retainAll(includedFields);
+    } else {
+      fieldsToRetain.removeAll(excludedFields);
+    }
+
+    return fieldsToRetain;
   }
 
   public Collection<DBObject> sortObjects(final DBObject orderby) {

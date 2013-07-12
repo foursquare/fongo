@@ -873,6 +873,15 @@ public class FongoTest {
     DBObject result2 = collection.findOne(new BasicDBObject("_id", new BasicDBObject("$nin", new Seq(1, 3))));
     assertEquals(new BasicDBObject("_id", 2), result2);
   }
+  
+  @Test
+  public void testModificationsOfResultShouldNotChangeStorage() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1));
+    DBObject result = collection.findOne();
+    result.put("newkey", 1);
+    assertEquals("should not have newkey", new BasicDBObject("_id", 1), collection.findOne());
+  }
 
   class Seq {
     Object[] data;
