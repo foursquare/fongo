@@ -580,9 +580,9 @@ public class FongoDBCollection extends DBCollection {
       fInsert(updateEngine.doUpdate(afterObject, update, query));
     }
     if (returnNew){
-      return afterObject;
+      return Util.clone(afterObject);
     } else {
-      return beforeObject;
+      return Util.clone(beforeObject);
     }
   }
   
