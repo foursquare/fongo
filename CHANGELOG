@@ -1,3 +1,12 @@
+1.1.1
+-----
+release: 12 July 2013
+
+ - fix for regex options parsing (@hoffrocket)
+ - BSON encoding hooks (@serj-de-sudden)
+ - Result projections on find queries (@phjardas)
+ - defensive copy of find result DBObjects (@hoffrocket)
+ 
 1.1.0
 -----
 release: 10 June 2013
