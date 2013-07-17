@@ -117,7 +117,10 @@ public class UpdateEngine {
         if (LOG.isDebugEnabled()) {
           LOG.debug("found a positional list item " + listItem + " " + prePath + " " + postPath);
         }
-        if (listItem instanceof DBObject && !postPath.isEmpty()){
+        if (!postPath.isEmpty()){
+          if (!(listItem instanceof DBObject)){
+              throw new FongoException("can not update \"" + postPath + "\" field of non-DBObject object");
+          }
           
           if (filter.apply((DBObject) listItem)) {
             doSingleKeyUpdate(postPath, (DBObject) listItem, object, query);
@@ -125,7 +128,8 @@ public class UpdateEngine {
           }
         } else {
           //this is kind of a waste
-          if (filter.apply(new BasicDBObject(prePath, listItem))){
+          DBObject o = listItem instanceof DBObject ? (DBObject) listItem : new BasicDBObject(prePath, listItem);
+          if (filter.apply(o)){
             BasicDBList newList = new BasicDBList();
             newList.addAll(valueList);
             ownerObj.put(prePath, newList);
