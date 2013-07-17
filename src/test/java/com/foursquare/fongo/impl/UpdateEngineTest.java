@@ -1,13 +1,13 @@
 package com.foursquare.fongo.impl;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
-
-import org.junit.Test;
-
+import com.foursquare.fongo.FongoException;
 import com.mongodb.BasicDBObject;
 import com.mongodb.BasicDBObjectBuilder;
 import com.mongodb.DBObject;
+import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 public class UpdateEngineTest {
 
@@ -235,6 +235,15 @@ public class UpdateEngineTest {
         updateEngine.doUpdate(new BasicDBObject("b", Util.list(
             new BasicDBObject("c", 1).append("n", "jon"))), update, new BasicDBObject("b.n", "jon")));
   }
+
+  @Test(expected = FongoException.class)
+  public void testPositionalArrayOperatorForInvalidPath() {
+    UpdateEngine updateEngine = new UpdateEngine();
+    DBObject update = new BasicDBObjectBuilder().push("$inc")
+        .append("b.$.c",1).pop().get();
+
+    updateEngine.doUpdate(new BasicDBObject("b", Util.list(1,2,3)), update, new BasicDBObject("b", 2));
+  }
   
   @Test 
   public void testPositionalArrayOperator() {
@@ -244,6 +253,17 @@ public class UpdateEngineTest {
     
     assertEquals(new BasicDBObject("b", Util.list(1,3,3)),
         updateEngine.doUpdate(new BasicDBObject("b", Util.list(1,2,3)), update, new BasicDBObject("b", 2)));
+  }
+
+  @Test
+  public void testPositionalArrayDBObjectOperator() {
+      UpdateEngine updateEngine = new UpdateEngine();
+      DBObject update = new BasicDBObjectBuilder().push("$set")
+          .append("b.$", new BasicDBObject("c", 3)).pop().get();
+
+      assertEquals(new BasicDBObject("b", Util.list(new BasicDBObject("a", 2),new BasicDBObject("c", 3))),
+          updateEngine.doUpdate(new BasicDBObject("b",
+                  Util.list(new BasicDBObject("a", 2),new BasicDBObject("a", 1))), update, new BasicDBObject("b.a", 1)));
   }
   
   @Test 
