@@ -383,7 +383,7 @@ public class FongoDBCollection extends DBCollection {
       }
       int seen = 0;
       Collection<DBObject> objectsToSearch = sortObjects(orderby);
-      for (Iterator<DBObject> iter = objectsToSearch.iterator(); iter.hasNext() && foundCount <= upperLimit; seen++) {
+      for (Iterator<DBObject> iter = objectsToSearch.iterator(); iter.hasNext() && foundCount < upperLimit; seen++) {
         DBObject dbo = iter.next();
         if (seen >= numToSkip){
           if (filter.apply(dbo)) {
