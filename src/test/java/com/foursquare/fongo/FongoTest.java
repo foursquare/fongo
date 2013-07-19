@@ -692,6 +692,7 @@ public class FongoTest {
   @Test
   public void testInsertDuplicateIgnored(){
     DBCollection collection = newCollection();
+    collection.getDB().getMongo().setWriteConcern(WriteConcern.UNACKNOWLEDGED);
     collection.insert(new BasicDBObject("_id", 1));
     collection.insert(new BasicDBObject("_id", 1));
     assertEquals(1, collection.count());

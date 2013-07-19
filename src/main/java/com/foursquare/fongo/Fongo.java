@@ -43,7 +43,7 @@ public class Fongo {
   private final ServerAddress serverAddress;
   private final Mongo mongo;
   private final String name;
-  private WriteConcern concern = WriteConcern.NONE;
+  private WriteConcern concern = WriteConcern.ACKNOWLEDGED;
 
   /**
    * 
