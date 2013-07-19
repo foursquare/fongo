@@ -220,8 +220,43 @@ public class FongoTest {
         new BasicDBObject("_id", 4)
     ), cursor.toArray());
   }
-  
+    
   @Test
+  public void testFindWithSkipLimitNoResult() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1));
+    collection.insert(new BasicDBObject("_id", 2));
+    collection.insert(new BasicDBObject("_id", 3));
+    collection.insert(new BasicDBObject("_id", 4));
+    collection.insert(new BasicDBObject("_id", 5));
+
+    QueryBuilder builder = new QueryBuilder().start("_id").greaterThanEquals(1).lessThanEquals(4);
+
+    DBCursor cursor = collection.find(builder.get()).limit(2).skip(4);
+    assertEquals(Arrays.asList(), cursor.toArray());
+  }
+
+  @Test
+  public void testFindWithSkipLimitWithSort() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1).append("date", 5L).append("str", "1"));
+    collection.insert(new BasicDBObject("_id", 2).append("date", 6L).append("str", "2"));
+    collection.insert(new BasicDBObject("_id", 3).append("date", 7L).append("str", "3"));
+    collection.insert(new BasicDBObject("_id", 4).append("date", 8L).append("str", "4"));
+    collection.insert(new BasicDBObject("_id", 5).append("date", 5L));
+
+    QueryBuilder builder = new QueryBuilder().start("_id").greaterThanEquals(1).lessThanEquals(5).and("str").in(Arrays.asList("1", "2", "3", "4"));
+
+    // Without sort.
+    DBCursor cursor = collection.find(builder.get()).limit(2).skip(4);
+    assertEquals(Arrays.asList(), cursor.toArray());
+
+    // With sort.
+    cursor = collection.find(builder.get()).sort(new BasicDBObject("date", 1)).limit(2).skip(4);
+    assertEquals(Arrays.asList(), cursor.toArray());
+  }
+
+    @Test
   public void testIdInQueryResultsInIndexOrder() {
     DBCollection collection = newCollection();
     collection.insert(new BasicDBObject("_id", 4));
