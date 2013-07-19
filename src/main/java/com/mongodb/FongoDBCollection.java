@@ -66,7 +66,7 @@ public class FongoDBCollection extends DBCollection {
   }
   
   @Override
-  public WriteResult insert(List<DBObject> toInsert, WriteConcern concern, DBEncoder encoder) {
+  public synchronized WriteResult insert(List<DBObject> toInsert, WriteConcern concern, DBEncoder encoder) {
     for (DBObject obj : toInsert) {
       filterLists(obj);
       if (LOG.isDebugEnabled()) {

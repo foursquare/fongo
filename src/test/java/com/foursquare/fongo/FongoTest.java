@@ -1,5 +1,9 @@
 package com.foursquare.fongo;
 
+import ch.qos.logback.classic.Level;
+import com.mongodb.FongoDBCollection;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import org.bson.BSON;
 import org.bson.Transformer;
 import org.bson.types.ObjectId;
@@ -26,6 +30,7 @@ import java.util.HashSet;
 import java.util.List;
 
 import static org.junit.Assert.*;
+import org.slf4j.LoggerFactory;
 
 public class FongoTest {
 
@@ -229,7 +234,7 @@ public class FongoTest {
     collection.insert(new BasicDBObject("_id", 1));
     collection.insert(new BasicDBObject("_id", 2));
 
-    DBCursor cursor = collection.find(new BasicDBObject("_id", 
+    DBCursor cursor = collection.find(new BasicDBObject("_id",
         new BasicDBObject("$in", Arrays.asList(3,2,1))));
     assertEquals(Arrays.asList(
         new BasicDBObject("_id", 1),
@@ -342,7 +347,7 @@ public class FongoTest {
   @Test
   public void testUpsert() {
     DBCollection collection = newCollection();
-    WriteResult result = collection.update(new BasicDBObject("_id", 1).append("n", "jon"), 
+    WriteResult result = collection.update(new BasicDBObject("_id", 1).append("n", "jon"),
         new BasicDBObject("$inc", new BasicDBObject("a", 1)), true, false);
     assertEquals(new BasicDBObject("_id", 1).append("n", "jon").append("a", 1),
         collection.findOne());
@@ -353,7 +358,7 @@ public class FongoTest {
   public void testUpsertExisting() {
     DBCollection collection = newCollection();
     collection.insert(new BasicDBObject("_id", 1));
-    WriteResult result = collection.update(new BasicDBObject("_id", 1), 
+    WriteResult result = collection.update(new BasicDBObject("_id", 1),
         new BasicDBObject("$inc", new BasicDBObject("a", 1)), true, false);
     assertEquals(new BasicDBObject("_id", 1).append("a", 1),
         collection.findOne());
@@ -535,7 +540,7 @@ public class FongoTest {
   public void testFindAndModifyUpsert() {
     DBCollection collection = newCollection();
     
-    DBObject result = collection.findAndModify(new BasicDBObject("_id", 1), 
+    DBObject result = collection.findAndModify(new BasicDBObject("_id", 1),
         null, null, false, new BasicDBObject("$inc", new BasicDBObject("a", 1)), true, true);
     
     assertEquals(new BasicDBObject("_id", 1).append("a", 1), result);
@@ -566,7 +571,7 @@ public class FongoTest {
   public void testFindAndModifyRemove() {
     DBCollection collection = newCollection();
     collection.insert(new BasicDBObject("_id", 1).append("a", 1));
-    DBObject result = collection.findAndModify(new BasicDBObject("_id", 1), 
+    DBObject result = collection.findAndModify(new BasicDBObject("_id", 1),
         null, null, true, null, false, false);
     
     assertEquals(new BasicDBObject("_id", 1).append("a", 1), result);
@@ -881,6 +886,38 @@ public class FongoTest {
     DBObject result = collection.findOne();
     result.put("newkey", 1);
     assertEquals("should not have newkey", new BasicDBObject("_id", 1), collection.findOne());
+  }
+
+
+  @Test(timeout = 7000)
+  public void testMultiThreadInsert() throws Exception {
+    final ch.qos.logback.classic.Logger LOG = (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(FongoDBCollection.class);
+    final Level oldLevel = LOG.getLevel();
+    try {
+      LOG.setLevel(Level.ERROR);
+
+      int size = 1000;
+      final DBCollection col = new Fongo("InMemoryMongo").getDB("myDB").createCollection("myCollection", null);
+
+      final CountDownLatch lockSynchro = new CountDownLatch(size);
+      final CountDownLatch lockDone = new CountDownLatch(size);
+      for(int i = 0; i < size; i ++) {
+        new Thread() {
+          public void run() {
+            lockSynchro.countDown();
+            col.insert(new BasicDBObject("multiple", 1), WriteConcern.ACKNOWLEDGED);
+            lockDone.countDown();
+          }
+        }.start();
+      }
+
+      lockDone.await(5, TimeUnit.SECONDS);
+
+      // Count must be same value as size
+       assertEquals(size, col.getCount());
+    } finally {
+      LOG.setLevel(oldLevel);
+    }
   }
 
   class Seq {
