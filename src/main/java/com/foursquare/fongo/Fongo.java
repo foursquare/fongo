@@ -1,5 +1,7 @@
 package com.foursquare.fongo;
 
+import com.mongodb.MongoClient;
+import com.mongodb.MongoClientOptions;
 import com.mongodb.WriteConcern;
 
 import java.net.InetSocketAddress;
@@ -42,6 +44,7 @@ public class Fongo {
   private final Map<String, FongoDB> dbMap = Collections.synchronizedMap(new HashMap<String, FongoDB>());
   private final ServerAddress serverAddress;
   private final Mongo mongo;
+  private final MongoClient mongoClient;
   private final String name;
   private WriteConcern concern = WriteConcern.ACKNOWLEDGED;
 
@@ -53,6 +56,7 @@ public class Fongo {
     this.name = name;
     this.serverAddress = new ServerAddress(new InetSocketAddress(ServerAddress.defaultPort()));
     this.mongo = createMongo();
+    this.mongoClient = createMongoClient();
   }
   
   /**
@@ -110,13 +114,36 @@ public class Fongo {
   public Mongo getMongo() {
     return this.mongo;
   }
-  
+
+  /**
+   * A mocked out instance of {@link com.mongodb.MongoClient}
+   * All methods calls are intercepted and execute associated Fongo method
+   */
+  public MongoClient getMongoClient() {
+    return this.mongoClient;
+  }
+
   public WriteConcern getWriteConcern() {
     return concern ;
   }
   
   private Mongo createMongo() {
     Mongo mongo = Mockito.mock(Mongo.class);
+    return setupMongo(mongo);
+  }
+
+  private MongoClient createMongoClient() {
+    MongoClient mongoClient = Mockito.mock(MongoClient.class);
+    Mockito.when(mongoClient.getMongoClientOptions()).thenAnswer(new Answer<Object>() {
+      @Override
+      public Object answer(InvocationOnMock invocation) throws Throwable {
+        return MongoClientOptions.builder().writeConcern(concern).build();
+      }
+    });
+    return setupMongo(mongoClient);
+  }
+
+  private <T extends Mongo> T setupMongo(T mongo) {
     Mockito.when(mongo.toString()).thenReturn(toString());
     Mockito.when(mongo.getMongoOptions()).thenReturn(new MongoOptions());
     Mockito.when(mongo.getDB(Mockito.anyString())).thenAnswer(new Answer<DB>(){
@@ -151,7 +178,7 @@ public class Fongo {
       }}).when(mongo).setWriteConcern(Mockito.any(WriteConcern.class));
     return mongo;
   }
-  
+
   @Override
   public String toString() {
     return "Fongo (" + this.name + ")";
