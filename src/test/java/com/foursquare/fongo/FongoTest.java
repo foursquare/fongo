@@ -831,7 +831,12 @@ public class FongoTest {
   public void testToString() {
     new Fongo("test").getMongo().toString();
   }
-  
+
+  @Test
+  public void testToStringMongoClient() {
+    new Fongo("test").getMongoClient().toString();
+  }
+
   @Test
   public void testUndefinedCommand() {
     Fongo fongo = newFongo();
