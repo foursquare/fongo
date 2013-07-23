@@ -85,21 +85,24 @@ public class Aggregator {
         if (value instanceof DBObject) {
           DBObject objectValue = (DBObject) value;
           Object result = null;
+          boolean nullForced = false;
           if (objectValue.containsField("$min")) {
             result = minmax(coll, objectValue.get("$min"), 1);
           } else if (objectValue.containsField("$max")) {
             result = minmax(coll, objectValue.get("$max"), -1);
           } else if (objectValue.containsField("$last")) {
             result = firstlast(coll, objectValue.get("$last"), false);
+            nullForced = true;
           } else if (objectValue.containsField("$first")) {
             result = firstlast(coll, objectValue.get("$first"), true);
+            nullForced = true;
           } else if (objectValue.containsField("$avg")) {
             result = avg(coll, objectValue.get("$avg"));
           } else if (objectValue.containsField("$sum")) {
             result = sum(coll, objectValue.get("$sum"));
           }
 
-          if (result != null) {
+          if (result != null || nullForced) {
             objects.add(new BasicDBObject(key, result));
             LOG.debug("key:{}, result:{}", key, result);
           } else {
@@ -209,11 +212,9 @@ public class Aggregator {
       String field = value.toString().substring(1);
       List<DBObject> objects = coll.find(null, new BasicDBObject(field, 1).append("_id", 0)).toArray();
       for (DBObject object : objects) {
-        if (object.containsField(field)) {
-          result = object.get(field);
-          if (first) {
-            break;
-          }
+        result = object.get(field);
+        if (first) {
+          break;
         }
       }
     } else {
