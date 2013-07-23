@@ -1,7 +1,8 @@
 package com.foursquare.fongo
 
+import _root_.com.foursquare.fongo.impl.Util
+import _root_.com.mongodb._
 import org.scalatest._
-import com.mongodb._
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import java.util.UUID
@@ -43,10 +44,7 @@ class FongoAggregationScalaTest extends FunSuite with BeforeAndAfter {
   }
 
   test("Fongo should handle min") {
-
-    val list: BasicDBList = new BasicDBList
-    list.add("p0")
-    list.add("p1")
+    val list = Util.list("p0", "p1")
     val `match`: DBObject = new BasicDBObject("$match", new BasicDBObject("myId", new BasicDBObject("$in", list)))
     val groupFields: DBObject = new BasicDBObject("_id", "0")
     groupFields.put("date", new BasicDBObject("$min", "$date"))
@@ -64,9 +62,7 @@ class FongoAggregationScalaTest extends FunSuite with BeforeAndAfter {
   }
 
   test("Fongo should handle max") {
-    val list: BasicDBList = new BasicDBList
-    list.add("p0")
-    list.add("p1")
+    val list = Util.list("p0", "p1")
     val `match`: DBObject = new BasicDBObject("$match", new BasicDBObject("myId", new BasicDBObject("$in", list)))
     val groupFields: DBObject = new BasicDBObject("_id", "0")
     groupFields.put("date", new BasicDBObject("$max", "$date"))
@@ -84,10 +80,7 @@ class FongoAggregationScalaTest extends FunSuite with BeforeAndAfter {
   }
 
   test("Fongo should handle last") {
-    val list = new BasicDBList
-    list.add("p3")
-    list.add("p2")
-    list.add("p1")
+    val list = Util.list("p1", "p2", "p3")
     val `match`: DBObject = new BasicDBObject("$match", new BasicDBObject("myId", new BasicDBObject("$in", list)))
     val groupFields: DBObject = new BasicDBObject("_id", "0")
     groupFields.put("date", new BasicDBObject("$last", "$date"))
@@ -106,8 +99,7 @@ class FongoAggregationScalaTest extends FunSuite with BeforeAndAfter {
   }
 
   test("Fongo should handle last null value") {
-    val list = new BasicDBList
-    list.add("p4")
+    val list = Util.list("p4")
     val `match` = new BasicDBObject("$match", new BasicDBObject("myId", new BasicDBObject("$in", list)))
     val groupFields: DBObject = new BasicDBObject("_id", "0")
     groupFields.put("date", new BasicDBObject("$last", "$date"))
@@ -126,9 +118,7 @@ class FongoAggregationScalaTest extends FunSuite with BeforeAndAfter {
   }
 
   test("Fongo should handle first") {
-    val list = new BasicDBList
-    list.add("p0")
-    list.add("p1")
+    val list = Util.list("p0", "p1")
     val `match` = new BasicDBObject("$match", new BasicDBObject("myId", new BasicDBObject("$in", list)))
     val groupFields = new BasicDBObject("_id", "0")
     groupFields.put("date", new BasicDBObject("$first", "$date"))
@@ -146,8 +136,7 @@ class FongoAggregationScalaTest extends FunSuite with BeforeAndAfter {
   }
 
   test("Fongo should handle first null") {
-    val list = new BasicDBList
-    list.add("p4")
+    val list = Util.list("p4")
     val `match` = new BasicDBObject("$match", new BasicDBObject("myId", new BasicDBObject("$in", list)))
     val groupFields = new BasicDBObject("_id", "0")
     groupFields.put("date", new BasicDBObject("$first", "$date"))
@@ -166,9 +155,7 @@ class FongoAggregationScalaTest extends FunSuite with BeforeAndAfter {
   }
 
   test("Fongo should handle max with limit") {
-    val list: BasicDBList = new BasicDBList
-    list.add("p0")
-    list.add("p1")
+    val list = Util.list("p0", "p1")
     val `match`: DBObject = new BasicDBObject("$match", new BasicDBObject("myId", new BasicDBObject("$in", list)))
     val limit = new BasicDBObject("$limit", 3)
     val groupFields: DBObject = new BasicDBObject("_id", "0")
@@ -187,9 +174,7 @@ class FongoAggregationScalaTest extends FunSuite with BeforeAndAfter {
   }
 
   test("Fongo should handle min with skip") {
-    val list: BasicDBList = new BasicDBList
-    list.add("p0")
-    list.add("p1")
+    val list = Util.list("p0", "p1")
     val `match`: DBObject = new BasicDBObject("$match", new BasicDBObject("myId", new BasicDBObject("$in", list)))
     val skip = new BasicDBObject("$skip", 3)
     val groupFields: DBObject = new BasicDBObject("_id", "0")
@@ -209,9 +194,7 @@ class FongoAggregationScalaTest extends FunSuite with BeforeAndAfter {
 
 
   test("Fongo should handle sum of field") {
-    val list = new BasicDBList
-    list.add("p0")
-    list.add("p1")
+    val list = Util.list("p0", "p1")
     val `match` = new BasicDBObject("$match", new BasicDBObject("myId", new BasicDBObject("$in", list)))
     val groupFields = new BasicDBObject("_id", "0")
     groupFields.put("date", new BasicDBObject("$sum", "$date"))
@@ -229,9 +212,7 @@ class FongoAggregationScalaTest extends FunSuite with BeforeAndAfter {
   }
 
   test("Fongo should handle sum of number") {
-    val list = new BasicDBList
-    list.add("p0")
-    list.add("p1")
+    val list = Util.list("p0", "p1")
     val `match` = new BasicDBObject("$match", new BasicDBObject("myId", new BasicDBObject("$in", list)))
     val groupFields = new BasicDBObject("_id", "0")
     groupFields.put("date", new BasicDBObject("$sum", "2"))
