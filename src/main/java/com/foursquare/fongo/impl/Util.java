@@ -40,6 +40,36 @@ public class Util {
     return value;
   }
 
+  /**
+   * Say "true" if field is in this object.
+   * Handle "field1.field2" in { field1 : {field2 : value2 } }
+   *
+   * @param object
+   * @param field
+   * @return true if object contains field.
+   */
+  public static boolean containsField(DBObject object, String field) {
+    if (object == null) {
+      return false;
+    }
+    boolean result;
+    int indexDot = field.indexOf('.');
+    if (indexDot > 0) {
+      String subField = field.substring(indexDot + 1);
+      String actualField = field.substring(0, indexDot);
+      result = false;
+      if (object.containsField(actualField)) {
+        Object value = object.get(actualField);
+        if (value instanceof DBObject) {
+          result = containsField((DBObject) value, subField);
+        }
+      }
+    } else {
+      result = object.containsField(field);
+    }
+    return result;
+  }
+
   public static BasicDBList wrap(List otherList) {
     BasicDBList list = new BasicDBList();
     list.addAll(otherList);
