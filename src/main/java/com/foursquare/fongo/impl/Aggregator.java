@@ -130,11 +130,11 @@ public class Aggregator {
       List<DBObject> objects = coll.find(null, new BasicDBObject(field, 1).append("_id", 0)).toArray();
       for (DBObject object : objects) {
         LOG.debug("sum object {} ", object);
-        if (object.containsField(field)) {
+        if (Util.containsField(object, field)) {
           if (result == null) {
-            result = (Number) object.get(field);
+            result = Util.extractField(object, field);
           } else {
-            Number other = (Number) object.get(field);
+            Number other = Util.extractField(object, field);
             if (result instanceof Float) {
               result = Float.valueOf(result.floatValue() + other.floatValue());
             } else if (result instanceof Double) {
@@ -173,12 +173,12 @@ public class Aggregator {
       for (DBObject object : objects) {
         LOG.debug("avg object {} ", object);
 
-        if (object.containsField(field)) {
+        if (Util.containsField(object, field)) {
           if (result == null) {
-            result = (Number) object.get(field);
+            result = Util.extractField(object, field);
           } else {
             count++;
-            Number other = (Number) object.get(field);
+            Number other = Util.extractField(object, field);
             if (result instanceof Float) {
               result = Float.valueOf(result.floatValue() + other.floatValue());
             } else if (result instanceof Double) {
@@ -212,7 +212,8 @@ public class Aggregator {
       String field = value.toString().substring(1);
       List<DBObject> objects = coll.find(null, new BasicDBObject(field, 1).append("_id", 0)).toArray();
       for (DBObject object : objects) {
-        result = object.get(field);
+        result = Util.extractField(object, field);
+        ;
         if (first) {
           break;
         }
@@ -286,11 +287,11 @@ public class Aggregator {
       Comparable compable = null;
       for (DBObject object : objects) {
         LOG.debug("minmax object {} ", object);
-        if (object.containsField(field)) {
+        if (Util.containsField(object, field)) {
           if (compable == null) {
-            compable = (Comparable) object.get(field);
+            compable = Util.extractField(object, field);
           } else {
-            Comparable other = (Comparable) object.get(field);
+            Comparable other = Util.extractField(object, field);
             LOG.trace("minmax {} vs {}", compable, other);
             if (compable.compareTo(other) == valueComparable) {
               compable = other;
