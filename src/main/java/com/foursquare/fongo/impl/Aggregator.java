@@ -263,7 +263,13 @@ public class Aggregator {
         String realValue = entry.getValue().toString().substring(1);
         renamedFields.put(realValue, entry.getKey());
         projectResult.removeField(entry.getKey());
-        projectResult.put(realValue, 1);
+
+        // Handle complex case like $bar.foo
+        if (realValue.contains(".")) {
+          projectResult.put(realValue.substring(0, realValue.indexOf('.')), 1);
+        } else {
+          projectResult.put(realValue, 1);
+        }
       }
     }
 
@@ -277,10 +283,24 @@ public class Aggregator {
       for (Map.Entry<String, String> entry : renamedFields.entrySet()) {
         if (Util.containsField(renamed, entry.getKey())) {
           Object value = Util.extractField(renamed, entry.getKey());
-          renamed.removeField(entry.getKey());
           renamed.put(entry.getValue(), value);
         }
       }
+
+      // Two pass to remove the fields who are not wanted.
+      // In first pass, we handle $bar.foo to renamed, but $bar still exist.
+      // Now we remove it.
+      for (Map.Entry<String, String> entry : renamedFields.entrySet()) {
+        if (Util.containsField(renamed, entry.getKey())) {
+          // Handle complex case like $bar.foo
+          if (entry.getKey().contains(".")) {
+            renamed.removeField(entry.getKey().substring(0, entry.getKey().indexOf('.')));
+          } else {
+            renamed.removeField(entry.getKey());
+          }
+        }
+      }
+
       objectsResults.add(renamed);
     }
     coll = dropAndInsert(coll, objectsResults);
