@@ -7,19 +7,13 @@ import com.foursquare.fongo.impl.aggregation.PipelineKeyword;
 import com.foursquare.fongo.impl.aggregation.Project;
 import com.foursquare.fongo.impl.aggregation.Skip;
 import com.foursquare.fongo.impl.aggregation.Sort;
-import com.mongodb.BasicDBObject;
+import com.foursquare.fongo.impl.aggregation.Unwind;
 import com.mongodb.DBCollection;
-import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
 import com.mongodb.FongoDB;
 import com.mongodb.FongoDBCollection;
-import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,7 +28,7 @@ public class Aggregator {
   private final FongoDB fongoDB;
   private final FongoDBCollection fongoDBCollection;
   private final List<DBObject> pipeline;
-  private static final List<PipelineKeyword> keywords = Arrays.asList(Match.INSTANCE, Project.INSTANCE, Group.INSTANCE, Sort.INSTANCE, Limit.INSTANCE, Skip.INSTANCE);
+  private static final List<PipelineKeyword> keywords = Arrays.asList(Match.INSTANCE, Project.INSTANCE, Group.INSTANCE, Sort.INSTANCE, Limit.INSTANCE, Skip.INSTANCE, Unwind.INSTANCE);
 
   public Aggregator(FongoDB fongoDB, FongoDBCollection coll, List<DBObject> pipeline) {
     this.fongoDB = fongoDB;

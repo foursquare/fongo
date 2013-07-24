@@ -30,6 +30,11 @@ public class Group extends PipelineKeyword {
     // $group : { _id : "0", "$max":"$date" }
     // $group: { _id: "$department", average: { $avg: "$amount" } }
     List<DBObject> objects = new ArrayList<DBObject>();
+    // { _id : { state : "$state", city : "$city" },
+
+    Object id = object.get("_id");
+//    Map<>
+
     for (Map.Entry<String, Object> entry : ((Set<Map.Entry<String, Object>>) group.toMap().entrySet())) {
       String key = entry.getKey();
       if (!key.equals("_id")) {
@@ -129,7 +134,8 @@ public class Group extends PipelineKeyword {
       LOG.error("Sorry, doesn't know what to do...");
       return null;
     }
-    return returnSameType(result, (result.doubleValue() / (double) count));
+    // Always return double.
+    return (result.doubleValue() / (double) count);
   }
 
   /**

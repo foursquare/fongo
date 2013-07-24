@@ -1,12 +1,12 @@
 package com.foursquare.fongo.impl;
 
-import com.mongodb.util.StringParseUtil;
+import com.mongodb.BasicDBList;
+import com.mongodb.BasicDBObject;
+import com.mongodb.DBObject;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-
-import com.mongodb.*;
 
 public class Util {
 
@@ -68,6 +68,26 @@ public class Util {
       result = object.containsField(field);
     }
     return result;
+  }
+
+  /**
+   * Put a value in a {@link DBObject} with hierarchy.
+   *
+   * @param dbObject object to modify
+   * @param field    field with dot '.' to match hierarchy.
+   * @param value    new value to set.
+   */
+  public static void putValue(DBObject dbObject, String field, Object value) {
+    if (dbObject == null) {
+      return; // NPE ?
+    }
+    int indexDot = field.indexOf('.');
+    if (indexDot > 0) {
+      String subField = field.substring(indexDot + 1);
+      putValue((DBObject) dbObject.get(field.substring(0, indexDot)), subField, value);
+    } else {
+      dbObject.put(field, value);
+    }
   }
 
   public static BasicDBList wrap(List otherList) {

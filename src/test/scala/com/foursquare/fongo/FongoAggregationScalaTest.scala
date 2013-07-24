@@ -207,8 +207,8 @@ class FongoAggregationScalaTest extends FunSuite with BeforeAndAfter {
       }
     }
 
-    assert(result.isInstanceOf[Int])
-    assert(3 === result)
+    assert(result.isInstanceOf[Double], "must be a Double but was a " + result.getClass)
+    assert(3.5D === result)
   }
 
   test("Fongo should handle avg of double field") {
@@ -219,7 +219,7 @@ class FongoAggregationScalaTest extends FunSuite with BeforeAndAfter {
     collection.insert(new BasicDBObject("myId", "p4").append("date", 5D))
     collection.insert(new BasicDBObject("myId", "p4").append("date", 6D))
     collection.insert(new BasicDBObject("myId", "p4").append("date", 7D))
-    collection.insert(new BasicDBObject("myId", "p4").append("date", 0D))
+    collection.insert(new BasicDBObject("myId", "p4").append("date", 10D))
 
     val `match` = new BasicDBObject("$match", new BasicDBObject("myId", "p4"))
     val groupFields = new BasicDBObject("_id", null)
@@ -235,7 +235,7 @@ class FongoAggregationScalaTest extends FunSuite with BeforeAndAfter {
     }
 
     assert(result.isInstanceOf[Double])
-    assert(3.5D === result)
+    assert(4.75D === result)
   }
 
   test("Fongo should handle sum of field") {
@@ -272,7 +272,7 @@ class FongoAggregationScalaTest extends FunSuite with BeforeAndAfter {
       result = (resultAggregate.get("date").asInstanceOf[Number]).intValue
     }
 
-    assert(14 === result)
+    assert(14 === result) // Normaly 0, but..
   }
 
   test("Fongo should handle project") {
@@ -308,7 +308,6 @@ class FongoAggregationScalaTest extends FunSuite with BeforeAndAfter {
     val project = new BasicDBObject("$project", new BasicDBObject("bar", "$sub.obj.ect"))
     val output = collection.aggregate(matching, project)
 
-    println(output)
     assert(output.getCommandResult.ok)
     assert(output.getCommandResult.containsField("result"))
 
@@ -325,7 +324,6 @@ class FongoAggregationScalaTest extends FunSuite with BeforeAndAfter {
     val project = new BasicDBObject("$project", new BasicDBObject("bar", "$sub.obj.ect").append("foo", "$sub.obj.ect2"))
     val output = collection.aggregate(matching, project)
 
-    println(output)
     assert(output.getCommandResult.ok)
     assert(output.getCommandResult.containsField("result"))
 
@@ -336,6 +334,56 @@ class FongoAggregationScalaTest extends FunSuite with BeforeAndAfter {
     assert(result.get(0).asInstanceOf[DBObject].containsField("foo"))
     assert(2 === result.get(0).asInstanceOf[DBObject].get("foo"))
     assert(!result.get(0).asInstanceOf[DBObject].containsField("sub"))
+  }
+
+  test("Fongo should unwind list") {
+    collection.insert(new BasicDBObject("author", "william").append("tags", Util.list("scala", "java", "mongo")))
+    val matching = new BasicDBObject("$match", new BasicDBObject("author", "william"))
+    val project = new BasicDBObject("$project", new BasicDBObject("author", 1).append("tags", 1))
+    val unwind = new BasicDBObject("$unwind", "$tags")
+
+    val output = collection.aggregate(matching, project, unwind)
+
+    // Assert
+    assert(output.getCommandResult.ok)
+    assert(output.getCommandResult.containsField("result"))
+
+    val result: BasicDBList = output.getCommandResult.get("result").asInstanceOf[BasicDBList]
+    assert(3 === result.size())
+    assert(result.get(0).asInstanceOf[DBObject].get("author") === "william")
+    assert(result.get(0).asInstanceOf[DBObject].get("tags") === "scala")
+    assert(result.get(1).asInstanceOf[DBObject].get("author") === "william")
+    assert(result.get(1).asInstanceOf[DBObject].get("tags") === "java")
+    assert(result.get(2).asInstanceOf[DBObject].get("author") === "william")
+    assert(result.get(2).asInstanceOf[DBObject].get("tags") === "mongo")
+  }
+
+  test("Fongo should unwind empty list") {
+    collection.insert(new BasicDBObject("author", "william").append("tags", Util.list()))
+    val matching = new BasicDBObject("$match", new BasicDBObject("author", "william"))
+    val project = new BasicDBObject("$project", new BasicDBObject("author", 1).append("tags", 1))
+    val unwind = new BasicDBObject("$unwind", "$tags")
+    val output = collection.aggregate(matching, project, unwind)
+
+    assert(output.getCommandResult.ok)
+    assert(output.getCommandResult.containsField("result"))
+
+    val result: BasicDBList = output.getCommandResult.get("result").asInstanceOf[BasicDBList]
+    assert(0 === result.size())
+  }
+
+  test("Fongo should generate error on non list") {
+    collection.insert(new BasicDBObject("author", "william").append("tags", "value"))
+    val matching = new BasicDBObject("$match", new BasicDBObject("author", "william"))
+    val project = new BasicDBObject("$project", new BasicDBObject("author", 1).append("tags", 1))
+    val unwind = new BasicDBObject("$unwind", "$tags")
+
+    val output = intercept[MongoException] {
+      collection.aggregate(matching, project, unwind)
+    }
+    println(output)
+    assert(output.getCode === 15978)
+    assert(output.getMessage === "exception: $unwind:  value at end of field path must be an array")
   }
 
 }
