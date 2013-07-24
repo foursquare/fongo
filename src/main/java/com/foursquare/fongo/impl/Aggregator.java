@@ -8,6 +8,7 @@ import com.mongodb.FongoDB;
 import com.mongodb.FongoDBCollection;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -252,10 +253,37 @@ public class Aggregator {
    * @return
    */
   private DBCollection project(DBCollection coll, DBObject object) {
-    LOG.debug("computeResult() project : {}", object);
+    LOG.debug("project() : {}", object);
 
-    List<DBObject> objects = coll.find(null, (DBObject) object.get("$project")).toArray();
-    coll = dropAndInsert(coll, objects);
+    DBObject project = (DBObject) object.get("$project");
+    DBObject projectResult = Util.clone(project);
+    Map<String, String> renamedFields = new HashMap<String, String>();
+    for (Map.Entry<String, Object> entry : (Set<Map.Entry<String, Object>>) project.toMap().entrySet()) {
+      if (entry.getValue() != null && entry.getValue() instanceof String && entry.getValue().toString().startsWith("$")) {
+        String realValue = entry.getValue().toString().substring(1);
+        renamedFields.put(realValue, entry.getKey());
+        projectResult.removeField(entry.getKey());
+        projectResult.put(realValue, 1);
+      }
+    }
+
+    LOG.debug("project() of {}", projectResult);
+    List<DBObject> objects = coll.find(null, projectResult).toArray();
+
+    // Rename fields
+    List<DBObject> objectsResults = new ArrayList<DBObject>(objects.size());
+    for (DBObject result : objects) {
+      DBObject renamed = Util.clone(result);
+      for (Map.Entry<String, String> entry : renamedFields.entrySet()) {
+        if (Util.containsField(renamed, entry.getKey())) {
+          Object value = Util.extractField(renamed, entry.getKey());
+          renamed.removeField(entry.getKey());
+          renamed.put(entry.getValue(), value);
+        }
+      }
+      objectsResults.add(renamed);
+    }
+    coll = dropAndInsert(coll, objectsResults);
     LOG.debug("computeResult() project : {}, result : {}", object, objects);
     return coll;
   }

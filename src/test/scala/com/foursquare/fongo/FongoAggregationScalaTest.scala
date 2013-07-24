@@ -45,8 +45,8 @@ class FongoAggregationScalaTest extends FunSuite with BeforeAndAfter {
 
   test("Fongo should handle min") {
     val list = Util.list("p0", "p1")
-    val `match`: DBObject = new BasicDBObject("$match", new BasicDBObject("myId", new BasicDBObject("$in", list)))
-    val groupFields: DBObject = new BasicDBObject("_id", "0")
+    val `match`= new BasicDBObject("$match", new BasicDBObject("myId", new BasicDBObject("$in", list)))
+    val groupFields= new BasicDBObject("_id", "0")
     groupFields.put("date", new BasicDBObject("$min", "$date"))
     val group: DBObject = new BasicDBObject("$group", groupFields)
     val output: AggregationOutput = collection.aggregate(`match`, group)
@@ -63,8 +63,8 @@ class FongoAggregationScalaTest extends FunSuite with BeforeAndAfter {
 
   test("Fongo should handle max") {
     val list = Util.list("p0", "p1")
-    val `match`: DBObject = new BasicDBObject("$match", new BasicDBObject("myId", new BasicDBObject("$in", list)))
-    val groupFields: DBObject = new BasicDBObject("_id", "0")
+    val `match` = new BasicDBObject("$match", new BasicDBObject("myId", new BasicDBObject("$in", list)))
+    val groupFields= new BasicDBObject("_id", "0")
     groupFields.put("date", new BasicDBObject("$max", "$date"))
     val group: DBObject = new BasicDBObject("$group", groupFields)
     val output: AggregationOutput = collection.aggregate(`match`, group)
@@ -219,14 +219,42 @@ class FongoAggregationScalaTest extends FunSuite with BeforeAndAfter {
     val group = new BasicDBObject("$group", groupFields)
     val output = collection.aggregate(`match`, group)
     var result = 0
-    println(output)
-    if (output.getCommandResult.ok && output.getCommandResult.containsField("result")) {
-      val resultAggregate: DBObject = (output.getCommandResult.get("result").asInstanceOf[DBObject]).get("0").asInstanceOf[DBObject]
-      if (resultAggregate != null && resultAggregate.containsField("date")) {
+    assert(output.getCommandResult.ok)
+    assert(output.getCommandResult.containsField("result"))
+
+    val resultAggregate: DBObject = (output.getCommandResult.get("result").asInstanceOf[DBObject]).get("0").asInstanceOf[DBObject]
+    if (resultAggregate != null && resultAggregate.containsField("date")) {
         result = (resultAggregate.get("date").asInstanceOf[Number]).intValue
-      }
     }
 
     assert(14 === result)
+  }
+
+  test("Fongo should handle project") {
+    val project = new BasicDBObject("$project", new BasicDBObject("date", 1))
+    val output = collection.aggregate(project)
+
+    println(output)
+    assert(output.getCommandResult.ok)
+    assert(output.getCommandResult.containsField("result"))
+
+    val result :BasicDBList = output.getCommandResult.get("result").asInstanceOf[BasicDBList]
+    assert(10 === result.size())
+    assert(result.get(0).asInstanceOf[DBObject].containsField("date"))
+    assert(result.get(0).asInstanceOf[DBObject].containsField("_id"))
+  }
+
+  test("Fongo should handle project with rename") {
+    val project = new BasicDBObject("$project", new BasicDBObject("renamedDate", "$date"))
+    val output = collection.aggregate(project)
+
+    println(output)
+    assert(output.getCommandResult.ok)
+    assert(output.getCommandResult.containsField("result"))
+
+    val result :BasicDBList = output.getCommandResult.get("result").asInstanceOf[BasicDBList]
+    assert(10 === result.size())
+    assert(result.get(0).asInstanceOf[DBObject].containsField("renamedDate"))
+    assert(result.get(0).asInstanceOf[DBObject].containsField("_id"))
   }
 }
