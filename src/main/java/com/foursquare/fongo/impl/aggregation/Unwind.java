@@ -53,6 +53,7 @@ public class Unwind extends PipelineKeyword {
       if (Util.containsField(dbObject, fieldName)) {
         Object oValue = Util.extractField(dbObject, fieldName);
         if (!(oValue instanceof BasicDBList)) {
+//          throw fongoDB..errorResult(15978, "$unwind:  value at end of field path must be an array").getException;
           throw new MongoException(15978, "exception: $unwind:  value at end of field path must be an array");
         }
         BasicDBList list = (BasicDBList) oValue;

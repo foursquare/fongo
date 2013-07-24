@@ -14,11 +14,10 @@ public abstract class PipelineKeyword {
 
   protected static final DB fongo = new Fongo("aggregation_pipeline").getDB("pipeline");
 
-
   public abstract DBCollection apply(DBCollection coll, DBObject object);
 
   /**
-   * Return the keywork in the pipeline (like $sort, $group...).
+   * Return the keyword in the pipeline (like $sort, $group...).
    *
    * @return
    */
@@ -33,7 +32,11 @@ public abstract class PipelineKeyword {
    */
   protected DBCollection dropAndInsert(DBCollection coll, List<DBObject> objects) {
     coll.drop();
-    coll = fongo.createCollection(UUID.randomUUID().toString(), null);
+    return createAndInsert(objects);
+  }
+
+  protected DBCollection createAndInsert(List<DBObject> objects) {
+    DBCollection coll = fongo.createCollection(UUID.randomUUID().toString(), null);
     coll.insert(objects);
     return coll;
   }

@@ -5,6 +5,7 @@ import com.mongodb.BasicDBObject;
 import com.mongodb.DBCollection;
 import com.mongodb.DBObject;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -22,6 +23,21 @@ public class Group extends PipelineKeyword {
 
   public static final Group INSTANCE = new Group();
 
+
+  static class Mapping {
+    private final DBObject key;
+
+    private final DBCollection collection;
+
+    private final DBObject result;
+
+    public Mapping(DBObject key, DBCollection collection, DBObject result) {
+      this.key = key;
+      this.collection = collection;
+      this.result = result;
+    }
+  }
+
   private Group() {
   }
 
@@ -29,11 +45,21 @@ public class Group extends PipelineKeyword {
     DBObject group = (DBObject) object.get(getKeyword());
     // $group : { _id : "0", "$max":"$date" }
     // $group: { _id: "$department", average: { $avg: "$amount" } }
-    List<DBObject> objects = new ArrayList<DBObject>();
+//    List<DBObject> results = new ArrayList<DBObject>();
     // { _id : { state : "$state", city : "$city" },
 
-    Object id = object.get("_id");
-//    Map<>
+    Object id = ((DBObject) object.get(getKeyword())).get("_id");
+    // Try to group in the mapping.
+    Map<DBObject, Mapping> mapping = new HashMap<DBObject, Mapping>();
+    {
+      List<DBObject> objects = coll.find().toArray();
+      for (DBObject dbObject : objects) {
+        DBObject key = keyForId(id, dbObject);
+        if (!mapping.containsKey(key)) {
+          mapping.put(key, new Mapping(key, createAndInsert(coll.find(criteriaForId(id, dbObject)).toArray()), Util.clone(key)));
+        }
+      }
+    }
 
     for (Map.Entry<String, Object> entry : ((Set<Map.Entry<String, Object>>) group.toMap().entrySet())) {
       String key = entry.getKey();
@@ -41,36 +67,80 @@ public class Group extends PipelineKeyword {
         Object value = entry.getValue();
         if (value instanceof DBObject) {
           DBObject objectValue = (DBObject) value;
-          Object result = null;
-          boolean nullForced = false;
-          if (objectValue.containsField("$min")) {
-            result = minmax(coll, objectValue.get("$min"), 1);
-          } else if (objectValue.containsField("$max")) {
-            result = minmax(coll, objectValue.get("$max"), -1);
-          } else if (objectValue.containsField("$last")) {
-            result = firstlast(coll, objectValue.get("$last"), false);
-            nullForced = true;
-          } else if (objectValue.containsField("$first")) {
-            result = firstlast(coll, objectValue.get("$first"), true);
-            nullForced = true;
-          } else if (objectValue.containsField("$avg")) {
-            result = avg(coll, objectValue.get("$avg"));
-          } else if (objectValue.containsField("$sum")) {
-            result = sum(coll, objectValue.get("$sum"));
-          }
+          for (Map.Entry<DBObject, Mapping> entryMapping : mapping.entrySet()) {
+            LOG.debug("group() key:{}", entryMapping.getKey());
+            DBCollection workColl = entryMapping.getValue().collection;
+            Object result = null;
+            boolean nullForced = false;
+            if (objectValue.containsField("$min")) {
+              result = minmax(workColl, objectValue.get("$min"), 1);
+            } else if (objectValue.containsField("$max")) {
+              result = minmax(workColl, objectValue.get("$max"), -1);
+            } else if (objectValue.containsField("$last")) {
+              result = firstlast(workColl, objectValue.get("$last"), false);
+              nullForced = true;
+            } else if (objectValue.containsField("$first")) {
+              result = firstlast(workColl, objectValue.get("$first"), true);
+              nullForced = true;
+            } else if (objectValue.containsField("$avg")) {
+              result = avg(workColl, objectValue.get("$avg"));
+            } else if (objectValue.containsField("$sum")) {
+              result = sum(workColl, objectValue.get("$sum"));
+            }
 
-          if (result != null || nullForced) {
-            objects.add(new BasicDBObject(key, result));
-            LOG.debug("key:{}, result:{}", key, result);
-          } else {
-            LOG.warn("result is null for entry {}", entry);
+            if (result != null || nullForced) {
+              LOG.debug("_id:{}, key:{}, result:{}", entryMapping.getKey(), key, result);
+              entryMapping.getValue().result.put(key, result);
+            } else {
+              LOG.warn("result is null for entry {}", entry);
+            }
           }
         }
       }
     }
-    coll = dropAndInsert(coll, objects);
-    LOG.debug("group : {} result : {}", object, objects);
+    coll = dropAndInsert(coll, new ArrayList<DBObject>());
+    for (Map.Entry<DBObject, Mapping> entry : mapping.entrySet()) {
+      coll.insert(entry.getValue().result);
+    }
+
+    LOG.debug("group() : {} result : {}", object, mapping);
     return coll;
+  }
+
+  private DBObject keyForId(Object id, DBObject dbObject) {
+    DBObject result = new BasicDBObject();
+    if (id instanceof DBObject) {
+      // TODO
+    } else if (id != null) {
+      String field = id.toString();
+      if (id instanceof String) {
+        if (id.toString().startsWith("$")) {
+          field = id.toString().substring(1);
+        }
+      }
+      result.put("_id", dbObject.get(field));
+    } else {
+      result.put("_id", null);
+    }
+    LOG.debug("keyForId() id:{}, dbObject:{}, result:{}", id, dbObject, result);
+    return result;
+  }
+
+  private DBObject criteriaForId(Object id, DBObject dbObject) {
+    DBObject result = new BasicDBObject();
+    if (id instanceof DBObject) {
+      // TODO
+    } else if (id != null) {
+      String field = id.toString();
+      if (id instanceof String) {
+        if (id.toString().startsWith("$")) {
+          field = id.toString().substring(1);
+        }
+      }
+      result.put(field, dbObject.get(field));
+    }
+    LOG.debug("criteriaForId() id:{}, dbObject:{}, result:{}", id, dbObject, result);
+    return result;
   }
 
   /**
@@ -97,9 +167,9 @@ public class Group extends PipelineKeyword {
         }
       }
     } else {
-      int iValue = Integer.parseInt(value.toString());
+      Number iValue = (Number) value;
       // TODO : handle null value ?
-      result = coll.count() * iValue;
+      result = coll.count() * iValue.doubleValue();
     }
     return result;
   }
@@ -151,7 +221,6 @@ public class Group extends PipelineKeyword {
       List<DBObject> objects = coll.find(null, new BasicDBObject(field, 1).append("_id", 0)).toArray();
       for (DBObject object : objects) {
         result = Util.extractField(object, field);
-        ;
         if (first) {
           break;
         }

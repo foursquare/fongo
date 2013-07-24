@@ -12,6 +12,7 @@ import com.mongodb.DBCollection;
 import com.mongodb.DBObject;
 import com.mongodb.FongoDB;
 import com.mongodb.FongoDBCollection;
+import com.mongodb.MongoException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
@@ -44,12 +45,18 @@ public class Aggregator {
     coll.insert(this.fongoDBCollection.find().toArray());
 
     for (DBObject object : pipeline) {
+      boolean found = false;
       for (PipelineKeyword keyword : keywords) {
         if (keyword.canApply(object)) {
           coll = keyword.apply(coll, object);
+          found = true;
           break;
         }
       }
+      if (!found) {
+        throw fongoDB.errorResult(16436, "exception: Unrecognized pipeline stage name: " + object.keySet()).getException();
+      }
+      // Not found : com.mongodb.CommandFailureException: { "serverUsed" : "localhost/127.0.0.1:27017" , "errmsg" : "exception: Unrecognized pipeline stage name: '_id'" , "code" : 16436 , "ok" : 0.0}
     }
 
     List<DBObject> result = coll.find().toArray();
