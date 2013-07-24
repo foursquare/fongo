@@ -2,8 +2,8 @@ package com.foursquare.fongo.impl.aggregation;
 
 import com.mongodb.DBCollection;
 import com.mongodb.DBObject;
-import com.mongodb.FongoDB;
 import java.util.List;
+import org.bson.util.annotations.ThreadSafe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -11,13 +11,14 @@ import org.slf4j.LoggerFactory;
  * User: william
  * Date: 24/07/13
  */
+@ThreadSafe
 public class Match extends PipelineKeyword {
   private static final Logger LOG = LoggerFactory.getLogger(Match.class);
 
-  public Match(FongoDB fongoDB) {
-    super(fongoDB);
-  }
+  public static final Match INSTANCE = new Match();
 
+  private Match() {
+  }
 
   /**
    * {@see http://docs.mongodb.org/manual/reference/aggregation/match/#pipe._S_match}

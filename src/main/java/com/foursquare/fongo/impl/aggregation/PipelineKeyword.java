@@ -1,9 +1,9 @@
 package com.foursquare.fongo.impl.aggregation;
 
+import com.foursquare.fongo.Fongo;
+import com.mongodb.DB;
 import com.mongodb.DBCollection;
 import com.mongodb.DBObject;
-import com.mongodb.FongoDB;
-
 import java.util.List;
 import java.util.UUID;
 
@@ -12,11 +12,7 @@ import java.util.UUID;
  */
 public abstract class PipelineKeyword {
 
-  protected final FongoDB fongoDB;
-
-  protected PipelineKeyword(FongoDB fongoDB) {
-    this.fongoDB = fongoDB;
-  }
+  protected static final DB fongo = new Fongo("aggregation_pipeline").getDB("pipeline");
 
 
   public abstract DBCollection apply(DBCollection coll, DBObject object);
@@ -37,7 +33,7 @@ public abstract class PipelineKeyword {
    */
   protected DBCollection dropAndInsert(DBCollection coll, List<DBObject> objects) {
     coll.drop();
-    coll = fongoDB.createCollection(UUID.randomUUID().toString(), null);
+    coll = fongo.createCollection(UUID.randomUUID().toString(), null);
     coll.insert(objects);
     return coll;
   }

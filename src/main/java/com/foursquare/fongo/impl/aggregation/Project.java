@@ -1,15 +1,14 @@
 package com.foursquare.fongo.impl.aggregation;
 
 import com.foursquare.fongo.impl.Util;
-import com.mongodb.BasicDBObject;
 import com.mongodb.DBCollection;
 import com.mongodb.DBObject;
-import com.mongodb.FongoDB;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.bson.util.annotations.ThreadSafe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,11 +16,13 @@ import org.slf4j.LoggerFactory;
  * User: william
  * Date: 24/07/13
  */
+@ThreadSafe
 public class Project extends PipelineKeyword {
   private static final Logger LOG = LoggerFactory.getLogger(Project.class);
 
-  public Project(FongoDB fongoDB) {
-    super(fongoDB);
+  public static final Project INSTANCE = new Project();
+
+  private Project() {
   }
 
   /**

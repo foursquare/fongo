@@ -34,20 +34,12 @@ public class Aggregator {
   private final FongoDB fongoDB;
   private final FongoDBCollection fongoDBCollection;
   private final List<DBObject> pipeline;
-  private final List<PipelineKeyword> keywords;
+  private static final List<PipelineKeyword> keywords = Arrays.asList(Match.INSTANCE, Project.INSTANCE, Group.INSTANCE, Sort.INSTANCE, Limit.INSTANCE, Skip.INSTANCE);
 
   public Aggregator(FongoDB fongoDB, FongoDBCollection coll, List<DBObject> pipeline) {
     this.fongoDB = fongoDB;
     this.fongoDBCollection = coll;
     this.pipeline = pipeline;
-
-    Match match = new Match(fongoDB);
-    Project project = new Project(fongoDB);
-    Group group = new Group(fongoDB);
-    Sort sort = new Sort(fongoDB);
-    Limit limit = new Limit(fongoDB);
-    Skip skip = new Skip(fongoDB);
-    this.keywords = Arrays.asList(match, project, group, sort, limit, skip);
   }
 
   /**
@@ -58,8 +50,8 @@ public class Aggregator {
     coll.insert(this.fongoDBCollection.find().toArray());
 
     for (DBObject object : pipeline) {
-      for(PipelineKeyword keyword : keywords) {
-        if(keyword.canApply(object)) {
+      for (PipelineKeyword keyword : keywords) {
+        if (keyword.canApply(object)) {
           coll = keyword.apply(coll, object);
           break;
         }
@@ -72,19 +64,5 @@ public class Aggregator {
     LOG.debug("computeResult : {}", result);
 
     return result;
-  }
-
-  /**
-   * Drop collection and create new one with objects.
-   *
-   * @param coll
-   * @param objects
-   * @return the new collection.
-   */
-  private DBCollection dropAndInsert(DBCollection coll, List<DBObject> objects) {
-    coll.drop();
-    coll = fongoDB.createCollection(UUID.randomUUID().toString(), null);
-    coll.insert(objects);
-    return coll;
   }
 }

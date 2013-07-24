@@ -4,11 +4,11 @@ import com.foursquare.fongo.impl.Util;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBCollection;
 import com.mongodb.DBObject;
-import com.mongodb.FongoDB;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.bson.util.annotations.ThreadSafe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,11 +16,13 @@ import org.slf4j.LoggerFactory;
  * User: william
  * Date: 24/07/13
  */
+@ThreadSafe
 public class Group extends PipelineKeyword {
   private static final Logger LOG = LoggerFactory.getLogger(Group.class);
 
-  public Group(FongoDB fongoDB) {
-    super(fongoDB);
+  public static final Group INSTANCE = new Group();
+
+  private Group() {
   }
 
   public DBCollection apply(DBCollection coll, DBObject object) {
