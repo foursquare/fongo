@@ -85,17 +85,7 @@ public class Group extends PipelineKeyword {
             result = Util.extractField(object, field);
           } else {
             Number other = Util.extractField(object, field);
-            if (result instanceof Float) {
-              result = Float.valueOf(result.floatValue() + other.floatValue());
-            } else if (result instanceof Double) {
-              result = Double.valueOf(result.doubleValue() + other.doubleValue());
-            } else if (result instanceof Integer) {
-              result = Integer.valueOf(result.intValue() + other.intValue());
-            } else if (result instanceof Long) {
-              result = Long.valueOf(result.longValue() + other.longValue());
-            } else {
-              LOG.warn("type of field not handled for sum : {}", result.getClass());
-            }
+            result = addWithSameType(result, other);
           }
         }
       }
@@ -129,17 +119,7 @@ public class Group extends PipelineKeyword {
           } else {
             count++;
             Number other = Util.extractField(object, field);
-            if (result instanceof Float) {
-              result = Float.valueOf(result.floatValue() + other.floatValue());
-            } else if (result instanceof Double) {
-              result = Double.valueOf(result.doubleValue() + other.doubleValue());
-            } else if (result instanceof Integer) {
-              result = Integer.valueOf(result.intValue() + other.intValue());
-            } else if (result instanceof Long) {
-              result = Long.valueOf(result.longValue() + other.longValue());
-            } else {
-              LOG.warn("type of field not handled for avg : {}", result.getClass());
-            }
+            result = addWithSameType(result, other);
           }
         }
       }
@@ -147,7 +127,7 @@ public class Group extends PipelineKeyword {
       LOG.error("Sorry, doesn't know what to do...");
       return null;
     }
-    return result.doubleValue() / count;
+    return returnSameType(result, (result.doubleValue() / (double) count));
   }
 
   /**
@@ -206,6 +186,43 @@ public class Group extends PipelineKeyword {
       LOG.error("Sorry, doesn't know what to do...");
     }
     return null;
+  }
+
+  /**
+   * Add two number in the same type.
+   *
+   * @param result
+   * @param other
+   * @return
+   */
+  private Number addWithSameType(Number result, Number other) {
+    if (result instanceof Float) {
+      result = Float.valueOf(result.floatValue() + other.floatValue());
+    } else if (result instanceof Double) {
+      result = Double.valueOf(result.doubleValue() + other.doubleValue());
+    } else if (result instanceof Integer) {
+      result = Integer.valueOf(result.intValue() + other.intValue());
+    } else if (result instanceof Long) {
+      result = Long.valueOf(result.longValue() + other.longValue());
+    } else {
+      LOG.warn("type of field not handled for sum : {}", result.getClass());
+    }
+    return result;
+  }
+
+  private Number returnSameType(Number type, Number other) {
+    if (type instanceof Float) {
+      return Float.valueOf(other.floatValue());
+    } else if (type instanceof Double) {
+      return Double.valueOf(other.doubleValue());
+    } else if (type instanceof Integer) {
+      return Integer.valueOf(other.intValue());
+    } else if (type instanceof Long) {
+      return Long.valueOf(other.longValue());
+    } else {
+      LOG.warn("type of field not handled for sum : {}", type.getClass());
+    }
+    return other;
   }
 
   @Override

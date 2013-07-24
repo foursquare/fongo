@@ -46,7 +46,7 @@ public class Project extends PipelineKeyword {
         renamedFields.put(realValue, entry.getKey());
         projectResult.removeField(entry.getKey());
 
-        // Handle complex case like $bar.foo
+        // Handle complex case like $bar.foo with a little trick.
         if (realValue.contains(".")) {
           projectResult.put(realValue.substring(0, realValue.indexOf('.')), 1);
         } else {

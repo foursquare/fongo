@@ -192,6 +192,52 @@ class FongoAggregationScalaTest extends FunSuite with BeforeAndAfter {
     assert(4 === result)
   }
 
+  test("Fongo should handle avg of field") {
+    val list = Util.list("p0", "p1")
+    val `match` = new BasicDBObject("$match", new BasicDBObject("myId", new BasicDBObject("$in", list)))
+    val groupFields = new BasicDBObject("_id", null)
+    groupFields.put("date", new BasicDBObject("$avg", "$date"))
+    val group = new BasicDBObject("$group", groupFields)
+    val output = collection.aggregate(`match`, group)
+    var result: Number = 0
+    if (output.getCommandResult.ok && output.getCommandResult.containsField("result")) {
+      val resultAggregate: DBObject = (output.getCommandResult.get("result").asInstanceOf[DBObject]).get("0").asInstanceOf[DBObject]
+      if (resultAggregate != null && resultAggregate.containsField("date")) {
+        result = (resultAggregate.get("date").asInstanceOf[Number])
+      }
+    }
+
+    assert(result.isInstanceOf[Int])
+    assert(3 === result)
+  }
+
+  test("Fongo should handle avg of double field") {
+    collection.insert(new BasicDBObject("myId", "p4").append("date", 1D))
+    collection.insert(new BasicDBObject("myId", "p4").append("date", 2D))
+    collection.insert(new BasicDBObject("myId", "p4").append("date", 3D))
+    collection.insert(new BasicDBObject("myId", "p4").append("date", 4D))
+    collection.insert(new BasicDBObject("myId", "p4").append("date", 5D))
+    collection.insert(new BasicDBObject("myId", "p4").append("date", 6D))
+    collection.insert(new BasicDBObject("myId", "p4").append("date", 7D))
+    collection.insert(new BasicDBObject("myId", "p4").append("date", 0D))
+
+    val `match` = new BasicDBObject("$match", new BasicDBObject("myId", "p4"))
+    val groupFields = new BasicDBObject("_id", null)
+    groupFields.put("date", new BasicDBObject("$avg", "$date"))
+    val group = new BasicDBObject("$group", groupFields)
+    val output = collection.aggregate(`match`, group)
+    var result: Number = 0
+    if (output.getCommandResult.ok && output.getCommandResult.containsField("result")) {
+      val resultAggregate: DBObject = (output.getCommandResult.get("result").asInstanceOf[DBObject]).get("0").asInstanceOf[DBObject]
+      if (resultAggregate != null && resultAggregate.containsField("date")) {
+        result = (resultAggregate.get("date").asInstanceOf[Number])
+      }
+    }
+
+    assert(result.isInstanceOf[Double])
+    assert(3.5D === result)
+  }
+
   test("Fongo should handle sum of field") {
     val list = Util.list("p0", "p1")
     val `match` = new BasicDBObject("$match", new BasicDBObject("myId", new BasicDBObject("$in", list)))
