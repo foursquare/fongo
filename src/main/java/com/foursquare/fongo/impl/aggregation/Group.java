@@ -6,6 +6,7 @@ import com.mongodb.DBCollection;
 import com.mongodb.DBObject;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -47,8 +48,10 @@ public class Group extends PipelineKeyword {
     DBObject group = (DBObject) object.get(getKeyword());
 
     Object id = ((DBObject) object.get(getKeyword())).get("_id");
+    LOG.info("group() for _id : {}", id);
     // Try to group in the mapping.
     Map<DBObject, Mapping> mapping = createMapping(coll, id);
+    LOG.info("group() for _id : {}, mapping size : {}", id, mapping.size());
 
     for (Map.Entry<String, Object> entry : ((Set<Map.Entry<String, Object>>) group.toMap().entrySet())) {
       String key = entry.getKey();
@@ -88,8 +91,10 @@ public class Group extends PipelineKeyword {
       }
     }
     coll = dropAndInsert(coll, new ArrayList<DBObject>());
+
     for (Map.Entry<DBObject, Mapping> entry : mapping.entrySet()) {
       coll.insert(entry.getValue().result);
+      entry.getValue().collection.drop();
     }
 
     LOG.debug("group() : {} result : {}", object, mapping);
@@ -107,9 +112,19 @@ public class Group extends PipelineKeyword {
     Map<DBObject, Mapping> mapping = new HashMap<DBObject, Mapping>();
     List<DBObject> objects = coll.find().toArray();
     for (DBObject dbObject : objects) {
-      DBObject key = keyForId(id, dbObject);
-      if (!mapping.containsKey(key)) {
-        mapping.put(key, new Mapping(key, createAndInsert(coll.find(criteriaForId(id, dbObject)).toArray()), Util.clone(key)));
+      DBObject criteria = criteriaForId(id, dbObject);
+      if (!mapping.containsKey(criteria)) {
+        // Return all object we can group
+        List<DBObject> newCollection = coll.find(criteria).toArray();
+        // Delete them from collection (optim for laaaaaarge collection)
+        for (DBObject o : newCollection) {
+          coll.remove(new BasicDBObject("_id", o.get("_id")));
+        }
+        // Generate key
+        DBObject key = keyForId(id, dbObject);
+        // Save into mapping
+        mapping.put(criteria, new Mapping(key, createAndInsert(newCollection), Util.clone(key)));//TODO extract
+        LOG.trace("createMapping() new criteria : {}", criteria);
       }
     }
     return mapping;
@@ -125,15 +140,15 @@ public class Group extends PipelineKeyword {
   private DBObject keyForId(Object id, DBObject dbObject) {
     DBObject result = new BasicDBObject();
     if (id instanceof DBObject) {
-      // TODO
-    } else if (id != null) {
-      String field = id.toString();
-      if (id instanceof String) {
-        if (id.toString().startsWith("$")) {
-          field = id.toString().substring(1);
-        }
+      //ex: { "state" : "$state" , "city" : "$city"}
+      DBObject subKey = new BasicDBObject();
+      for (Map.Entry<String, Object> entry : (Set<Map.Entry<String, Object>>) ((DBObject) id).toMap().entrySet()) {
+        subKey.put(entry.getKey(), Util.extractField(dbObject, fieldName(entry.getValue()))); // TODO : hierarchical, like "state" : {bar:"$foo"}
       }
-      result.put("_id", dbObject.get(field));
+      result.put("_id", subKey);
+    } else if (id != null) {
+      String field = fieldName(id);
+      result.put("_id", Util.extractField(dbObject, field));
     } else {
       result.put("_id", null);
     }
@@ -144,18 +159,26 @@ public class Group extends PipelineKeyword {
   private DBObject criteriaForId(Object id, DBObject dbObject) {
     DBObject result = new BasicDBObject();
     if (id instanceof DBObject) {
+      for (Map.Entry<String, Object> entry : (Set<Map.Entry<String, Object>>) ((DBObject) id).toMap().entrySet()) {
+        result.put(entry.getKey(), Util.extractField(dbObject, fieldName(entry.getValue()))); // TODO : hierarchical, like "state" : {bar:"$foo"}
+      }
       // TODO
     } else if (id != null) {
-      String field = id.toString();
-      if (id instanceof String) {
-        if (id.toString().startsWith("$")) {
-          field = id.toString().substring(1);
-        }
-      }
-      result.put(field, dbObject.get(field));
+      String field = fieldName(id);
+      result.put(field, Util.extractField(dbObject, field));
     }
     LOG.debug("criteriaForId() id:{}, dbObject:{}, result:{}", id, dbObject, result);
     return result;
+  }
+
+  private String fieldName(Object name) {
+    String field = name.toString();
+    if (name instanceof String) {
+      if (name.toString().startsWith("$")) {
+        field = name.toString().substring(1);
+      }
+    }
+    return field;
   }
 
   /**

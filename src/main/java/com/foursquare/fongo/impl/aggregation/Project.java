@@ -71,8 +71,9 @@ public class Project extends PipelineKeyword {
       }
 
       // Two pass to remove the fields who are not wanted.
-      // In first pass, we handle $bar.foo to renamed, but $bar still exist.
+      // In first pass, we handle $bar.foo to be renamed, but $bar still exist.
       // Now we remove it.
+      // TODO : if $bar is wanted, is still removed.. to fix ?
       for (Map.Entry<String, String> entry : renamedFields.entrySet()) {
         if (Util.containsField(renamed, entry.getKey())) {
           // Handle complex case like $bar.foo

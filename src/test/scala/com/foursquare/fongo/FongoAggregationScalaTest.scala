@@ -2,10 +2,8 @@ package com.foursquare.fongo
 
 import _root_.com.foursquare.fongo.impl.Util
 import _root_.com.mongodb._
-import org.scalatest._
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-import java.util.UUID
 
 // TODO : sum of double value ($sum : 1.3)
 // sum of "1" (String) must return 0.

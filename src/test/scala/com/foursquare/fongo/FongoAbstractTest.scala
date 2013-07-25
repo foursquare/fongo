@@ -8,7 +8,7 @@ trait FongoAbstractTest extends FunSuite with BeforeAndAfter {
   // If you want to test against real world (a real mongodb client).
   def realWorld: Boolean
 
-  def init(): Unit = {}
+  def init(): Unit
 
   var collection: DBCollection = _
 
