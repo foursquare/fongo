@@ -853,7 +853,28 @@ public class FongoTest {
     assertEquals("The command should have been succesful", true, result.get("ok"));
     assertEquals("The count should be in the result", 2L, result.get("n"));
   }
-  
+
+  @Test
+  public void testCountdWithSkipLimitWithSort() {
+    Fongo fongo = newFongo();
+    DB db = fongo.getDB("db");
+    DBCollection collection = db.getCollection("coll");
+    collection.insert(new BasicDBObject("_id", 0).append("date", 5L));
+    collection.insert(new BasicDBObject("_id", -1).append("date", 5L));
+    collection.insert(new BasicDBObject("_id", 1).append("date", 5L).append("str", "1"));
+    collection.insert(new BasicDBObject("_id", 2).append("date", 6L).append("str", "2"));
+    collection.insert(new BasicDBObject("_id", 3).append("date", 7L).append("str", "3"));
+    collection.insert(new BasicDBObject("_id", 4).append("date", 8L).append("str", "4"));
+
+    QueryBuilder builder = new QueryBuilder().start("_id").greaterThanEquals(1).lessThanEquals(5).and("str").in(Arrays.asList("1", "2", "3", "4"));
+
+    DBObject countCmd = new BasicDBObject("count", "coll").append("limit", 2).append("skip", 4).append("query", builder.get());
+    CommandResult result = db.command(countCmd);
+    // Without sort.
+    assertEquals(0L, result.get("n"));
+  }
+
+
   @Test
   public void testExplicitlyAddedObjectIdNotNew() {
     Fongo fongo = newFongo();
@@ -923,7 +944,6 @@ public class FongoTest {
     result.put("newkey", 1);
     assertEquals("should not have newkey", new BasicDBObject("_id", 1), collection.findOne());
   }
-
 
   @Test(timeout = 7000)
   public void testMultiThreadInsert() throws Exception {
