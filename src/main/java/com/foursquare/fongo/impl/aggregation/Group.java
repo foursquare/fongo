@@ -14,8 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * User: william
- * Date: 24/07/13
+ * {@see http://docs.mongodb.org/manual/reference/aggregation/group/}
  */
 @ThreadSafe
 public class Group extends PipelineKeyword {
@@ -41,25 +40,15 @@ public class Group extends PipelineKeyword {
   private Group() {
   }
 
+  // $group : { _id : "0", "$max":"$date" }
+  // $group: { _id: "$department", average: { $avg: "$amount" } }
+  // $group : { _id : { state : "$state", city : "$city" },
   public DBCollection apply(DBCollection coll, DBObject object) {
     DBObject group = (DBObject) object.get(getKeyword());
-    // $group : { _id : "0", "$max":"$date" }
-    // $group: { _id: "$department", average: { $avg: "$amount" } }
-//    List<DBObject> results = new ArrayList<DBObject>();
-    // { _id : { state : "$state", city : "$city" },
 
     Object id = ((DBObject) object.get(getKeyword())).get("_id");
     // Try to group in the mapping.
-    Map<DBObject, Mapping> mapping = new HashMap<DBObject, Mapping>();
-    {
-      List<DBObject> objects = coll.find().toArray();
-      for (DBObject dbObject : objects) {
-        DBObject key = keyForId(id, dbObject);
-        if (!mapping.containsKey(key)) {
-          mapping.put(key, new Mapping(key, createAndInsert(coll.find(criteriaForId(id, dbObject)).toArray()), Util.clone(key)));
-        }
-      }
-    }
+    Map<DBObject, Mapping> mapping = createMapping(coll, id);
 
     for (Map.Entry<String, Object> entry : ((Set<Map.Entry<String, Object>>) group.toMap().entrySet())) {
       String key = entry.getKey();
@@ -107,6 +96,32 @@ public class Group extends PipelineKeyword {
     return coll;
   }
 
+  /**
+   * Create mapping. Group result with a 'key'.
+   *
+   * @param coll
+   * @param id
+   * @return
+   */
+  private Map<DBObject, Mapping> createMapping(DBCollection coll, Object id) {
+    Map<DBObject, Mapping> mapping = new HashMap<DBObject, Mapping>();
+    List<DBObject> objects = coll.find().toArray();
+    for (DBObject dbObject : objects) {
+      DBObject key = keyForId(id, dbObject);
+      if (!mapping.containsKey(key)) {
+        mapping.put(key, new Mapping(key, createAndInsert(coll.find(criteriaForId(id, dbObject)).toArray()), Util.clone(key)));
+      }
+    }
+    return mapping;
+  }
+
+  /**
+   * Get the key from the "_id".
+   *
+   * @param id
+   * @param dbObject
+   * @return
+   */
   private DBObject keyForId(Object id, DBObject dbObject) {
     DBObject result = new BasicDBObject();
     if (id instanceof DBObject) {

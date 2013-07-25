@@ -12,21 +12,11 @@ import java.util.UUID
 
 // Handle $group { _id = 0}
 @RunWith(classOf[JUnitRunner])
-class FongoAggregationScalaTest extends FunSuite with BeforeAndAfter {
+class FongoAggregationScalaTest extends FongoAbstractTest {
   // If you want to test against real world (a real mongodb client).
   val realWorld = !true
 
-  var collection: DBCollection = _
-
-  before {
-    if (realWorld) {
-      val mongo = new MongoClient("localhost")
-      collection = mongo.getDB(UUID.randomUUID().toString).createCollection("myCollection", null)
-    } else {
-      val fongo = new Fongo("InMemoryMongo")
-      collection = fongo.getDB("myDB").createCollection("myCollection", null)
-    }
-
+  override def init = {
     collection.insert(new BasicDBObject("myId", "p0").append("date", 1))
     collection.insert(new BasicDBObject("myId", "p0").append("date", 2))
     collection.insert(new BasicDBObject("myId", "p0").append("date", 3))
@@ -39,14 +29,6 @@ class FongoAggregationScalaTest extends FunSuite with BeforeAndAfter {
     collection.insert(new BasicDBObject("myId", "p4"))
   }
 
-  after {
-    if (realWorld) {
-      collection.getDB().dropDatabase();
-    } else {
-      collection.drop();
-    }
-  }
-
   test("Fongo should handle unknown pipeline") {
     val badsort = new BasicDBObject("_id", 1)
 
@@ -57,7 +39,6 @@ class FongoAggregationScalaTest extends FunSuite with BeforeAndAfter {
 
     assert(thrown.getCode === 16436)
   }
-
 
   test("Fongo should handle min") {
     val list = Util.list("p0", "p1")
@@ -255,8 +236,7 @@ class FongoAggregationScalaTest extends FunSuite with BeforeAndAfter {
   }
 
   test("Fongo should handle sum of field") {
-    val list = Util.list("p0", "p1")
-    val `match` = new BasicDBObject("$match", new BasicDBObject("myId", new BasicDBObject("$in", list)))
+    val `match` = new BasicDBObject("$match", new BasicDBObject("myId", new BasicDBObject("$in", Util.list("p0", "p1"))))
     val groupFields = new BasicDBObject("_id", null)
     groupFields.put("date", new BasicDBObject("$sum", "$date"))
     val group = new BasicDBObject("$group", groupFields)
@@ -272,9 +252,9 @@ class FongoAggregationScalaTest extends FunSuite with BeforeAndAfter {
     assert(21 === result)
   }
 
+  // Group with "simple _id"
   test("Fongo should handle sum of number") {
-    val list = Util.list("p0", "p1")
-    val `match` = new BasicDBObject("$match", new BasicDBObject("myId", new BasicDBObject("$in", list)))
+    val `match` = new BasicDBObject("$match", new BasicDBObject("myId", new BasicDBObject("$in", Util.list("p0", "p1"))))
     val groupFields = new BasicDBObject("_id", null)
     groupFields.put("sum", new BasicDBObject("$sum", 2))
     val group = new BasicDBObject("$group", groupFields)
@@ -283,7 +263,6 @@ class FongoAggregationScalaTest extends FunSuite with BeforeAndAfter {
     assert(output.getCommandResult.ok)
     assert(output.getCommandResult.containsField("result"))
 
-    println(output.getCommandResult)
     val resultAggregate: DBObject = (output.getCommandResult.get("result").asInstanceOf[DBObject]).get("0").asInstanceOf[DBObject]
     if (resultAggregate != null && resultAggregate.containsField("sum")) {
       result = (resultAggregate.get("sum").asInstanceOf[Number])
@@ -292,20 +271,18 @@ class FongoAggregationScalaTest extends FunSuite with BeforeAndAfter {
     assert(14 === result)
   }
 
+  // Group with "simple _id"
   test("Fongo should handle sum of field grouped by myId") {
     val `match` = new BasicDBObject("$match", new BasicDBObject("myId", new BasicDBObject("$in", Util.list("p0", "p1"))))
     val groupFields = new BasicDBObject("_id", "$myId")
-    val sort = new BasicDBObject("$sort", new BasicDBObject("_id", 1))
     groupFields.put("count", new BasicDBObject("$sum", "$date"))
+    val sort = new BasicDBObject("$sort", new BasicDBObject("_id", 1))
     val group = new BasicDBObject("$group", groupFields)
 
     val output = collection.aggregate(`match`, group, sort)
     assert(output.getCommandResult.ok)
     assert(output.getCommandResult.containsField("result"))
 
-    println("commandResult : " + output.getCommandResult)
-
-    // commandResult : { "serverUsed" : "localhost/127.0.0.1:27017" , "result" : [ { "_id" : "p0" , "count" : 15} , { "_id" : "p1" , "count" : 6}] , "ok" : 1.0}
     val resultAggregate = (output.getCommandResult.get("result").asInstanceOf[BasicDBList])
     assert(resultAggregate.size == 2)
     assert(resultAggregate.get(0).asInstanceOf[DBObject].get("_id") === "p0")
@@ -439,7 +416,6 @@ class FongoAggregationScalaTest extends FunSuite with BeforeAndAfter {
     val output = intercept[MongoException] {
       collection.aggregate(matching, project, unwind)
     }
-    println(output)
     assert(output.getCode === 15978)
     //    assert(output.getMessage === "exception: $unwind:  value at end of field path must be an array")
   }
