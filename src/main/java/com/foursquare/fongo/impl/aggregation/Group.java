@@ -48,10 +48,9 @@ public class Group extends PipelineKeyword {
     DBObject group = (DBObject) object.get(getKeyword());
 
     Object id = ((DBObject) object.get(getKeyword())).get("_id");
-    LOG.info("group() for _id : {}", id);
+    LOG.debug("group() for _id : {}", id);
     // Try to group in the mapping.
     Map<DBObject, Mapping> mapping = createMapping(coll, id);
-    LOG.info("group() for _id : {}, mapping size : {}", id, mapping.size());
 
     for (Map.Entry<String, Object> entry : ((Set<Map.Entry<String, Object>>) group.toMap().entrySet())) {
       String key = entry.getKey();
@@ -97,7 +96,7 @@ public class Group extends PipelineKeyword {
       entry.getValue().collection.drop();
     }
 
-    LOG.debug("group() : {} result : {}", object, mapping);
+    LOG.info("group() : {} result : {}", object, mapping);
     return coll;
   }
 

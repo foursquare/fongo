@@ -1,6 +1,7 @@
 package com.foursquare.fongo.impl.aggregation;
 
 import com.foursquare.fongo.impl.Util;
+import com.mongodb.BasicDBObject;
 import com.mongodb.DBCollection;
 import com.mongodb.DBObject;
 import java.util.ArrayList;
@@ -27,8 +28,6 @@ public class Project extends PipelineKeyword {
 
   /**
    * Simple {@see http://docs.mongodb.org/manual/reference/aggregation/project/#pipe._S_project}
-   * <p/>
-   * TODO handle {bar : "$foo"}
    *
    * @param coll
    * @param object
@@ -40,56 +39,73 @@ public class Project extends PipelineKeyword {
 
     DBObject project = (DBObject) object.get(getKeyword());
     DBObject projectResult = Util.clone(project);
+
+    // Extract fields who will be renamed.
     Map<String, String> renamedFields = new HashMap<String, String>();
     for (Map.Entry<String, Object> entry : (Set<Map.Entry<String, Object>>) project.toMap().entrySet()) {
-      if (entry.getValue() != null && entry.getValue() instanceof String && entry.getValue().toString().startsWith("$")) {
-        String realValue = entry.getValue().toString().substring(1);
-        renamedFields.put(realValue, entry.getKey());
-        projectResult.removeField(entry.getKey());
-
-        // Handle complex case like $bar.foo with a little trick.
-        if (realValue.contains(".")) {
-          projectResult.put(realValue.substring(0, realValue.indexOf('.')), 1);
-        } else {
-          projectResult.put(realValue, 1);
-        }
+      if (entry.getValue() != null) {
+        createMapping(projectResult, renamedFields, entry, "");
       }
     }
 
-    LOG.debug("project() of {}", projectResult);
+    LOG.info("project() of {} renamed {}", projectResult, renamedFields); // TODO
     List<DBObject> objects = coll.find(null, projectResult).toArray();
 
     // Rename fields
     List<DBObject> objectsResults = new ArrayList<DBObject>(objects.size());
     for (DBObject result : objects) {
-      DBObject renamed = Util.clone(result);
+      DBObject renamed = new BasicDBObject();
       for (Map.Entry<String, String> entry : renamedFields.entrySet()) {
-        if (Util.containsField(renamed, entry.getKey())) {
-          Object value = Util.extractField(renamed, entry.getKey());
-          renamed.put(entry.getValue(), value);
-        }
-      }
-
-      // Two pass to remove the fields who are not wanted.
-      // In first pass, we handle $bar.foo to be renamed, but $bar still exist.
-      // Now we remove it.
-      // TODO : if $bar is wanted, is still removed.. to fix ?
-      for (Map.Entry<String, String> entry : renamedFields.entrySet()) {
-        if (Util.containsField(renamed, entry.getKey())) {
-          // Handle complex case like $bar.foo
-          if (entry.getKey().contains(".")) {
-            renamed.removeField(entry.getKey().substring(0, entry.getKey().indexOf('.')));
-          } else {
-            renamed.removeField(entry.getKey());
-          }
+        if (Util.containsField(result, entry.getKey())) {
+          Object value = Util.extractField(result, entry.getKey());
+          Util.putValue(renamed, entry.getValue(), value);
         }
       }
 
       objectsResults.add(renamed);
     }
     coll = dropAndInsert(coll, objectsResults);
-    LOG.debug("project() : {}, result : {}", object, objects);
+    LOG.info("project() : {}, result : {}", object, objects);
     return coll;
+  }
+
+  /**
+   * Create the mapping and the criteria for the collection.
+   *
+   * @param projectResult find criteria.
+   * @param renamedFields mapping from criteria to project structure.
+   * @param entry         from a DBObject.
+   * @param namespace     "" if empty, "fieldname." elsewhere.
+   */
+  private void createMapping(DBObject projectResult, Map<String, String> renamedFields, Map.Entry<String, Object> entry, String namespace) {
+    // Simple case : nb : "$pop"
+    if (entry.getValue() instanceof String) {
+      String value = entry.getValue().toString();
+      if (value.startsWith("$")) {
+
+        // Extract filename from projection.
+        String fieldName = entry.getValue().toString().substring(1);
+        // Prepare for renaming.
+        renamedFields.put(fieldName, namespace + entry.getKey());
+        projectResult.removeField(entry.getKey());
+
+        // Handle complex case like $bar.foo with a little trick.
+        if (fieldName.contains(".")) {
+          projectResult.put(fieldName.substring(0, fieldName.indexOf('.')), 1);
+        } else {
+          projectResult.put(fieldName, 1);
+        }
+      } else {
+        renamedFields.put(value, value);
+      }
+    } else if (entry.getValue() instanceof DBObject) {
+      // biggestCity:  { name: "$biggestCity",  pop: "$biggestPop" }
+      DBObject value = (DBObject) entry.getValue();
+      projectResult.removeField(entry.getKey());
+      for (Map.Entry<String, Object> subentry : (Set<Map.Entry<String, Object>>) value.toMap().entrySet()) {
+        createMapping(projectResult, renamedFields, subentry, namespace + entry.getKey() + ".");
+      }
+    }
   }
 
   @Override

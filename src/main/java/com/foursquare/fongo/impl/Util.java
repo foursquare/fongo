@@ -74,19 +74,25 @@ public class Util {
    * Put a value in a {@link DBObject} with hierarchy.
    *
    * @param dbObject object to modify
-   * @param field    field with dot '.' to match hierarchy.
+   * @param path     field with dot '.' to match hierarchy.
    * @param value    new value to set.
    */
-  public static void putValue(DBObject dbObject, String field, Object value) {
+  public static void putValue(DBObject dbObject, String path, Object value) {
     if (dbObject == null) {
       return; // NPE ?
     }
-    int indexDot = field.indexOf('.');
+    int indexDot = path.indexOf('.');
     if (indexDot > 0) {
-      String subField = field.substring(indexDot + 1);
-      putValue((DBObject) dbObject.get(field.substring(0, indexDot)), subField, value);
+      String field = path.substring(0, indexDot);
+      String nextPath = path.substring(indexDot + 1);
+
+      // Create DBObject if necessary
+      if (!dbObject.containsField(field)) {
+        dbObject.put(field, new BasicDBObject());
+      }
+      putValue((DBObject) dbObject.get(field), nextPath, value);
     } else {
-      dbObject.put(field, value);
+      dbObject.put(path, value);
     }
   }
 
