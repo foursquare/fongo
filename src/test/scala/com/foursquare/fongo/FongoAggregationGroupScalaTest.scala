@@ -29,31 +29,30 @@ class FongoAggregationGroupScalaTest extends FongoAbstractTest {
   }
 
   // see http://stackoverflow.com/questions/11418985/mongodb-aggregation-framework-group-over-multiple-values
-  ignore("Fongo should handle 'States with Populations Over 10 Million'") {
+  test("Fongo should handle 'States with Populations Over 5 Million'") {
     val pipeline = JSON.parse(
       """
         |[{ $group :
         |                         { _id : "$state",
         |                           totalPop : { $sum : "$pop" } } },
-        |{ $match : {totalPop : { $gte : 10000000 } } },
+        |{ $match : {totalPop : { $gte : 5000000 } } },
         |{ $sort : {_id:1}}
         |]
       """.stripMargin).asInstanceOf[java.util.List[DBObject]]
 
-    println(pipeline)
     val output = collection.aggregate(pipeline(0), pipeline(1), pipeline(2))
     assert(output.getCommandResult.ok)
     assert(output.getCommandResult.containsField("result"))
 
+    println(output.getCommandResult)
     val resultAggregate = (output.getCommandResult.get("result").asInstanceOf[java.util.List[DBObject]])
-    assert(resultAggregate.size === 7)
-    assert(resultAggregate.get(0).get("_id") === "CA")
-    assert(resultAggregate.get(0).get("totalPop") === 29760021)
-    assert(resultAggregate.get(1).get("_id") === "FL")
-    assert(resultAggregate.get(1).get("totalPop") === 12937926)
-    assert(resultAggregate.get(2).get("_id") === "IL")
-    assert(resultAggregate.get(2).get("totalPop") === 11430602)
-    println(resultAggregate)
+    assert(resultAggregate.size === 3)
+    assert(resultAggregate.get(0).get("_id") === "MA")
+    assert(resultAggregate.get(0).get("totalPop") === 6016425)
+    assert(resultAggregate.get(1).get("_id") === "NJ")
+    assert(resultAggregate.get(1).get("totalPop") === 7730188)
+    assert(resultAggregate.get(2).get("_id") === "NY")
+    assert(resultAggregate.get(2).get("totalPop") === 12950936)
   }
 
 
@@ -85,11 +84,11 @@ class FongoAggregationGroupScalaTest extends FongoAbstractTest {
 
     println(output.getCommandResult)
     val resultAggregate = (output.getCommandResult.get("result").asInstanceOf[java.util.List[DBObject]])
-    assert(resultAggregate.size === 51)
-    assert("ALBUQUERQUE" === Util.extractField(resultAggregate(0), "biggestCity.name"))
-    assert(449584 === Util.extractField(resultAggregate(0), "biggestCity.pop"))
-    assert("ALGODONES" === Util.extractField(resultAggregate(0), "smallestCity.name"))
-    assert(0 === Util.extractField(resultAggregate(0), "smallestCity.pop"))
+    assert(resultAggregate.size === 8)
+    assert("BRIDGEPORT" === Util.extractField(resultAggregate(0), "biggestCity.name"))
+    assert(141638 === Util.extractField(resultAggregate(0), "biggestCity.pop"))
+    assert("EAST KILLINGLY" === Util.extractField(resultAggregate(0), "smallestCity.name"))
+    assert(25 === Util.extractField(resultAggregate(0), "smallestCity.pop"))
     assert("WORCESTER" === Util.extractField(resultAggregate.last, "biggestCity.name"))
     assert(169856 === Util.extractField(resultAggregate.last, "biggestCity.pop"))
     assert("BUCKLAND" === Util.extractField(resultAggregate.last, "smallestCity.name"))

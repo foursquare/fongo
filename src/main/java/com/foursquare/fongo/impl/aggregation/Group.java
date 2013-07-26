@@ -23,7 +23,6 @@ public class Group extends PipelineKeyword {
 
   public static final Group INSTANCE = new Group();
 
-
   static class Mapping {
     private final DBObject key;
 
@@ -41,9 +40,6 @@ public class Group extends PipelineKeyword {
   private Group() {
   }
 
-  // $group : { _id : "0", "$max":"$date" }
-  // $group: { _id: "$department", average: { $avg: "$amount" } }
-  // $group : { _id : { state : "$state", city : "$city" },
   public DBCollection apply(DBCollection coll, DBObject object) {
     DBObject group = (DBObject) object.get(getKeyword());
 
