@@ -15,12 +15,12 @@ import java.util.*;
 /**
  * fongo override of com.mongodb.DBCollection
  * you shouldn't need to use this class directly
- * 
+ *
  * @author jon
  */
 public class FongoDBCollection extends DBCollection {
   final static Logger LOG = LoggerFactory.getLogger(FongoDBCollection.class);
-  
+
   final static String ID_KEY = "_id";
   private final FongoDB fongoDb;
   // LinkedHashMap maintains insertion order
@@ -30,7 +30,7 @@ public class FongoDBCollection extends DBCollection {
   private final UpdateEngine updateEngine;
   private final boolean nonIdCollection;
   private final ObjectComparator objectComparator;
-  
+
   public FongoDBCollection(FongoDB db, String name) {
     super(db, name);
     this.fongoDb = db;
@@ -39,32 +39,32 @@ public class FongoDBCollection extends DBCollection {
     this.updateEngine = new UpdateEngine();
     this.objectComparator = new ObjectComparator();
   }
-  
+
   class ObjectComparator implements Comparator {
     @Override
     public int compare(Object o1, Object o2) {
       return expressionParser.compareObjects(o1, o2);
     }
   }
-  
+
   private CommandResult insertResult(int updateCount) {
     CommandResult result = fongoDb.okResult();
     result.put("n", updateCount);
     return result;
   }
-  
+
   private CommandResult updateResult(int updateCount, boolean updatedExisting) {
     CommandResult result = fongoDb.okResult();
     result.put("n", updateCount);
     result.put("updatedExisting", updatedExisting);
     return result;
   }
-  
+
   @Override
   public synchronized WriteResult insert(DBObject[] arr, WriteConcern concern, DBEncoder encoder) throws MongoException {
     return insert(Arrays.asList(arr), concern, encoder);
   }
-  
+
   @Override
   public synchronized WriteResult insert(List<DBObject> toInsert, WriteConcern concern, DBEncoder encoder) {
     for (DBObject obj : toInsert) {
@@ -81,12 +81,12 @@ public class FongoDBCollection extends DBCollection {
           // TODO(jon) log          
         }
       } else {
-        putSizeCheck(id, obj);        
+        putSizeCheck(id, obj);
       }
     }
     return new WriteResult(insertResult(toInsert.size()), concern);
   }
-  
+
   boolean enforceDuplicates(WriteConcern concern) {
     return !(WriteConcern.NONE.equals(concern) || WriteConcern.NORMAL.equals(concern));
   }
@@ -110,7 +110,7 @@ public class FongoDBCollection extends DBCollection {
     }
     objects.put(id, obj);
   }
-  
+
   public DBObject filterLists(DBObject dbo){
     if (dbo == null) {
       return null;
@@ -215,10 +215,10 @@ public class FongoDBCollection extends DBCollection {
     }
     return new WriteResult(updateResult(updatedDocuments, updatedExisting), concern);
   }
-  
 
-  
-  
+
+
+
   public List idsIn(DBObject query) {
     Object idValue = query.get(ID_KEY);
     if (idValue == null || query.keySet().size() > 1) {
@@ -226,7 +226,7 @@ public class FongoDBCollection extends DBCollection {
     } else if (idValue instanceof DBObject ){
       DBObject idDbObject = (DBObject)idValue;
       List inList = (List)idDbObject.get(ExpressionParser.IN);
-      
+
       // I think sorting the inputed keys is a rough
       // approximation of how mongo creates the bounds for walking
       // the index.  It has the desired affect of returning results
@@ -240,14 +240,14 @@ public class FongoDBCollection extends DBCollection {
       if (!isNotUpdateCommand(idValue)){
         return Collections.emptyList();
       }
-    } 
+    }
     return Collections.singletonList(idValue);
   }
 
   protected  BasicDBObject createUpsertObject(DBObject q) {
     BasicDBObject newObject = new BasicDBObject();
     List idsIn = idsIn(q);
-    
+
     if (!idsIn.isEmpty()){
       newObject.put(ID_KEY, idsIn.get(0));
     } else {
@@ -290,7 +290,7 @@ public class FongoDBCollection extends DBCollection {
     int updatedDocuments = 0;
     if (!idList.isEmpty()) {
       for (Object id : idList){
-        objects.remove(id);        
+        objects.remove(id);
       }
       updatedDocuments = idList.size();
     } else {
@@ -332,17 +332,17 @@ public class FongoDBCollection extends DBCollection {
     Iterator<DBObject> resultIterator = __find(ref, fields, 0, 1, -1, 0, readPref, null);
     return resultIterator.hasNext() ? resultIterator.next() : null;
   }
-  
+
   /**
    * note: encoder, decoder, readPref, options are ignored
    */
   @Override
   Iterator<DBObject> __find(DBObject ref, DBObject fields, int numToSkip, int batchSize, int limit, int options,
       ReadPreference readPref, DBDecoder decoder, DBEncoder encoder) {
-    
+
     return __find(ref, fields, numToSkip, batchSize, limit, options, readPref, decoder);
   }
-  
+
   /**
    * note: decoder, readPref, options are ignored
    */
@@ -354,10 +354,10 @@ public class FongoDBCollection extends DBCollection {
       LOG.debug("find({}, {}).skip({}).limit({})", new Object[] { ref, fields, numToSkip, limit, });
       LOG.debug("the db looks like {}", objects);
     }
-    
+
     List idList = idsIn(ref);
     List<DBObject> results = new ArrayList<DBObject>();
-    
+
     if (!idList.isEmpty()) {
       if (LOG.isDebugEnabled()){
         LOG.debug("find using id index only {}", idList);
@@ -365,7 +365,7 @@ public class FongoDBCollection extends DBCollection {
       for (Object id : idList){
         DBObject result = objects.get(id);
         if (result != null){
-          results.add(result);          
+          results.add(result);
         }
       }
     } else {
@@ -374,7 +374,7 @@ public class FongoDBCollection extends DBCollection {
         orderby = (DBObject)ref.get("$orderby");
         ref = (DBObject)ref.get("$query");
       }
-      
+
       Filter filter = expressionParser.buildFilter(ref);
       int foundCount = 0;
       int upperLimit = Integer.MAX_VALUE;
@@ -393,36 +393,36 @@ public class FongoDBCollection extends DBCollection {
         }
       }
     }
-    
+
     if (fields != null && !fields.keySet().isEmpty()) {
       LOG.info("applying projections {}", fields);
       results = applyProjections(results, fields);
     } else {
       results = copyResults(results);
     }
-    
+
     LOG.debug("found results {}", results);
 
     return results.iterator();
   }
-  
+
   private List<DBObject> copyResults(final List<DBObject> results) {
     final List<DBObject> ret = new ArrayList<DBObject>(results.size());
-    
+
     for (DBObject result : results) {
       ret.add(Util.clone(result));
     }
-    
+
     return ret;
   }
 
   private List<DBObject> applyProjections(List<DBObject> results, DBObject projection) {
     final List<DBObject> ret = new ArrayList<DBObject>(results.size());
-    
+
     for (DBObject result : results) {
       ret.add(applyProjections(result, projection));
     }
-    
+
     return ret;
   }
 
@@ -504,7 +504,7 @@ public class FongoDBCollection extends DBCollection {
 
               List<Object> o1list = expressionParser.getEmbeddedValues(path, o1);
               List<Object> o2list = expressionParser.getEmbeddedValues(path, o2);
-              
+
               int compareValue = expressionParser.compareLists(o1list, o2list) * sortDirection;
               if (compareValue != 0){
                 return compareValue;
@@ -521,7 +521,7 @@ public class FongoDBCollection extends DBCollection {
     return objectsToSearch;
   }
 
-  
+
   @Override
   public synchronized long getCount(DBObject query, DBObject fields, long limit, long skip ) {
     filterLists(query);
@@ -534,15 +534,15 @@ public class FongoDBCollection extends DBCollection {
     int seen = 0;
     for (Iterator<DBObject> iter = objects.values().iterator(); iter.hasNext() && count <= upperLimit;) {
       DBObject value = iter.next();
-      if (seen++ >= skip) {
-        if (filter.apply(value)){
+      if (filter.apply(value)) {
+        if (seen++ >= skip){
           count++;
         }
       }
     }
     return count;
   }
-  
+
   @Override
   public synchronized long getCount(DBObject query, DBObject fields, ReadPreference readPrefs){
     //as we're in memory we don't need to worry about readPrefs
@@ -585,7 +585,7 @@ public class FongoDBCollection extends DBCollection {
       return Util.clone(beforeObject);
     }
   }
-  
+
   @Override
   public synchronized List distinct(String key, DBObject query) {
     filterLists(query);
@@ -599,12 +599,12 @@ public class FongoDBCollection extends DBCollection {
     }
     return results;
   }
-  
+
   @Override
   public void dropIndexes(String name) throws MongoException {
     // do nothing
   }
-  
+
   @Override
   public void drop() {
     objects.clear();
