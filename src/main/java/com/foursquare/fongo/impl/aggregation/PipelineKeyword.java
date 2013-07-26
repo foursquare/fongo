@@ -14,6 +14,14 @@ public abstract class PipelineKeyword {
 
   protected static final DB fongo = new Fongo("aggregation_pipeline").getDB("pipeline");
 
+
+  /**
+   * Apply the keyword on the collection
+   *
+   * @param coll   collection to be processed (will be destroyed).
+   * @param object parameters for keyword.
+   * @return a new collection in result.
+   */
   public abstract DBCollection apply(DBCollection coll, DBObject object);
 
   /**

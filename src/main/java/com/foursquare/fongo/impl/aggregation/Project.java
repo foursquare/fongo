@@ -41,21 +41,22 @@ public class Project extends PipelineKeyword {
     DBObject projectResult = Util.clone(project);
 
     // Extract fields who will be renamed.
-    Map<String, String> renamedFields = new HashMap<String, String>();
+    Map<String, String> projectedFields = new HashMap<String, String>();
     for (Map.Entry<String, Object> entry : (Set<Map.Entry<String, Object>>) project.toMap().entrySet()) {
       if (entry.getValue() != null) {
-        createMapping(projectResult, renamedFields, entry, "");
+        createMapping(projectResult, projectedFields, entry, "");
       }
     }
 
-    LOG.info("project() of {} renamed {}", projectResult, renamedFields); // TODO
+    LOG.info("project() of {} renamed {}", projectResult, projectedFields); // TODO
     List<DBObject> objects = coll.find(null, projectResult).toArray();
+    LOG.info("project() of {} renamed {} on {}", projectResult, projectedFields, objects); // TODO
 
     // Rename fields
     List<DBObject> objectsResults = new ArrayList<DBObject>(objects.size());
     for (DBObject result : objects) {
       DBObject renamed = new BasicDBObject();
-      for (Map.Entry<String, String> entry : renamedFields.entrySet()) {
+      for (Map.Entry<String, String> entry : projectedFields.entrySet()) {
         if (Util.containsField(result, entry.getKey())) {
           Object value = Util.extractField(result, entry.getKey());
           Util.putValue(renamed, entry.getValue(), value);
@@ -73,20 +74,21 @@ public class Project extends PipelineKeyword {
    * Create the mapping and the criteria for the collection.
    *
    * @param projectResult find criteria.
-   * @param renamedFields mapping from criteria to project structure.
+   * @param projectedFields mapping from criteria to project structure.
    * @param entry         from a DBObject.
    * @param namespace     "" if empty, "fieldname." elsewhere.
    */
-  private void createMapping(DBObject projectResult, Map<String, String> renamedFields, Map.Entry<String, Object> entry, String namespace) {
+  private void createMapping(DBObject projectResult, Map<String, String> projectedFields, Map.Entry<String, Object> entry, String namespace) {
     // Simple case : nb : "$pop"
     if (entry.getValue() instanceof String) {
       String value = entry.getValue().toString();
       if (value.startsWith("$")) {
+        // Case { date: "$date"}
 
         // Extract filename from projection.
         String fieldName = entry.getValue().toString().substring(1);
         // Prepare for renaming.
-        renamedFields.put(fieldName, namespace + entry.getKey());
+        projectedFields.put(fieldName, namespace + entry.getKey());
         projectResult.removeField(entry.getKey());
 
         // Handle complex case like $bar.foo with a little trick.
@@ -96,15 +98,18 @@ public class Project extends PipelineKeyword {
           projectResult.put(fieldName, 1);
         }
       } else {
-        renamedFields.put(value, value);
+        projectedFields.put(value, value);
       }
     } else if (entry.getValue() instanceof DBObject) {
-      // biggestCity:  { name: "$biggestCity",  pop: "$biggestPop" }
+      // case : {biggestCity:  { name: "$biggestCity",  pop: "$biggestPop" }}
       DBObject value = (DBObject) entry.getValue();
       projectResult.removeField(entry.getKey());
       for (Map.Entry<String, Object> subentry : (Set<Map.Entry<String, Object>>) value.toMap().entrySet()) {
-        createMapping(projectResult, renamedFields, subentry, namespace + entry.getKey() + ".");
+        createMapping(projectResult, projectedFields, subentry, namespace + entry.getKey() + ".");
       }
+    } else {
+      // Case: {date : 1}
+      projectedFields.put(entry.getKey(), entry.getKey());
     }
   }
 

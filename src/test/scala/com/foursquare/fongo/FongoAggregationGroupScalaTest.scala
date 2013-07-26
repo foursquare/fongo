@@ -6,6 +6,7 @@ import _root_.com.mongodb.util.JSON
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import scala.collection.JavaConversions._
+import org.scalatest.ParallelTestExecution
 
 //import scala.collection.JavaConverters._
 
@@ -14,7 +15,7 @@ import scala.collection.JavaConversions._
 
 // Handle $group { _id = 0}
 @RunWith(classOf[JUnitRunner])
-class FongoAggregationGroupScalaTest extends FongoAbstractTest {
+class FongoAggregationGroupScalaTest extends FongoAbstractTest with ParallelTestExecution {
   // If you want to test against real world (a real mongodb client).
   val realWorld = !true
 
@@ -44,7 +45,6 @@ class FongoAggregationGroupScalaTest extends FongoAbstractTest {
     assert(output.getCommandResult.ok)
     assert(output.getCommandResult.containsField("result"))
 
-    println(output.getCommandResult)
     val resultAggregate = (output.getCommandResult.get("result").asInstanceOf[java.util.List[DBObject]])
     assert(resultAggregate.size === 3)
     assert(resultAggregate.get(0).get("_id") === "MA")
@@ -74,7 +74,7 @@ class FongoAggregationGroupScalaTest extends FongoAbstractTest {
         |        state: "$_id",
         |        biggestCity:  { name: "$biggestCity",  pop: "$biggestPop" },
         |        smallestCity: { name: "$smallestCity", pop: "$smallestPop" } } },
-        |    { $sort : { biggestCity : 1 } }
+        |    { $sort : { "biggestCity.name" : 1 } }
         |
         |]      """.stripMargin).asInstanceOf[java.util.List[DBObject]]
     val output = collection.aggregate(pipeline(0), pipeline(1), pipeline(2), pipeline(3), pipeline(4))
@@ -82,7 +82,6 @@ class FongoAggregationGroupScalaTest extends FongoAbstractTest {
     assert(output.getCommandResult.ok)
     assert(output.getCommandResult.containsField("result"))
 
-    println(output.getCommandResult)
     val resultAggregate = (output.getCommandResult.get("result").asInstanceOf[java.util.List[DBObject]])
     assert(resultAggregate.size === 8)
     assert("BRIDGEPORT" === Util.extractField(resultAggregate(0), "biggestCity.name"))

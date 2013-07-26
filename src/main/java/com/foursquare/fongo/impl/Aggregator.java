@@ -42,28 +42,29 @@ public class Aggregator {
    */
   public List<DBObject> computeResult() {
     DBCollection coll = fongoDB.createCollection(UUID.randomUUID().toString(), null);
-    coll.insert(this.fongoDBCollection.find().toArray());
+    try {
+      coll.insert(this.fongoDBCollection.find().toArray());
 
-    for (DBObject object : pipeline) {
-      boolean found = false;
-      for (PipelineKeyword keyword : keywords) {
-        if (keyword.canApply(object)) {
-          coll = keyword.apply(coll, object);
-          found = true;
-          break;
+      for (DBObject object : pipeline) {
+        boolean found = false;
+        for (PipelineKeyword keyword : keywords) {
+          if (keyword.canApply(object)) {
+            coll = keyword.apply(coll, object);
+            found = true;
+            break;
+          }
         }
+        if (!found) {
+          throw fongoDB.errorResult(16436, "exception: Unrecognized pipeline stage name: '" + object.keySet() + "'").getException();
+        }
+        // Not found : com.mongodb.CommandFailureException: { "serverUsed" : "localhost/127.0.0.1:27017" , "errmsg" : "exception: Unrecognized pipeline stage name: '_id'" , "code" : 16436 , "ok" : 0.0}
       }
-      if (!found) {
-        throw fongoDB.errorResult(16436, "exception: Unrecognized pipeline stage name: " + object.keySet()).getException();
-      }
-      // Not found : com.mongodb.CommandFailureException: { "serverUsed" : "localhost/127.0.0.1:27017" , "errmsg" : "exception: Unrecognized pipeline stage name: '_id'" , "code" : 16436 , "ok" : 0.0}
+
+      List<DBObject> result = coll.find().toArray();
+      LOG.debug("computeResult() : {}", result);
+      return result;
+    } finally {
+      coll.drop();
     }
-
-    List<DBObject> result = coll.find().toArray();
-    coll.drop();
-
-    LOG.debug("computeResult : {}", result);
-
-    return result;
   }
 }

@@ -3,6 +3,7 @@ package com.foursquare.fongo.impl.aggregation;
 import com.foursquare.fongo.impl.Util;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBCollection;
+import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -35,6 +36,15 @@ public class Group extends PipelineKeyword {
       this.collection = collection;
       this.result = result;
     }
+
+    @Override
+    public String toString() {
+      return "Mapping{" +
+          "key=" + key +
+          ", collection=" + collection +
+          ", result=" + result +
+          '}';
+    }
   }
 
   private Group() {
@@ -43,65 +53,65 @@ public class Group extends PipelineKeyword {
   public DBCollection apply(DBCollection coll, DBObject object) {
     DBObject group = (DBObject) object.get(getKeyword());
 
-    Object id = ((DBObject) object.get(getKeyword())).get("_id");
+    Object id = ((DBObject) object.get(getKeyword())).removeField("_id");
     LOG.debug("group() for _id : {}", id);
     // Try to group in the mapping.
     Map<DBObject, Mapping> mapping = createMapping(coll, id);
 
     for (Map.Entry<String, Object> entry : ((Set<Map.Entry<String, Object>>) group.toMap().entrySet())) {
       String key = entry.getKey();
-      if (!key.equals("_id")) {
-        Object value = entry.getValue();
-        if (value instanceof DBObject) {
-          DBObject objectValue = (DBObject) value;
-          for (Map.Entry<DBObject, Mapping> entryMapping : mapping.entrySet()) {
-            LOG.debug("group() key:{}", entryMapping.getKey());
-            DBCollection workColl = entryMapping.getValue().collection;
-            Object result = null;
-            boolean nullForced = false;
-            if (objectValue.containsField("$min")) {
-              result = minmax(workColl, objectValue.get("$min"), 1);
-            } else if (objectValue.containsField("$max")) {
-              result = minmax(workColl, objectValue.get("$max"), -1);
-            } else if (objectValue.containsField("$last")) {
-              result = firstlast(workColl, objectValue.get("$last"), false);
-              nullForced = true;
-            } else if (objectValue.containsField("$first")) {
-              result = firstlast(workColl, objectValue.get("$first"), true);
-              nullForced = true;
-            } else if (objectValue.containsField("$avg")) {
-              result = avg(workColl, objectValue.get("$avg"));
-            } else if (objectValue.containsField("$sum")) {
-              result = sum(workColl, objectValue.get("$sum"));
-            }
+      Object value = entry.getValue();
+      if (value instanceof DBObject) {
+        DBObject objectValue = (DBObject) value;
+        for (Map.Entry<DBObject, Mapping> entryMapping : mapping.entrySet()) {
+          DBCollection workColl = entryMapping.getValue().collection;
+          Object result = null;
+          boolean nullForced = false;
+          if (objectValue.containsField("$min")) {
+            result = minmax(workColl, objectValue.get("$min"), 1);
+          } else if (objectValue.containsField("$max")) {
+            result = minmax(workColl, objectValue.get("$max"), -1);
+          } else if (objectValue.containsField("$last")) {
+            result = firstlast(workColl, objectValue.get("$last"), false);
+            nullForced = true;
+          } else if (objectValue.containsField("$first")) {
+            result = firstlast(workColl, objectValue.get("$first"), true);
+            nullForced = true;
+          } else if (objectValue.containsField("$avg")) {
+            result = avg(workColl, objectValue.get("$avg"));
+          } else if (objectValue.containsField("$sum")) {
+            result = sum(workColl, objectValue.get("$sum"));
+          }
 
-            if (result != null || nullForced) {
-              LOG.debug("_id:{}, key:{}, result:{}", entryMapping.getKey(), key, result);
-              entryMapping.getValue().result.put(key, result);
-            } else {
-              LOG.warn("result is null for entry {}", entry);
-            }
+          if (result != null || nullForced) {
+            LOG.debug("_id:{}, key:{}, result:{}", entryMapping.getKey(), key, result);
+            entryMapping.getValue().result.put(key, result);
+          } else {
+            LOG.warn("result is null for entry {}", entry);
           }
         }
       }
     }
     coll = dropAndInsert(coll, new ArrayList<DBObject>());
 
+    // Extract from mapping to do the result.
     for (Map.Entry<DBObject, Mapping> entry : mapping.entrySet()) {
       coll.insert(entry.getValue().result);
       entry.getValue().collection.drop();
     }
 
-    LOG.info("group() : {} result : {}", object, mapping);
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("group() : {} result : {}", object, coll.find().toArray());
+    }
     return coll;
   }
 
   /**
    * Create mapping. Group result with a 'key'.
    *
-   * @param coll
-   * @param id
-   * @return
+   * @param coll collection to be mapped
+   * @param id   id of the group
+   * @return a (Criteria, Mapping) for the id.
    */
   private Map<DBObject, Mapping> createMapping(DBCollection coll, Object id) {
     Map<DBObject, Mapping> mapping = new HashMap<DBObject, Mapping>();
@@ -118,7 +128,7 @@ public class Group extends PipelineKeyword {
         // Generate key
         DBObject key = keyForId(id, dbObject);
         // Save into mapping
-        mapping.put(criteria, new Mapping(key, createAndInsert(newCollection), Util.clone(key)));//TODO extract
+        mapping.put(criteria, new Mapping(key, createAndInsert(newCollection), Util.clone(key)));
         LOG.trace("createMapping() new criteria : {}", criteria);
       }
     }
@@ -157,7 +167,6 @@ public class Group extends PipelineKeyword {
       for (Map.Entry<String, Object> entry : (Set<Map.Entry<String, Object>>) ((DBObject) id).toMap().entrySet()) {
         result.put(entry.getKey(), Util.extractField(dbObject, fieldName(entry.getValue()))); // TODO : hierarchical, like "state" : {bar:"$foo"}
       }
-      // TODO
     } else if (id != null) {
       String field = fieldName(id);
       result.put(field, Util.extractField(dbObject, field));
@@ -189,7 +198,6 @@ public class Group extends PipelineKeyword {
       String field = value.toString().substring(1);
       List<DBObject> objects = coll.find(null, new BasicDBObject(field, 1).append("_id", 0)).toArray();
       for (DBObject object : objects) {
-        LOG.debug("sum object {} ", object);
         if (Util.containsField(object, field)) {
           if (result == null) {
             result = Util.extractField(object, field);
@@ -210,11 +218,11 @@ public class Group extends PipelineKeyword {
   /**
    * {@see http://docs.mongodb.org/manual/reference/aggregation/avg/#grp._S_avg}
    *
-   * @param coll
-   * @param value
-   * @return
+   * @param coll  grouped collection to make the avg
+   * @param value field to be averaged.
+   * @return the average of the collection.
    */
-  private Object avg(DBCollection coll, Object value) {
+  private Double avg(DBCollection coll, Object value) {
     Number result = null;
     long count = 1;
     if (value.toString().startsWith("$")) {
@@ -242,8 +250,10 @@ public class Group extends PipelineKeyword {
   }
 
   /**
+   * Return the first or the last of a collection.
+   *
    * @param coll
-   * @param value
+   * @param value fieldname for searching.
    * @return
    */
   private Object firstlast(DBCollection coll, Object value, boolean first) {
@@ -251,9 +261,9 @@ public class Group extends PipelineKeyword {
     Object result = null;
     if (value.toString().startsWith("$")) {
       String field = value.toString().substring(1);
-      List<DBObject> objects = coll.find(null, new BasicDBObject(field, 1).append("_id", 0)).toArray();
-      for (DBObject object : objects) {
-        result = Util.extractField(object, field);
+      DBCursor cursor = coll.find();
+      while (cursor.hasNext()) {
+        result = Util.extractField(cursor.next(), field);
         if (first) {
           break;
         }
@@ -267,6 +277,8 @@ public class Group extends PipelineKeyword {
   }
 
   /**
+   * Return the min or the max of a collection.
+   *
    * @param coll
    * @param value
    * @param valueComparable 0 for equals, -1 for min, +1 for max
@@ -275,23 +287,22 @@ public class Group extends PipelineKeyword {
   private Object minmax(DBCollection coll, Object value, int valueComparable) {
     if (value.toString().startsWith("$")) {
       String field = value.toString().substring(1);
-      List<DBObject> objects = coll.find(null, new BasicDBObject(field, 1).append("_id", 0)).toArray();
-      Comparable compable = null;
-      for (DBObject object : objects) {
-        LOG.debug("minmax object {} ", object);
+      DBCursor cursor = coll.find();
+      Comparable comparable = null;
+      while (cursor.hasNext()) {
+        DBObject object = cursor.next();
         if (Util.containsField(object, field)) {
-          if (compable == null) {
-            compable = Util.extractField(object, field);
+          if (comparable == null) {
+            comparable = Util.extractField(object, field);
           } else {
             Comparable other = Util.extractField(object, field);
-            LOG.trace("minmax {} vs {}", compable, other);
-            if (compable.compareTo(other) == valueComparable) {
-              compable = other;
+            if (comparable.compareTo(other) == valueComparable) {
+              comparable = other;
             }
           }
         }
       }
-      return compable;
+      return comparable;
     } else {
       LOG.error("Sorry, doesn't know what to do...");
     }

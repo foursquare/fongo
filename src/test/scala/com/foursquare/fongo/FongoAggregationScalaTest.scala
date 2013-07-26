@@ -372,10 +372,9 @@ class FongoAggregationScalaTest extends FongoAbstractTest {
   test("Fongo should unwind list") {
     collection.insert(new BasicDBObject("author", "william").append("tags", Util.list("scala", "java", "mongo")))
     val matching = new BasicDBObject("$match", new BasicDBObject("author", "william"))
-    val project = new BasicDBObject("$project", new BasicDBObject("author", 1).append("tags", 1))
     val unwind = new BasicDBObject("$unwind", "$tags")
 
-    val output = collection.aggregate(matching, project, unwind)
+    val output = collection.aggregate(matching, unwind)
 
     // Assert
     assert(output.getCommandResult.ok)
@@ -408,11 +407,10 @@ class FongoAggregationScalaTest extends FongoAbstractTest {
   test("Fongo should generate error on non list") {
     collection.insert(new BasicDBObject("author", "william").append("tags", "value"))
     val matching = new BasicDBObject("$match", new BasicDBObject("author", "william"))
-    val project = new BasicDBObject("$project", new BasicDBObject("author", 1).append("tags", 1))
     val unwind = new BasicDBObject("$unwind", "$tags")
 
     val output = intercept[MongoException] {
-      collection.aggregate(matching, project, unwind)
+      collection.aggregate(matching, unwind)
     }
     assert(output.getCode === 15978)
     //    assert(output.getMessage === "exception: $unwind:  value at end of field path must be an array")
