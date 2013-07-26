@@ -136,11 +136,29 @@
           <executions>
               <execution>
                   <goals>
-                      <goal>compile</goal>
                       <goal>testCompile</goal>
                   </goals>
               </execution>
           </executions>
+          <configuration>
+              <javacArgs>
+                <javacArg>-source</javacArg>
+                <javacArg>1.6</javacArg>
+                <javacArg>-target</javacArg>
+                <javacArg>1.6</javacArg>
+              </javacArgs>
+              <jvmArgs>
+                <jvmArg>-Xms64m</jvmArg>
+                <jvmArg>-Xmx1024m</jvmArg>
+                <!--jvmArg>-Dscala.timings=true</jvmArg -->
+              </jvmArgs>
+              <args>
+                <arg>-target:jvm-1.6</arg>
+                <arg>-unchecked</arg>
+                <arg>-deprecation</arg>
+                <arg>-feature</arg>
+              </args>
+          </configuration>
       </plugin>
       <plugin>
           <groupId>org.scalatest</groupId>
