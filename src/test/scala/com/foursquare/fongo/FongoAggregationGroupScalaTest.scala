@@ -8,12 +8,6 @@ import org.scalatest.junit.JUnitRunner
 import scala.collection.JavaConversions._
 import org.scalatest.ParallelTestExecution
 
-//import scala.collection.JavaConverters._
-
-// TODO : sum of double value ($sum : 1.3)
-// sum of "1" (String) must return 0.
-
-// Handle $group { _id = 0}
 @RunWith(classOf[JUnitRunner])
 class FongoAggregationGroupScalaTest extends FongoAbstractTest with ParallelTestExecution {
   // If you want to test against real world (a real mongodb client).
@@ -26,11 +20,11 @@ class FongoAggregationGroupScalaTest extends FongoAbstractTest with ParallelTest
   }
 
   override def init() = {
-    zips.foreach(collection.insert(_))
   }
 
   // see http://stackoverflow.com/questions/11418985/mongodb-aggregation-framework-group-over-multiple-values
   test("Fongo should handle 'States with Populations Over 5 Million'") {
+    zips.foreach(collection.insert(_))
     val pipeline = JSON.parse(
       """
         |[{ $group :
@@ -55,8 +49,8 @@ class FongoAggregationGroupScalaTest extends FongoAbstractTest with ParallelTest
     assert(resultAggregate.get(2).get("totalPop") === 12950936)
   }
 
-
   test("Fongo should handle 'Largest and Smallest Cities by State'") {
+    zips.foreach(collection.insert(_))
     val pipeline = JSON.parse(
       """
         |[   { $group:
@@ -92,6 +86,177 @@ class FongoAggregationGroupScalaTest extends FongoAbstractTest with ParallelTest
     assert(169856 === Util.extractField(resultAggregate.last, "biggestCity.pop"))
     assert("BUCKLAND" === Util.extractField(resultAggregate.last, "smallestCity.name"))
     assert(16 === Util.extractField(resultAggregate.last, "smallestCity.pop"))
+  }
+
+  // see http://stackoverflow.com/questions/8161444/mongodb-getting-list-of-values-by-using-group
+  test("Fongo must handle $push in group") {
+    val objects = JSON.parse(
+      """
+        |[{
+        | a_id: 1,
+        | "name": "n1"
+        |},
+        |{
+        | a_id: 2,
+        | "name": "n2"
+        |},
+        |{
+        | a_id: 1,
+        | "name": "n3"
+        |},
+        |{
+        | a_id: 1,
+        | "name": "n4"
+        |},
+        |{
+        | a_id: 2,
+        | "name": "n5"
+        |}]
+      """.stripMargin).asInstanceOf[java.util.List[DBObject]]
+    objects.toList.foreach(collection.insert(_))
+
+    val group = JSON.parse("{$group: { '_id': '$a_id', 'name': { $push: '$name'}}}").asInstanceOf[DBObject]
+
+    // Aggregate
+    val output = collection.aggregate(group, new BasicDBObject("$sort", new BasicDBObject("_id", 1)))
+
+    assert(output.getCommandResult.ok)
+    assert(output.getCommandResult.containsField("result"))
+    val result = output.getCommandResult.get("result").asInstanceOf[java.util.List[DBObject]]
+
+    assert(result.size() === 2)
+    assert(1 === Util.extractField(result.get(0), "_id"))
+    assert(Util.list("n1", "n3", "n4") === Util.extractField(result.get(0), "name"))
+    assert(2 === Util.extractField(result.get(1), "_id"))
+    assert(Util.list("n2", "n5") === Util.extractField(result.get(1), "name"))
+  }
+
+  test("Fongo must handle $push in group with same value") {
+    val objects = JSON.parse(
+      """
+        |[{
+        | a_id: 1,
+        | "name": "n1"
+        |},
+        |{
+        | a_id: 2,
+        | "name": "n5"
+        |},
+        |{
+        | a_id: 1,
+        | "name": "n1"
+        |},
+        |{
+        | a_id: 1,
+        | "name": "n2"
+        |},
+        |{
+        | a_id: 2,
+        | "name": "n5"
+        |}]
+      """.stripMargin).asInstanceOf[java.util.List[DBObject]]
+    objects.toList.foreach(collection.insert(_))
+
+    val group = JSON.parse("{$group: { '_id': '$a_id', 'name': { $push: '$name'}}}").asInstanceOf[DBObject]
+
+    // Aggregate
+    val output = collection.aggregate(group, new BasicDBObject("$sort", new BasicDBObject("_id", 1)))
+
+    assert(output.getCommandResult.ok)
+    assert(output.getCommandResult.containsField("result"))
+    val result = output.getCommandResult.get("result").asInstanceOf[java.util.List[DBObject]]
+
+    assert(result.size() === 2)
+    assert(1 === Util.extractField(result.get(0), "_id"))
+    assert(Util.list("n1", "n1", "n2") === Util.extractField(result.get(0), "name"))
+    assert(2 === Util.extractField(result.get(1), "_id"))
+    assert(Util.list("n5", "n5") === Util.extractField(result.get(1), "name"))
+  }
+
+  test("Fongo must handle $addToSet in group") {
+    val objects = JSON.parse(
+      """
+        |[{
+        | a_id: 1,
+        | "name": "n1"
+        |},
+        |{
+        | a_id: 2,
+        | "name": "n2"
+        |},
+        |{
+        | a_id: 1,
+        | "name": "n3"
+        |},
+        |{
+        | a_id: 1,
+        | "name": "n4"
+        |},
+        |{
+        | a_id: 2,
+        | "name": "n5"
+        |}]
+      """.stripMargin).asInstanceOf[java.util.List[DBObject]]
+    objects.toList.foreach(collection.insert(_))
+
+    val group = JSON.parse("{$group: { '_id': '$a_id', 'name': { $push: '$name'}}}").asInstanceOf[DBObject]
+
+    // Aggregate
+    val output = collection.aggregate(group, new BasicDBObject("$sort", new BasicDBObject("_id", 1)))
+
+    assert(output.getCommandResult.ok)
+    assert(output.getCommandResult.containsField("result"))
+    val result = output.getCommandResult.get("result").asInstanceOf[java.util.List[DBObject]]
+
+    assert(result.size() === 2)
+    assert(1 === Util.extractField(result.get(0), "_id"))
+    assert(Util.list("n1", "n3", "n4") === Util.extractField(result.get(0), "name"))
+    assert(2 === Util.extractField(result.get(1), "_id"))
+    assert(Util.list("n2", "n5") === Util.extractField(result.get(1), "name"))
+  }
+
+  test("Fongo must handle $addToSet in group with same value") {
+    val objects = JSON.parse(
+      """
+        |[{
+        | a_id: 1,
+        | "name": "n1"
+        |},
+        |{
+        | a_id: 2,
+        | "name": "n5"
+        |},
+        |{
+        | a_id: 1,
+        | "name": "n1"
+        |},
+        |{
+        | a_id: 1,
+        | "name": "n2"
+        |},
+        |{
+        | a_id: 2,
+        | "name": "n5"
+        |}]
+      """.stripMargin).asInstanceOf[java.util.List[DBObject]]
+    objects.toList.foreach(collection.insert(_))
+
+    val group = JSON.parse("{$group: { '_id': '$a_id', 'name': { $addToSet: '$name'}}}").asInstanceOf[DBObject]
+
+    // Aggregate
+    val output = collection.aggregate(group, new BasicDBObject("$sort", new BasicDBObject("_id", 1)))
+
+    assert(output.getCommandResult.ok)
+    assert(output.getCommandResult.containsField("result"))
+    val result = output.getCommandResult.get("result").asInstanceOf[java.util.List[DBObject]]
+
+    assert(result.size() === 2)
+    assert(1 === Util.extractField(result.get(0), "_id"))
+    assert(Util.extractField(result.get(0), "name").asInstanceOf[java.util.List[String]].contains("n1"))
+    assert(Util.extractField(result.get(0), "name").asInstanceOf[java.util.List[String]].contains("n2"))
+    assert(Util.extractField(result.get(0), "name").asInstanceOf[java.util.List[String]].size === 2)
+    assert(2 === Util.extractField(result.get(1), "_id"))
+    assert(Util.list("n5") === Util.extractField(result.get(1), "name"))
   }
 
 }

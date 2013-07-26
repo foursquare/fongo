@@ -48,9 +48,8 @@ public class Project extends PipelineKeyword {
       }
     }
 
-    LOG.info("project() of {} renamed {}", projectResult, projectedFields); // TODO
+    LOG.debug("project() of {} renamed {}", projectResult, projectedFields);
     List<DBObject> objects = coll.find(null, projectResult).toArray();
-    LOG.info("project() of {} renamed {} on {}", projectResult, projectedFields, objects); // TODO
 
     // Rename fields
     List<DBObject> objectsResults = new ArrayList<DBObject>(objects.size());
@@ -66,17 +65,17 @@ public class Project extends PipelineKeyword {
       objectsResults.add(renamed);
     }
     coll = dropAndInsert(coll, objectsResults);
-    LOG.info("project() : {}, result : {}", object, objects);
+    LOG.debug("project() : {}, result : {}", object, objects);
     return coll;
   }
 
   /**
    * Create the mapping and the criteria for the collection.
    *
-   * @param projectResult find criteria.
+   * @param projectResult   find criteria.
    * @param projectedFields mapping from criteria to project structure.
-   * @param entry         from a DBObject.
-   * @param namespace     "" if empty, "fieldname." elsewhere.
+   * @param entry           from a DBObject.
+   * @param namespace       "" if empty, "fieldname." elsewhere.
    */
   private void createMapping(DBObject projectResult, Map<String, String> projectedFields, Map.Entry<String, Object> entry, String namespace) {
     // Simple case : nb : "$pop"

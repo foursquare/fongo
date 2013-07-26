@@ -4,13 +4,14 @@ import _root_.com.foursquare.fongo.impl.Util
 import _root_.com.mongodb._
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
+import org.scalatest.ParallelTestExecution
 
 // TODO : sum of double value ($sum : 1.3)
 // sum of "1" (String) must return 0.
 
 // Handle $group { _id = 0}
 @RunWith(classOf[JUnitRunner])
-class FongoAggregationScalaTest extends FongoAbstractTest {
+class FongoAggregationScalaTest extends FongoAbstractTest with ParallelTestExecution {
   // If you want to test against real world (a real mongodb client).
   val realWorld = !true
 
@@ -395,6 +396,7 @@ class FongoAggregationScalaTest extends FongoAbstractTest {
     val matching = new BasicDBObject("$match", new BasicDBObject("author", "william"))
     val project = new BasicDBObject("$project", new BasicDBObject("author", 1).append("tags", 1))
     val unwind = new BasicDBObject("$unwind", "$tags")
+
     val output = collection.aggregate(matching, project, unwind)
 
     assert(output.getCommandResult.ok)
@@ -415,5 +417,4 @@ class FongoAggregationScalaTest extends FongoAbstractTest {
     assert(output.getCode === 15978)
     //    assert(output.getMessage === "exception: $unwind:  value at end of field path must be an array")
   }
-
 }

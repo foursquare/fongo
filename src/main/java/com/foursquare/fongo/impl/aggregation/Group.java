@@ -1,6 +1,8 @@
 package com.foursquare.fongo.impl.aggregation;
 
+import com.foursquare.fongo.impl.UpdateEngine;
 import com.foursquare.fongo.impl.Util;
+import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBCollection;
 import com.mongodb.DBCursor;
@@ -81,6 +83,10 @@ public class Group extends PipelineKeyword {
             result = avg(workColl, objectValue.get("$avg"));
           } else if (objectValue.containsField("$sum")) {
             result = sum(workColl, objectValue.get("$sum"));
+          } else if (objectValue.containsField("$addToSet")) {
+            result = pushAddToSet(workColl, objectValue.get("$addToSet"), true);
+          } else if (objectValue.containsField("$push")) {
+            result = pushAddToSet(workColl, objectValue.get("$push"), false);
           }
 
           if (result != null || nullForced) {
@@ -142,6 +148,7 @@ public class Group extends PipelineKeyword {
    * @param dbObject
    * @return
    */
+
   private DBObject keyForId(Object id, DBObject dbObject) {
     DBObject result = new BasicDBObject();
     if (id instanceof DBObject) {
@@ -273,6 +280,41 @@ public class Group extends PipelineKeyword {
     }
 
     LOG.debug("first({})/last({}) on {}, result : {}", first, !first, value, result);
+    return result;
+  }
+
+  /**
+   * Return the first or the last of a collection.
+   *
+   * @param coll
+   * @param value fieldname for searching.
+   * @return
+   */
+  private BasicDBList pushAddToSet(DBCollection coll, Object value, boolean uniqueness) {
+    LOG.debug("pushAddToSet() on {}", value);
+    BasicDBList result = null;
+    if (value.toString().startsWith("$")) {
+      result = new BasicDBList();
+      String field = value.toString().substring(1);
+      DBCursor cursor = coll.find();
+//      UpdateEngine updateEngine = new UpdateEngine();
+//      for (DBObject objectColl : workColl.find().toArray()) {
+//
+//        DBObject push = new BasicDBObject("$push", )
+//        updateEngine.doUpdate(entryMapping.getValue().result, objectValue);
+//      }
+
+      while (cursor.hasNext()) {
+        Object fieldValue = Util.extractField(cursor.next(), field);
+        if (!uniqueness || !result.contains(fieldValue)) {
+          result.add(fieldValue);
+        }
+      }
+    } else {
+      LOG.error("Sorry, doesn't know what to do...");
+    }
+
+    LOG.debug("pushAddToSet() on {}, result : {}", value, result);
     return result;
   }
 
