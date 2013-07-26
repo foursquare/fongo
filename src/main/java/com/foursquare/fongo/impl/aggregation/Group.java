@@ -1,6 +1,5 @@
 package com.foursquare.fongo.impl.aggregation;
 
-import com.foursquare.fongo.impl.UpdateEngine;
 import com.foursquare.fongo.impl.Util;
 import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
@@ -8,8 +7,8 @@ import com.mongodb.DBCollection;
 import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -52,6 +51,85 @@ public class Group extends PipelineKeyword {
   private Group() {
   }
 
+  @ThreadSafe
+  static enum GroupKeyword {
+    MIN("$min") {
+      @Override
+      Object work(DBCollection coll, Object keywordParameter) {
+        return minmax(coll, keywordParameter, 1);
+      }
+    },
+    MAX("$max") {
+      @Override
+      Object work(DBCollection coll, Object keywordParameter) {
+        return minmax(coll, keywordParameter, -1);
+      }
+    },
+    FIRST("$first", true) {
+      @Override
+      Object work(DBCollection coll, Object keywordParameter) {
+        return firstlast(coll, keywordParameter, true);
+      }
+    },
+    LAST("$last", true) {
+      @Override
+      Object work(DBCollection coll, Object keywordParameter) {
+        return firstlast(coll, keywordParameter, false);
+      }
+    },
+    AVG("$avg") {
+      @Override
+      Object work(DBCollection coll, Object keywordParameter) {
+        return avg(coll, keywordParameter);
+      }
+    },
+    SUM("$sum") {
+      @Override
+      Object work(DBCollection coll, Object keywordParameter) {
+        return sum(coll, keywordParameter);
+      }
+    },
+    PUSH("$push") {
+      @Override
+      Object work(DBCollection coll, Object keywordParameter) {
+        return pushAddToSet(coll, keywordParameter, false);
+      }
+    },
+    ADD_TO_SET("$addToSet") {
+      @Override
+      Object work(DBCollection coll, Object keywordParameter) {
+        return pushAddToSet(coll, keywordParameter, true);
+      }
+    };
+
+    private final String keyword;
+
+    private final boolean canReturnNull;
+
+    private GroupKeyword(String keyword) {
+      this(keyword, false);
+    }
+
+    private GroupKeyword(String keyword, boolean canReturnNull) {
+      this.keyword = keyword;
+      this.canReturnNull = canReturnNull;
+    }
+
+    abstract Object work(DBCollection coll, Object keywordParameter);
+
+    public Object apply(DBCollection coll, DBObject parameter) {
+      return work(coll, parameter.get(keyword));
+    }
+
+    public boolean canApply(DBObject parameter) {
+      return parameter.containsField(keyword);
+    }
+
+    public boolean isCanReturnNull() {
+      return canReturnNull;
+    }
+  }
+
   public DBCollection apply(DBCollection coll, DBObject object) {
     DBObject group = (DBObject) object.get(getKeyword());
 
@@ -67,37 +145,22 @@ public class Group extends PipelineKeyword {
         DBObject objectValue = (DBObject) value;
         for (Map.Entry<DBObject, Mapping> entryMapping : mapping.entrySet()) {
           DBCollection workColl = entryMapping.getValue().collection;
-          Object result = null;
-          boolean nullForced = false;
-          if (objectValue.containsField("$min")) {
-            result = minmax(workColl, objectValue.get("$min"), 1);
-          } else if (objectValue.containsField("$max")) {
-            result = minmax(workColl, objectValue.get("$max"), -1);
-          } else if (objectValue.containsField("$last")) {
-            result = firstlast(workColl, objectValue.get("$last"), false);
-            nullForced = true;
-          } else if (objectValue.containsField("$first")) {
-            result = firstlast(workColl, objectValue.get("$first"), true);
-            nullForced = true;
-          } else if (objectValue.containsField("$avg")) {
-            result = avg(workColl, objectValue.get("$avg"));
-          } else if (objectValue.containsField("$sum")) {
-            result = sum(workColl, objectValue.get("$sum"));
-          } else if (objectValue.containsField("$addToSet")) {
-            result = pushAddToSet(workColl, objectValue.get("$addToSet"), true);
-          } else if (objectValue.containsField("$push")) {
-            result = pushAddToSet(workColl, objectValue.get("$push"), false);
-          }
-
-          if (result != null || nullForced) {
-            LOG.debug("_id:{}, key:{}, result:{}", entryMapping.getKey(), key, result);
-            entryMapping.getValue().result.put(key, result);
-          } else {
-            LOG.warn("result is null for entry {}", entry);
+          for (GroupKeyword keyword : GroupKeyword.values()) {
+            if (keyword.canApply(objectValue)) {
+              Object result = keyword.apply(workColl, objectValue);
+              if (result != null || keyword.isCanReturnNull()) {
+                LOG.debug("_id:{}, key:{}, result:{}", entryMapping.getKey(), key, result);
+                entryMapping.getValue().result.put(key, result);
+              } else {
+                LOG.warn("result is null for entry {}", entry);
+              }
+              break;
+            }
           }
         }
       }
     }
+
     coll = dropAndInsert(coll, new ArrayList<DBObject>());
 
     // Extract from mapping to do the result.
@@ -182,7 +245,7 @@ public class Group extends PipelineKeyword {
     return result;
   }
 
-  private String fieldName(Object name) {
+  private static String fieldName(Object name) {
     String field = name.toString();
     if (name instanceof String) {
       if (name.toString().startsWith("$")) {
@@ -199,7 +262,7 @@ public class Group extends PipelineKeyword {
    * @param value
    * @return
    */
-  private Object sum(DBCollection coll, Object value) {
+  private static Object sum(DBCollection coll, Object value) {
     Number result = null;
     if (value.toString().startsWith("$")) {
       String field = value.toString().substring(1);
@@ -229,7 +292,7 @@ public class Group extends PipelineKeyword {
    * @param value field to be averaged.
    * @return the average of the collection.
    */
-  private Double avg(DBCollection coll, Object value) {
+  private static Double avg(DBCollection coll, Object value) {
     Number result = null;
     long count = 1;
     if (value.toString().startsWith("$")) {
@@ -263,7 +326,7 @@ public class Group extends PipelineKeyword {
    * @param value fieldname for searching.
    * @return
    */
-  private Object firstlast(DBCollection coll, Object value, boolean first) {
+  private static Object firstlast(DBCollection coll, Object value, boolean first) {
     LOG.debug("first({})/last({}) on {}", first, !first, value);
     Object result = null;
     if (value.toString().startsWith("$")) {
@@ -290,20 +353,13 @@ public class Group extends PipelineKeyword {
    * @param value fieldname for searching.
    * @return
    */
-  private BasicDBList pushAddToSet(DBCollection coll, Object value, boolean uniqueness) {
+  private static BasicDBList pushAddToSet(DBCollection coll, Object value, boolean uniqueness) {
     LOG.debug("pushAddToSet() on {}", value);
     BasicDBList result = null;
     if (value.toString().startsWith("$")) {
       result = new BasicDBList();
       String field = value.toString().substring(1);
       DBCursor cursor = coll.find();
-//      UpdateEngine updateEngine = new UpdateEngine();
-//      for (DBObject objectColl : workColl.find().toArray()) {
-//
-//        DBObject push = new BasicDBObject("$push", )
-//        updateEngine.doUpdate(entryMapping.getValue().result, objectValue);
-//      }
-
       while (cursor.hasNext()) {
         Object fieldValue = Util.extractField(cursor.next(), field);
         if (!uniqueness || !result.contains(fieldValue)) {
@@ -326,7 +382,7 @@ public class Group extends PipelineKeyword {
    * @param valueComparable 0 for equals, -1 for min, +1 for max
    * @return
    */
-  private Object minmax(DBCollection coll, Object value, int valueComparable) {
+  private static Object minmax(DBCollection coll, Object value, int valueComparable) {
     if (value.toString().startsWith("$")) {
       String field = value.toString().substring(1);
       DBCursor cursor = coll.find();
@@ -358,7 +414,7 @@ public class Group extends PipelineKeyword {
    * @param other
    * @return
    */
-  private Number addWithSameType(Number result, Number other) {
+  private static Number addWithSameType(Number result, Number other) {
     if (result instanceof Float) {
       result = Float.valueOf(result.floatValue() + other.floatValue());
     } else if (result instanceof Double) {
@@ -373,7 +429,7 @@ public class Group extends PipelineKeyword {
     return result;
   }
 
-  private Number returnSameType(Number type, Number other) {
+  private static Number returnSameType(Number type, Number other) {
     if (type instanceof Float) {
       return Float.valueOf(other.floatValue());
     } else if (type instanceof Double) {
