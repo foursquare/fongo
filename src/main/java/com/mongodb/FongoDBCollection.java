@@ -264,7 +264,7 @@ public class FongoDBCollection extends DBCollection {
       // the index.  It has the desired affect of returning results
       // in _id index order, but feels pretty hacky.
       if (inList != null) {
-        Object[] inListArray = inList.toArray(new Object[0]);
+        Object[] inListArray = inList.toArray(new Object[inList.size()]);
         // ids could be DBObjects, so we need a comparator that can handle that
         Arrays.sort(inListArray, objectComparator);
         return Arrays.asList(inListArray);
@@ -673,7 +673,7 @@ public class FongoDBCollection extends DBCollection {
    * @throws MongoException in case of duplicate entry in index.
    */
   private void checkForUniqueness(List<DBObject> futureObjects) throws MongoException {
-    Index index = IndexUtil.checkForUniqueness(indexes, futureObjects);
+    Index index = IndexUtil.INSTANCE.checkForUniqueness(indexes, futureObjects);
     if (index != null) {
       throw new MongoException.DuplicateKey(fongoDb.errorResult(11000, "Attempting to insert duplicate on index: " + index.getName()));
     }
