@@ -697,20 +697,7 @@ public class FongoTest {
     collection.insert(new BasicDBObject("_id", 1));
     assertEquals(1, collection.count());
   }
-  
-  @Test
-  public void testCreateIndexes() {
-    DBCollection collection = newCollection();
-    collection.ensureIndex("n");
-    collection.ensureIndex("b");
-    List<DBObject> indexes = collection.getDB().getCollection("system.indexes").find().toArray();
-    assertEquals(
-        Arrays.asList(
-            new BasicDBObject("v", 1).append("key", new BasicDBObject("n", 1)).append("ns", "db.coll").append("name", "n_1"),
-            new BasicDBObject("v", 1).append("key", new BasicDBObject("b", 1)).append("ns", "db.coll").append("name", "b_1")
-        ), indexes);
-  }
-  
+
   @Test
   public void testSortByEmeddedKey(){
     DBCollection collection = newCollection();
@@ -858,7 +845,28 @@ public class FongoTest {
     assertEquals("The command should have been succesful", true, result.get("ok"));
     assertEquals("The count should be in the result", 2L, result.get("n"));
   }
-  
+
+  @Test
+  public void testCountdWithSkipLimitWithSort() {
+    Fongo fongo = newFongo();
+    DB db = fongo.getDB("db");
+    DBCollection collection = db.getCollection("coll");
+    collection.insert(new BasicDBObject("_id", 0).append("date", 5L));
+    collection.insert(new BasicDBObject("_id", -1).append("date", 5L));
+    collection.insert(new BasicDBObject("_id", 1).append("date", 5L).append("str", "1"));
+    collection.insert(new BasicDBObject("_id", 2).append("date", 6L).append("str", "2"));
+    collection.insert(new BasicDBObject("_id", 3).append("date", 7L).append("str", "3"));
+    collection.insert(new BasicDBObject("_id", 4).append("date", 8L).append("str", "4"));
+
+    QueryBuilder builder = new QueryBuilder().start("_id").greaterThanEquals(1).lessThanEquals(5).and("str").in(Arrays.asList("1", "2", "3", "4"));
+
+    DBObject countCmd = new BasicDBObject("count", "coll").append("limit", 2).append("skip", 4).append("query", builder.get());
+    CommandResult result = db.command(countCmd);
+    // Without sort.
+    assertEquals(0L, result.get("n"));
+  }
+
+
   @Test
   public void testExplicitlyAddedObjectIdNotNew() {
     Fongo fongo = newFongo();
@@ -929,7 +937,6 @@ public class FongoTest {
     assertEquals("should not have newkey", new BasicDBObject("_id", 1), collection.findOne());
   }
 
-
   @Test(timeout = 7000)
   public void testMultiThreadInsert() throws Exception {
     final ch.qos.logback.classic.Logger LOG = (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(FongoDBCollection.class);
@@ -961,19 +968,19 @@ public class FongoTest {
     }
   }
 
-  class Seq {
+  static class Seq {
     Object[] data;
     Seq(Object... data) { this.data = data; }
   }
 
-  private DBCollection newCollection() {
+  public static DBCollection newCollection() {
     Fongo fongo = newFongo();
     DB db = fongo.getDB("db");
     DBCollection collection = db.getCollection("coll");
     return collection;
   }
 
-  public Fongo newFongo() {
+  public static Fongo newFongo() {
     Fongo fongo = new Fongo("test");
     return fongo;
   }

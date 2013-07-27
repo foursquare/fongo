@@ -381,7 +381,6 @@ public class FongoDBCollection extends DBCollection {
   @Override
   Iterator<DBObject> __find(DBObject ref, DBObject fields, int numToSkip, int batchSize, int limit, int options,
                             ReadPreference readPref, DBDecoder decoder, DBEncoder encoder) {
-
     return __find(ref, fields, numToSkip, batchSize, limit, options, readPref, decoder);
   }
 
@@ -577,8 +576,8 @@ public class FongoDBCollection extends DBCollection {
     int seen = 0;
     for (Iterator<DBObject> iter = objects.values().iterator(); iter.hasNext() && count <= upperLimit; ) {
       DBObject value = iter.next();
-      if (seen++ >= skip) {
-        if (filter.apply(value)) {
+      if (filter.apply(value)) {
+        if (seen++ >= skip){
           count++;
         }
       }
@@ -643,32 +642,25 @@ public class FongoDBCollection extends DBCollection {
     return results;
   }
 
-  @Override
-  public void dropIndexes(String name) throws MongoException {
+  protected void _dropIndexes(String name) throws MongoException {
     // do nothing
     DBCollection indexColl = fongoDb.getCollection("system.indexes");
     indexColl.remove(new BasicDBObject("name", name));
-    for (Iterator<Index> iterator = this.indexes.listIterator(); iterator.hasNext(); ) {
-      Index index = iterator.next();
-      if (index.getName().equals(name)) {
-        iterator.remove();
+    for(Iterator<Index> indexIterator = indexes.listIterator(); indexIterator.hasNext();) {
+      if(indexIterator.next().getName().equals(name)) {
+        indexIterator.remove();
         break;
       }
     }
   }
 
-  @Override
-  public void dropIndexes() {
-    List<String> names = new ArrayList<String>();
-    for (Index index : this.indexes) {
-      names.add(index.getName());
-    }
+  protected void _dropIndexes() {
+    List<DBObject> indexes = fongoDb.getCollection("system.indexes").find().toArray();
     // Two step for no concurrent modification exception
-    for (String name : names) {
-      dropIndexes(name);
+    for (DBObject index : indexes) {
+      dropIndexes(index.get("name").toString());
     }
   }
-
 
   @Override
   public void drop() {
