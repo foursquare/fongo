@@ -23,7 +23,7 @@ import java.util.*;
 public class FongoDBCollection extends DBCollection {
   final static Logger LOG = LoggerFactory.getLogger(FongoDBCollection.class);
 
-  final static String ID_KEY = "_id";
+  public static final String ID_KEY = "_id";
   private final FongoDB fongoDb;
   // LinkedHashMap maintains insertion order
   // TODO(jon) separate _id index from storage
@@ -32,7 +32,7 @@ public class FongoDBCollection extends DBCollection {
   private final UpdateEngine updateEngine;
   private final boolean nonIdCollection;
   private final ObjectComparator objectComparator;
-  private final List<Index> indexes = new ArrayList<Index>();
+  private final Map<Set<String>, Index> indexes = new LinkedHashMap<Set<String>, Index>();
 
   public FongoDBCollection(FongoDB db, String name) {
     super(db, name);
@@ -370,9 +370,17 @@ public class FongoDBCollection extends DBCollection {
       rec.append("unique", unique);
     }
     rec.putAll(options);
-    indexColl.insert(rec);
 
-    indexes.add(new Index((String) rec.get("name"), keys, unique));
+    Index index = new Index((String) rec.get("name"), keys, unique);
+    List<List<Object>> notUnique = index.addAll(objects.entrySet());
+    if (!notUnique.isEmpty()) {
+      // Duplicate key.
+      fongoDb.errorResult(11000, "E11000 duplicate key error index: " + getFullName() + "." + rec.get("name") + "  dup key: { : " + notUnique + " }").throwOnError();
+    }
+    indexes.put(new HashSet<String>(index.getFields()), index);
+
+    // Add index if all fine.
+    indexColl.insert(rec);
   }
 
   @Override
@@ -512,7 +520,7 @@ public class FongoDBCollection extends DBCollection {
     }
 
     boolean including = !includedFields.isEmpty();
-    boolean excluding = excludedFields.size() > (excludedFields.contains("_id") ? 1 : 0);
+    boolean excluding = excludedFields.size() > (excludedFields.contains(ID_KEY) ? 1 : 0);
 
     if (including && excluding) {
       throw new IllegalArgumentException(
@@ -521,8 +529,8 @@ public class FongoDBCollection extends DBCollection {
     }
 
     // the _id is always returned unless explicitly excluded
-    if (including && !excludedFields.contains("_id")) {
-      includedFields.add("_id");
+    if (including && !excludedFields.contains(ID_KEY)) {
+      includedFields.add(ID_KEY);
     }
 
     Set<String> fieldsToRetain = new HashSet<String>(result.keySet());
@@ -583,7 +591,7 @@ public class FongoDBCollection extends DBCollection {
     for (Iterator<DBObject> iter = objects.values().iterator(); iter.hasNext() && count <= upperLimit; ) {
       DBObject value = iter.next();
       if (filter.apply(value)) {
-        if (seen++ >= skip){
+        if (seen++ >= skip) {
           count++;
         }
       }
@@ -649,12 +657,11 @@ public class FongoDBCollection extends DBCollection {
   }
 
   protected void _dropIndexes(String name) throws MongoException {
-    // do nothing
     DBCollection indexColl = fongoDb.getCollection("system.indexes");
     indexColl.remove(new BasicDBObject("name", name));
-    for(Iterator<Index> indexIterator = indexes.listIterator(); indexIterator.hasNext();) {
-      if(indexIterator.next().getName().equals(name)) {
-        indexIterator.remove();
+    for (Map.Entry<Set<String>, Index> entry : indexes.entrySet()) {
+      if (entry.getValue().getName().equals(name)) {
+        indexes.remove(entry.getKey());
         break;
       }
     }
@@ -679,8 +686,10 @@ public class FongoDBCollection extends DBCollection {
    * @throws MongoException in case of duplicate entry in index.
    */
   private void checkForUniqueness(List<DBObject> futureObjects) throws MongoException {
-    Index index = IndexUtil.INSTANCE.checkForUniqueness(indexes, futureObjects);
+    Index index = IndexUtil.INSTANCE.checkForUniqueness(indexes.values(), futureObjects);
     if (index != null) {
+//E11000 duplicate key error index: test.zip.$city_1_state_1_pop_1  dup key: { : "AGAWAM", : "MA", : 15338.0 }
+      // TODO
       throw new MongoException.DuplicateKey(fongoDb.errorResult(11000, "Attempting to insert duplicate on index: " + index.getName()));
     }
   }

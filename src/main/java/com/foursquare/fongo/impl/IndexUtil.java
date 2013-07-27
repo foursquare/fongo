@@ -37,6 +37,17 @@ public enum IndexUtil {
     return values;
   }
 
+  public List<List<Object>> extractFields(DBObject dbObject, List<String> fields) {
+    ExpressionParser expressionParser = new ExpressionParser();
+
+    List<List<Object>> fieldValue = new ArrayList<List<Object>>();
+    for (String field : fields) {
+      List<Object> embeddedValues = expressionParser.getEmbeddedValues(field, dbObject);
+      fieldValue.add(embeddedValues);
+    }
+    return fieldValue;
+  }
+
   /**
    * Check if objects respect uniqueness of theses indexes.
    *

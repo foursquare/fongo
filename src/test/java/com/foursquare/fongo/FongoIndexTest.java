@@ -3,12 +3,23 @@ package com.foursquare.fongo;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBCollection;
 import com.mongodb.DBObject;
+import com.mongodb.MongoException;
 import java.util.Arrays;
 import java.util.List;
+import org.hamcrest.BaseMatcher;
+import org.hamcrest.Description;
+import org.hamcrest.Matcher;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 public class FongoIndexTest {
+
+  @Rule
+  public ExpectedException exception = ExpectedException.none();
 
   @Test
   public void testCreateIndexes() {
@@ -90,5 +101,22 @@ public class FongoIndexTest {
     collection.dropIndexes();
     indexes = collection.getIndexInfo();
     assertEquals(0, indexes.size());
+  }
+
+  // Data are already here, but duplicated.
+  @Test
+  public void testCreateIndexOnDuplicatedData() {
+    DBCollection collection = FongoTest.newCollection();
+
+    collection.insert(new BasicDBObject("n", 1));
+    collection.insert(new BasicDBObject("n", 1));
+    try {
+      collection.ensureIndex(new BasicDBObject("n", 1), "n_1", true);
+      fail("need MongoException on duplicate key.");
+    } catch (MongoException me) {
+      assertEquals(11000, me.getCode());
+      assertTrue(me.getMessage() + " doesn't contains " + "E11000 duplicate key error index: " + collection.getFullName() + ".n_1  dup key: { : [[1]] }",
+          me.getMessage().contains("E11000 duplicate key error index: " + collection.getFullName() + ".n_1  dup key: { : [[1]] }")); // TODO [[ instead of " : \"1\""
+    }
   }
 }
