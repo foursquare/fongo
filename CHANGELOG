@@ -1,3 +1,15 @@
+1.2.0
+-----
+release: 26 July 2013
+
+Bumped minor version due to potentially breaking changes
+
+ - use overriden MongoClient instance instead of Mockito (@hoffrocket)
+  - default write concern is now WriteConcern.ACKNOWLEDGED
+ - fix for skip on count (@twillouer)
+ - skip respects filter (@twillouer)
+ - fix for Positional update of inner DBObject field (Anton Bobukh)
+ 
 1.1.1
 -----
 release: 12 July 2013

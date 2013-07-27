@@ -85,7 +85,7 @@ public class FongoDB extends DB {
 
   @Override
   public ReadPreference getReadPreference() {
-    return ReadPreference.PRIMARY;
+    return ReadPreference.primaryPreferred();
   }
 
   @Override
