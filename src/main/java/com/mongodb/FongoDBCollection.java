@@ -359,6 +359,12 @@ public class FongoDBCollection extends DBCollection {
     } else {
       rec.append("name", options.get("name"));
     }
+    // Ensure index doesn't exist.
+    if (indexColl.findOne(rec) != null) {
+      return;
+    }
+
+    // Unique index must not be in previous find.
     boolean unique = options != null && Boolean.TRUE.equals(options.get("unique"));
     if (unique) {
       rec.append("unique", unique);

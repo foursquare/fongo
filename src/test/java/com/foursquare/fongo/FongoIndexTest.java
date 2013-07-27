@@ -23,6 +23,36 @@ public class FongoIndexTest {
         ), indexes);
   }
 
+  /**
+   * Same index = do not recreate.
+   */
+  @Test
+  public void testCreateSameIndex() {
+    DBCollection collection = FongoTest.newCollection();
+    collection.ensureIndex("n");
+    collection.ensureIndex("n");
+    List<DBObject> indexes = collection.getIndexInfo();
+    assertEquals(
+        Arrays.asList(
+            new BasicDBObject("v", 1).append("key", new BasicDBObject("n", 1)).append("ns", "db.coll").append("name", "n_1")
+        ), indexes);
+  }
+
+  /**
+   * Same index = do not recreate.
+   */
+  @Test
+  public void testCreateSameIndexButUnique() {
+    DBCollection collection = FongoTest.newCollection();
+    collection.ensureIndex(new BasicDBObject("n", 1), "n_1");
+    collection.ensureIndex(new BasicDBObject("n", 1), "n_1", true);
+    List<DBObject> indexes = collection.getIndexInfo();
+    assertEquals(
+        Arrays.asList(
+            new BasicDBObject("v", 1).append("key", new BasicDBObject("n", 1)).append("ns", "db.coll").append("name", "n_1")
+        ), indexes);
+  }
+
   @Test
   public void testDropIndex() {
     DBCollection collection = FongoTest.newCollection();
