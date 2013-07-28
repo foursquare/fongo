@@ -655,7 +655,27 @@ public class FongoTest {
     collection.insert(new BasicDBObject("n", 1).append("_id", 5));
     assertEquals(Arrays.asList(1, 2, 3), collection.distinct("n"));
   }
-  
+
+  @Test
+  public void testDistinctHierarchicalQuery() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("n", new BasicDBObject("i", 1)).append("_id", 1));
+    collection.insert(new BasicDBObject("n", new BasicDBObject("i", 2)).append("_id", 2));
+    collection.insert(new BasicDBObject("n", new BasicDBObject("i", 3)).append("_id", 3));
+    collection.insert(new BasicDBObject("n", new BasicDBObject("i", 1)).append("_id", 4));
+    collection.insert(new BasicDBObject("n", new BasicDBObject("i", 1)).append("_id", 5));
+    assertEquals(Arrays.asList(1, 2, 3), collection.distinct("n.i"));
+  }
+
+  @Test
+  public void testDistinctHierarchicalQueryWithArray() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("n", new BasicDBObject("i", Util.list(1, 2 , 3))).append("_id", 1));
+    collection.insert(new BasicDBObject("n", new BasicDBObject("i", Util.list(3, 4))).append("_id", 2));
+    collection.insert(new BasicDBObject("n", new BasicDBObject("i", Util.list(1, 5))).append("_id", 3));
+    assertEquals(Arrays.asList(1, 2, 3, 4, 5), collection.distinct("n.i"));
+  }
+
   @Test
   public void testGetLastError(){
     Fongo fongo = newFongo();
