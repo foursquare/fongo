@@ -4,7 +4,6 @@ import com.foursquare.fongo.FongoException;
 import com.foursquare.fongo.impl.ExpressionParser;
 import com.foursquare.fongo.impl.Filter;
 import com.foursquare.fongo.impl.Index;
-import com.foursquare.fongo.impl.IndexUtil;
 import com.foursquare.fongo.impl.UpdateEngine;
 import com.foursquare.fongo.impl.Util;
 import org.bson.BSON;
@@ -113,7 +112,7 @@ public class FongoDBCollection extends DBCollection {
     }
 
     // TODO WDEL refactor
-    addToIndexes(obj);
+    addToIndexes(obj, null);
 
     objects.put(id, obj);
   }
@@ -186,29 +185,19 @@ public class FongoDBCollection extends DBCollection {
       if (!o.containsField(ID_KEY)) {
         o.put(ID_KEY, q.get(ID_KEY));
       }
-      List<DBObject> futureObjects = new ArrayList<DBObject>(objects.values());
-      Object id = o.get(ID_KEY);
-      Object toModify = objects.get(id);
-      if (toModify != null) {
-        futureObjects.remove(toModify);
-      }
-      futureObjects.add(o);
-      checkForUniqueness(futureObjects);
+      // TODO : help, what is this case ?
       fInsert(o);
       updatedDocuments++;
     } else {
       List idsIn = idsIn(q);
-      List<DBObject> futureObjects = new ArrayList<DBObject>(objects.values());
       if (idOnlyUpdate && idsIn.size() > 0) {
         for (Object id : idsIn) {
           DBObject existingObject = objects.get(id);
           if (existingObject != null) {
-            futureObjects.remove(existingObject);
             DBObject newObject = Util.clone(existingObject);
             updateEngine.doUpdate(newObject, o, q);
             // Check for uniqueness
-            futureObjects.add(newObject);
-            checkForUniqueness(futureObjects);
+            addToIndexes(newObject, existingObject);
 
             // Set object now.
             objects.put(id, newObject);
@@ -222,14 +211,12 @@ public class FongoDBCollection extends DBCollection {
         }
       } else {
         Filter filter = expressionParser.buildFilter(q);
-        for (DBObject obj : filterByIndexes(q, objects.values())) {
+        for (DBObject obj : filterByIndexes(q, filterByIndexes(q, objects.values()))) {
           if (filter.apply(obj)) {
-            futureObjects.remove(obj);
             DBObject newObject = Util.clone(obj);
             updateEngine.doUpdate(newObject, o, q);
-            // Check for uniqueness
-            futureObjects.add(newObject);
-            checkForUniqueness(futureObjects);
+            // Check for uniqueness (throw MongoException if error)
+            addToIndexes(newObject, obj);
 
             // Set for real now.
             updateEngine.doUpdate(obj, o, q);
@@ -654,11 +641,10 @@ public class FongoDBCollection extends DBCollection {
     filterLists(update);
     Filter filter = expressionParser.buildFilter(query);
 
-    Collection<DBObject> objectsToSearch = sortObjects(sort, objects.values());
+    Collection<DBObject> objectsToSearch = sortObjects(sort, filterByIndexes(query, objects.values()));
     DBObject beforeObject = null;
     DBObject afterObject = null;
-    for (Iterator<DBObject> iter = objectsToSearch.iterator(); iter.hasNext(); ) {
-      DBObject dbo = iter.next();
+    for (DBObject dbo : objectsToSearch) {
       if (filter.apply(dbo)) {
         beforeObject = dbo;
         if (!remove) {
@@ -694,7 +680,6 @@ public class FongoDBCollection extends DBCollection {
       DBObject value = iter.next();
       if (filter.apply(value)) {
         List<Object> keyValues = expressionParser.getEmbeddedValues(key, value);
-        LOG.info("{}", keyValues);
         for (Object keyValue : keyValues) {
           if (keyValue instanceof List) {
             results.addAll((List) keyValue);
@@ -733,19 +718,6 @@ public class FongoDBCollection extends DBCollection {
   }
 
   /**
-   * @param futureObjects
-   * @throws MongoException in case of duplicate entry in index.
-   */
-  private void checkForUniqueness(List<DBObject> futureObjects) throws MongoException {
-    Index index = IndexUtil.INSTANCE.checkForUniqueness(indexes.values(), futureObjects);
-    if (index != null) {
-//E11000 duplicate key error index: test.zip.$city_1_state_1_pop_1  dup key: { : "AGAWAM", : "MA", : 15338.0 }
-      // TODO
-      throw new MongoException.DuplicateKey(fongoDb.errorResult(11000, "Attempting to insert duplicate on index: " + index.getName()));
-    }
-  }
-
-  /**
    * Search the most restrictive index for query.
    *
    * @param query
@@ -769,17 +741,27 @@ public class FongoDBCollection extends DBCollection {
     return index;
   }
 
-  private void addToIndexes(DBObject object) {
+  /**
+   * Add entry to index.
+   *
+   * @param object    new object to insert.
+   * @param oldObject null if insert, old object if update.
+   */
+  private void addToIndexes(DBObject object, DBObject oldObject) {
     Set<String> queryFields = object.keySet();
     // First, try to see if index can add the new value.
     for (Map.Entry<Set<String>, Index> entry : indexes.entrySet()) {
       if (queryFields.containsAll(entry.getKey())) {
-        entry.getValue().checkAdd(object);
+        List<List<Object>> error = entry.getValue().checkAddOrUpdate(object, oldObject);
+        if (!error.isEmpty()) {
+          //E11000 duplicate key error index: test.zip.$city_1_state_1_pop_1  dup key: { : "BARRE", : "MA", : 4546.0 }
+          this.fongoDb.errorResult(11000, "E11000 duplicate key error index: " + this.getFullName() + "." + entry.getValue().getName() + "  dup key : {" + error + " }").throwOnError();
+        }
       }
     }
     for (Map.Entry<Set<String>, Index> entry : indexes.entrySet()) {
       if (queryFields.containsAll(entry.getKey())) {
-        entry.getValue().add(object);
+        entry.getValue().addOrUpdate(object, oldObject);
       }
     }
   }

@@ -7,11 +7,7 @@ import com.mongodb.DBObject;
 import com.mongodb.FongoDBCollection;
 import com.mongodb.MongoException;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
-import org.hamcrest.BaseMatcher;
-import org.hamcrest.Description;
-import org.hamcrest.Matcher;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -277,7 +273,6 @@ public class FongoIndexTest {
     assertEquals(1, indexPermalink.getUsedTime());
   }
 
-
   // Check if index is correctly cleaned.
   @Test
   public void afterRemoveObjectMustNotBeRetrieved() {
@@ -293,4 +288,112 @@ public class FongoIndexTest {
     result = collection.find(new BasicDBObject("date", 1)).toArray();
     assertEquals(0, result.size());
   }
+
+  @Test
+  public void uniqueIndexesShouldNotPermitUpdateOfDuplicatedEntriesWhenUpdatedById() {
+    DBCollection collection = FongoTest.newCollection();
+
+    collection.ensureIndex(new BasicDBObject("date", 1), "uniqueDate", true);
+
+    // Insert
+    collection.insert(new BasicDBObject("_id", 1).append("date", 1));
+    collection.insert(new BasicDBObject("_id", 2).append("date", 2));
+
+    try {
+      collection.update(new BasicDBObject("_id", 2), new BasicDBObject("date", 1));
+      fail("should throw MongoException");
+    } catch (MongoException me) {
+      assertEquals(11000, me.getCode());
+    }
+
+    // Verify object is NOT modify
+    assertEquals(2, collection.find(new BasicDBObject("_id", 2)).next().get("date"));
+  }
+
+  @Test
+  public void uniqueIndexesShouldNotPermitCreateOfDuplicatedEntriesWhenUpdatedByField() {
+    DBCollection collection = FongoTest.newCollection();
+
+    collection.ensureIndex(new BasicDBObject("date", 1), "uniqueDate", true);
+
+    // Insert
+    collection.insert(new BasicDBObject("_id", 1).append("date", 1));
+    collection.insert(new BasicDBObject("_id", 2).append("date", 2));
+
+    try {
+      collection.update(new BasicDBObject("date", 2), new BasicDBObject("date", 1));
+      fail("should throw MongoException");
+    } catch (MongoException me) {
+      assertEquals(11000, me.getCode());
+    }
+
+    // Verify object is NOT modify
+    assertEquals(2, collection.find(new BasicDBObject("_id", 2)).next().get("date"));
+  }
+
+
+  @Test
+  public void uniqueIndexesCanPermitUpdateOfDuplicatedEntriesWhenUpdatedByIdTheSameObject() {
+    DBCollection collection = FongoTest.newCollection();
+
+    collection.ensureIndex(new BasicDBObject("date", 1), "uniqueDate", true);
+
+    // Insert
+    collection.insert(new BasicDBObject("_id", 1).append("date", 1));
+    collection.insert(new BasicDBObject("_id", 2).append("date", 2));
+
+    // Test
+    collection.update(new BasicDBObject("_id", 2), new BasicDBObject("date", 2));
+
+    // Verify object is NOT modified
+    assertEquals(2, collection.find(new BasicDBObject("_id", 2)).next().get("date"));
+  }
+
+  @Test
+  public void uniqueIndexesCanPermitCreateOfDuplicatedEntriesWhenUpdatedByFieldTheSameObject() {
+    DBCollection collection = FongoTest.newCollection();
+
+    collection.ensureIndex(new BasicDBObject("date", 1), "uniqueDate", true);
+
+    // Insert
+    collection.insert(new BasicDBObject("_id", 1).append("date", 1));
+    collection.insert(new BasicDBObject("_id", 2).append("date", 2));
+    collection.update(new BasicDBObject("date", 1), new BasicDBObject("date", 1));
+
+    // Verify object is NOT modify
+    assertEquals(1, collection.find(new BasicDBObject("_id", 1)).next().get("date"));
+  }
+
+  @Test
+  public void uniqueIndexesShouldPermitCreateOfDuplicatedEntriesWhenIndexIsRemoved() {
+    DBCollection collection = FongoTest.newCollection();
+
+    collection.ensureIndex(new BasicDBObject("date", 1), "uniqueDate", true);
+
+    // Insert
+    collection.insert(new BasicDBObject("_id", 1).append("date", 1));
+    collection.insert(new BasicDBObject("_id", 2).append("date", 2));
+
+    collection.dropIndex("uniqueDate");
+
+    collection.update(new BasicDBObject("_id", 2), new BasicDBObject("date", 1));
+    collection.insert(new BasicDBObject("_id", 3).append("date", 1));
+  }
+
+  @Test
+  public void uniqueIndexesShouldPermitCreateOfDuplicatedEntriesWhenAllIndexesAreRemoved() {
+    DBCollection collection = FongoTest.newCollection();
+
+    collection.ensureIndex(new BasicDBObject("date", 1), "uniqueDate", true);
+
+    // Insert
+    collection.insert(new BasicDBObject("_id", 1).append("date", 1));
+    collection.insert(new BasicDBObject("_id", 2).append("date", 2));
+
+    collection.dropIndex("uniqueDate");
+
+    collection.update(new BasicDBObject("_id", 2), new BasicDBObject("date", 1));
+    collection.insert(new BasicDBObject("_id", 3).append("date", 1));
+  }
 }
+

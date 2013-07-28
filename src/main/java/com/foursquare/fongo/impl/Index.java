@@ -46,10 +46,14 @@ public class Index {
   }
 
   /**
-   * @param object
+   * @param object    new object to insert in the index.
+   * @param oldObject in update, old objet to remove from index.
    * @return keys in error if uniqueness is not respected, empty collection otherwise.
    */
-  public synchronized List<List<Object>> add(DBObject object) {
+  public synchronized List<List<Object>> addOrUpdate(DBObject object, DBObject oldObject) {
+    if (oldObject != null) {
+      this.remove(oldObject); // TODO : optim ?
+    }
     List<List<Object>> fieldsForIndex = IndexUtil.INSTANCE.extractFields(object, getFields());
 //    DBObject id = new BasicDBObject(FongoDBCollection.ID_KEY, object.get(FongoDBCollection.ID_KEY));
     if (unique) {
@@ -76,12 +80,14 @@ public class Index {
    * Check, in case of unique index, if we can add it.
    *
    * @param object
+   * @param oldObject old object if update, null elsewhere.
    * @return keys in error if uniqueness is not respected, empty collection otherwise.
    */
-  public synchronized List<List<Object>> checkAdd(DBObject object) {
+  public synchronized List<List<Object>> checkAddOrUpdate(DBObject object, DBObject oldObject) {
     if (unique) {
       List<List<Object>> fieldsForIndex = IndexUtil.INSTANCE.extractFields(object, getFields());
-      if (mapValues.containsKey(fieldsForIndex)) {
+      List<DBObject> objects = mapValues.get(fieldsForIndex);
+      if (objects != null && !objects.contains(oldObject)) {
         return fieldsForIndex;
       }
     }
@@ -115,7 +121,7 @@ public class Index {
    */
   public synchronized List<List<Object>> addAll(Set<Map.Entry<Object, DBObject>> objectsById) {
     for (Map.Entry<Object, DBObject> entry : objectsById) {
-      List<List<Object>> nonUnique = add(entry.getValue());
+      List<List<Object>> nonUnique = addOrUpdate(entry.getValue(), null);
       if (!nonUnique.isEmpty()) {
         return nonUnique;
       }
