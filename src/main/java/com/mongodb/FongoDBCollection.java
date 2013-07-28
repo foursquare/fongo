@@ -494,10 +494,12 @@ public class FongoDBCollection extends DBCollection {
    */
   private Collection<DBObject> filterByIndexes(DBObject ref, Collection<DBObject> objectsValues) {
     Collection<DBObject> dbObjectIterable = objectsValues;
-    Index matchingIndex = searchIndex(ref);
-    if (matchingIndex != null) {
-      dbObjectIterable = matchingIndex.retrieveObjects(ref);
-      LOG.info("restrict with index {}, from {} to {} elements", matchingIndex.getName(), objectsValues.size(), dbObjectIterable.size());
+    if (ref != null) {
+      Index matchingIndex = searchIndex(ref);
+      if (matchingIndex != null) {
+        dbObjectIterable = matchingIndex.retrieveObjects(ref);
+        LOG.info("restrict with index {}, from {} to {} elements", matchingIndex.getName(), objectsValues.size(), dbObjectIterable.size());
+      }
     }
     return dbObjectIterable;
   }
