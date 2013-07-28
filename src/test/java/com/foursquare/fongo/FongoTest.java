@@ -655,7 +655,18 @@ public class FongoTest {
     collection.insert(new BasicDBObject("n", 1).append("_id", 5));
     assertEquals(Arrays.asList(1, 2, 3), collection.distinct("n"));
   }
-  
+
+  @Test
+  public void testDistinctHierarchicalQuery() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("n", new BasicDBObject("i", 1)).append("_id", 1));
+    collection.insert(new BasicDBObject("n", new BasicDBObject("i", 2)).append("_id", 2));
+    collection.insert(new BasicDBObject("n", new BasicDBObject("i", 3)).append("_id", 3));
+    collection.insert(new BasicDBObject("n", new BasicDBObject("i", 1)).append("_id", 4));
+    collection.insert(new BasicDBObject("n", new BasicDBObject("i", 1)).append("_id", 5));
+    assertEquals(Arrays.asList(1, 2, 3), collection.distinct("n.i"));
+  }
+
   @Test
   public void testGetLastError(){
     Fongo fongo = newFongo();
@@ -724,7 +735,7 @@ public class FongoTest {
   public void testUpdateWithIdInMultiReturnModifiedDocumentCount() {
     DBCollection collection = newCollection();
     collection.insert(new BasicDBObject("_id", 1),new BasicDBObject("_id", 2));
-    WriteResult result = collection.update(new BasicDBObject("_id", new BasicDBObject("$in", Arrays.asList(1,2))), 
+    WriteResult result = collection.update(new BasicDBObject("_id", new BasicDBObject("$in", Arrays.asList(1, 2))),
         new BasicDBObject("$set", new BasicDBObject("n", 1)), false, true);
     assertEquals(2, result.getN());
   }

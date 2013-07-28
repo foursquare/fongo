@@ -59,7 +59,7 @@ public enum IndexUtil {
     for (Index index : indexes) {
       if (index.isUnique()) {
         List<List<List<Object>>> fieldsForIndex = extractFields(objects, index.getFields());
-        LOG.debug("for index {}, fields : {}", index.getName(), fieldsForIndex);
+//        LOG.debug("for index {}, fields : {}", index.getName(), fieldsForIndex);
         Set<List<List<Object>>> set = new HashSet<List<List<Object>>>(fieldsForIndex);
         if (set.size() != fieldsForIndex.size()) {
           return index;

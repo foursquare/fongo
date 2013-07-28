@@ -1,7 +1,7 @@
 package com.foursquare.fongo
 
+import _root_.com.mongodb.{MongoException, DBObject, WriteConcern, BasicDBObject}
 import org.scalatest._
-import com.mongodb.{DBObject, MongoException, WriteConcern, BasicDBObject}
 import collection.JavaConversions._
 import org.scalatest.junit.JUnitRunner
 import org.junit.runner.RunWith
@@ -42,20 +42,6 @@ class FongoScalaTest extends FunSuite with BeforeAndAfter {
     // Change write concern
     fongo.getMongoClient.setWriteConcern(WriteConcern.FSYNC_SAFE)
     assert(fongo.getWriteConcern === WriteConcern.FSYNC_SAFE)
-  }
-
-  test("UniqueIndexes should not permit create of duplicated entries") {
-    val collection = fongo.getDB("db").createCollection("myCollection", null)
-
-    collection.ensureIndex(new BasicDBObject("date", 1), "uniqueDate", true)
-
-    // Insert
-    collection.insert(new BasicDBObject("date", 1))
-    collection.insert(new BasicDBObject("date", 2))
-    val thrown = intercept[MongoException] {
-      collection.insert(new BasicDBObject("date", 1))
-    }
-    assert(thrown.getCode === 11000)
   }
 
   test("UniqueIndexes should not permit update of duplicated entries when updated by _id") {
@@ -154,24 +140,4 @@ class FongoScalaTest extends FunSuite with BeforeAndAfter {
     collection.insert(new BasicDBObject("_id", 3).append("date", 1))
   }
 
-  test("Indexes should be removed") {
-    val collection = fongo.getDB("db").createCollection("myCollection", null)
-
-    collection.ensureIndex(new BasicDBObject("date", 1))
-    collection.ensureIndex(new BasicDBObject("field", 1), "fieldIndex")
-    collection.ensureIndex(new BasicDBObject("string", 1), "stringIndex", true)
-
-    var indexInfos: List[DBObject] = collection.getIndexInfo.toList
-    assert(3 === indexInfos.size)
-    assert(indexInfos.exists(_.get("name").equals("date_1")))
-    assert(indexInfos.map(_.get("name")).contains("fieldIndex"))
-    assert(indexInfos.map(_.get("name")).contains("stringIndex"))
-
-    collection.dropIndex("fieldIndex")
-    indexInfos = collection.getIndexInfo.toList
-    assert(2 === indexInfos.size)
-    assert(indexInfos.map(_.get("name")).contains("date_1"))
-    assert(!indexInfos.map(_.get("name")).contains("fieldIndex"))
-    assert(indexInfos.map(_.get("name")).contains("stringIndex"))
-  }
 }

@@ -84,10 +84,6 @@ public class FongoDBCollection extends DBCollection {
           // TODO(jon) log          
         }
       } else {
-        List<DBObject> futureObjects = new ArrayList<DBObject>(objects.values());
-        futureObjects.addAll(toInsert);
-        checkForUniqueness(futureObjects);
-
         putSizeCheck(id, obj);
       }
     }
@@ -115,6 +111,10 @@ public class FongoDBCollection extends DBCollection {
     if (objects.size() > 100000) {
       throw new FongoException("Whoa, hold up there.  Fongo's designed for lightweight testing.  100,000 items per collection max");
     }
+
+    // TODO WDEL refactor
+    addToIndexes(obj);
+
     objects.put(id, obj);
   }
 
@@ -222,7 +222,7 @@ public class FongoDBCollection extends DBCollection {
         }
       } else {
         Filter filter = expressionParser.buildFilter(q);
-        for (DBObject obj : objects.values()) {
+        for (DBObject obj : filterByIndexes(q, objects.values())) {
           if (filter.apply(obj)) {
             futureObjects.remove(obj);
             DBObject newObject = Util.clone(obj);
@@ -322,15 +322,36 @@ public class FongoDBCollection extends DBCollection {
     int updatedDocuments = 0;
     if (!idList.isEmpty()) {
       for (Object id : idList) {
-        objects.remove(id);
+        DBObject object = objects.remove(id);
+        removeFromIndexes(object);
       }
       updatedDocuments = idList.size();
     } else {
+      Collection<DBObject> objectsValues = objects.values();
+      Collection<DBObject> objectsByIndex = filterByIndexes(o, objectsValues);
       Filter filter = expressionParser.buildFilter(o);
-      for (Iterator<DBObject> iter = objects.values().iterator(); iter.hasNext(); ) {
-        DBObject dbo = iter.next();
-        if (filter.apply(dbo)) {
-          iter.remove();
+      if (nonIdCollection || objectsValues == objectsByIndex) {
+        for (Iterator<DBObject> iter = objectsByIndex.iterator(); iter.hasNext(); ) {
+          DBObject dbo = iter.next();
+          if (filter.apply(dbo)) {
+            iter.remove();
+            removeFromIndexes(dbo);
+            updatedDocuments++;
+          }
+        }
+      } else {
+        List<Object> ids = new ArrayList<Object>();
+        // Double pass, objectsByIndex can be not "objects"
+        for (DBObject object : objectsByIndex) {
+          if (filter.apply(object)) {
+            ids.add(object.get(ID_KEY));
+          }
+        }
+        // Real remove.
+        for (Object id : ids) {
+          DBObject object = objects.remove(id);
+          LOG.debug("remove id {}, object : {}", id, object);
+          removeFromIndexes(object);
           updatedDocuments++;
         }
       }
@@ -436,8 +457,11 @@ public class FongoDBCollection extends DBCollection {
       if (limit > 0) {
         upperLimit = limit;
       }
+
+      Collection<DBObject> objectsFromIndex = filterByIndexes(ref, objects.values());
+
       int seen = 0;
-      Collection<DBObject> objectsToSearch = sortObjects(orderby);
+      Collection<DBObject> objectsToSearch = sortObjects(orderby, objectsFromIndex);
       for (Iterator<DBObject> iter = objectsToSearch.iterator(); iter.hasNext() && foundCount <= upperLimit; ) {
         DBObject dbo = iter.next();
         if (filter.apply(dbo)) {
@@ -459,6 +483,23 @@ public class FongoDBCollection extends DBCollection {
     LOG.debug("found results {}", results);
 
     return results.iterator();
+  }
+
+  /**
+   * Return "objects.values()" if no index found.
+   *
+   * @param ref
+   * @param objectsValues
+   * @return objectsValues if no index found, elsewhere the restricted values from an index.
+   */
+  private Collection<DBObject> filterByIndexes(DBObject ref, Collection<DBObject> objectsValues) {
+    Collection<DBObject> dbObjectIterable = objectsValues;
+    Index matchingIndex = searchIndex(ref);
+    if (matchingIndex != null) {
+      dbObjectIterable = matchingIndex.retrieveObjects(ref);
+      LOG.info("restrict with index {}, from {} to {} elements", matchingIndex.getName(), objectsValues.size(), dbObjectIterable.size());
+    }
+    return dbObjectIterable;
   }
 
   private List<DBObject> copyResults(final List<DBObject> results) {
@@ -543,12 +584,12 @@ public class FongoDBCollection extends DBCollection {
     return fieldsToRetain;
   }
 
-  public Collection<DBObject> sortObjects(final DBObject orderby) {
-    Collection<DBObject> objectsToSearch = objects.values();
+  public Collection<DBObject> sortObjects(final DBObject orderby, final Collection<DBObject> objects) {
+    Collection<DBObject> objectsToSearch = objects;
     if (orderby != null) {
       final Set<String> orderbyKeySet = orderby.keySet();
       if (!orderbyKeySet.isEmpty()) {
-        DBObject[] objectsToSort = objects.values().toArray(new DBObject[0]);
+        DBObject[] objectsToSort = objects.toArray(new DBObject[objects.size()]);
 
         Arrays.sort(objectsToSort, new Comparator<DBObject>() {
           @Override
@@ -588,7 +629,7 @@ public class FongoDBCollection extends DBCollection {
       upperLimit = limit;
     }
     int seen = 0;
-    for (Iterator<DBObject> iter = objects.values().iterator(); iter.hasNext() && count <= upperLimit; ) {
+    for (Iterator<DBObject> iter = filterByIndexes(query, objects.values()).iterator(); iter.hasNext() && count <= upperLimit; ) {
       DBObject value = iter.next();
       if (filter.apply(value)) {
         if (seen++ >= skip) {
@@ -611,7 +652,7 @@ public class FongoDBCollection extends DBCollection {
     filterLists(update);
     Filter filter = expressionParser.buildFilter(query);
 
-    Collection<DBObject> objectsToSearch = sortObjects(sort);
+    Collection<DBObject> objectsToSearch = sortObjects(sort, objects.values());
     DBObject beforeObject = null;
     DBObject afterObject = null;
     for (Iterator<DBObject> iter = objectsToSearch.iterator(); iter.hasNext(); ) {
@@ -647,7 +688,7 @@ public class FongoDBCollection extends DBCollection {
     filterLists(query);
     List<Object> results = new ArrayList<Object>();
     Filter filter = expressionParser.buildFilter(query);
-    for (Iterator<DBObject> iter = objects.values().iterator(); iter.hasNext(); ) {
+    for (Iterator<DBObject> iter = filterByIndexes(query, objects.values()).iterator(); iter.hasNext(); ) {
       DBObject value = iter.next();
       if (filter.apply(value) && !results.contains(value.get(key))) {
         results.add(value.get(key));
@@ -694,4 +735,56 @@ public class FongoDBCollection extends DBCollection {
     }
   }
 
+  /**
+   * Search the most restrictive index for query.
+   *
+   * @param query
+   * @return the most restrictive index, or null.
+   */
+  private Index searchIndex(DBObject query) {
+    Index index = null;
+    int foundCommon = -1;
+    Set<String> queryFields = query.keySet();
+    for (Map.Entry<Set<String>, Index> entry : indexes.entrySet()) {
+      if (queryFields.containsAll(entry.getKey())) {
+        if (entry.getKey().size() > foundCommon) {
+          index = entry.getValue();
+          foundCommon = entry.getKey().size();
+        }
+      }
+    }
+
+    LOG.debug("searchIndex() found index {} for fields {}", index, queryFields);
+
+    return index;
+  }
+
+  private void addToIndexes(DBObject object) {
+    Set<String> queryFields = object.keySet();
+    // First, try to see if index can add the new value.
+    for (Map.Entry<Set<String>, Index> entry : indexes.entrySet()) {
+      if (queryFields.containsAll(entry.getKey())) {
+        entry.getValue().checkAdd(object);
+      }
+    }
+    for (Map.Entry<Set<String>, Index> entry : indexes.entrySet()) {
+      if (queryFields.containsAll(entry.getKey())) {
+        entry.getValue().add(object);
+      }
+    }
+  }
+
+  private void removeFromIndexes(DBObject object) {
+    Set<String> queryFields = object.keySet();
+    for (Map.Entry<Set<String>, Index> entry : indexes.entrySet()) {
+      if (queryFields.containsAll(entry.getKey())) {
+        entry.getValue().remove(object);
+      }
+    }
+  }
+
+  //@VisibleForTesting
+  public Collection<Index> getIndexes() {
+    return indexes.values();
+  }
 }
