@@ -95,21 +95,25 @@ public class Index {
   }
 
   /**
-   * @param object
+   * Remove an object from the index.
+   *
+   * @param object to remove from the index.
    */
   public synchronized void remove(DBObject object) {
     List<List<Object>> fieldsForIndex = IndexUtil.INSTANCE.extractFields(object, getFields());
-//    DBObject id = new BasicDBObject(FongoDBCollection.ID_KEY, object.get(FongoDBCollection.ID_KEY));
-    if (unique) {
-      // Return null only if key was absent.
-      mapValues.remove(fieldsForIndex);
-    } else {
-      // Extract previous values
-      List<DBObject> values = mapValues.get(fieldsForIndex);
-      if (values != null) {
-        // Create if absent.
+//    if (unique) {
+//      mapValues.remove(fieldsForIndex);
+//    } else {
+    // Extract previous values
+    List<DBObject> values = mapValues.get(fieldsForIndex);
+    if (values != null) {
+      // Last entry ? or uniqueness ?
+      if (values.size() == 1) {
+        mapValues.remove(fieldsForIndex);
+      } else {
         values.remove(object);
       }
+//      }
     }
   }
 

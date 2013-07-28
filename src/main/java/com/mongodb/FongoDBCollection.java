@@ -111,9 +111,7 @@ public class FongoDBCollection extends DBCollection {
       throw new FongoException("Whoa, hold up there.  Fongo's designed for lightweight testing.  100,000 items per collection max");
     }
 
-    // TODO WDEL refactor
     addToIndexes(obj, null);
-
     objects.put(id, obj);
   }
 
@@ -185,7 +183,11 @@ public class FongoDBCollection extends DBCollection {
       if (!o.containsField(ID_KEY)) {
         o.put(ID_KEY, q.get(ID_KEY));
       }
-      // TODO : help, what is this case ?
+      // TODO : try to find a more efficient way.
+      DBObject oldObject = objects.get(o.get(ID_KEY));
+      if (oldObject != null) {
+        removeFromIndexes(oldObject);
+      }
       fInsert(o);
       updatedDocuments++;
     } else {
@@ -485,7 +487,9 @@ public class FongoDBCollection extends DBCollection {
       Index matchingIndex = searchIndex(ref);
       if (matchingIndex != null) {
         dbObjectIterable = matchingIndex.retrieveObjects(ref);
-        LOG.info("restrict with index {}, from {} to {} elements", matchingIndex.getName(), objectsValues.size(), dbObjectIterable.size());
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("restrict with index {}, from {} to {} elements", matchingIndex.getName(), objectsValues.size(), dbObjectIterable.size());
+        }
       }
     }
     return dbObjectIterable;
@@ -743,6 +747,7 @@ public class FongoDBCollection extends DBCollection {
 
   /**
    * Add entry to index.
+   * If necessary, remove oldObject from index.
    *
    * @param object    new object to insert.
    * @param oldObject null if insert, old object if update.
@@ -759,10 +764,14 @@ public class FongoDBCollection extends DBCollection {
         }
       }
     }
+
+    Set<String> oldQueryFields = oldObject == null ? Collections.<String>emptySet() : oldObject.keySet();
     for (Map.Entry<Set<String>, Index> entry : indexes.entrySet()) {
       if (queryFields.containsAll(entry.getKey())) {
         entry.getValue().addOrUpdate(object, oldObject);
-      }
+      } else if (oldQueryFields.containsAll(entry.getKey()))
+        // In case of update and removing a field, we must remove from the index.
+        entry.getValue().remove(oldObject);
     }
   }
 
