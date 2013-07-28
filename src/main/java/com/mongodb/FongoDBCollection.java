@@ -688,15 +688,23 @@ public class FongoDBCollection extends DBCollection {
   @Override
   public synchronized List distinct(String key, DBObject query) {
     filterLists(query);
-    List<Object> results = new ArrayList<Object>();
+    Set<Object> results = new LinkedHashSet<Object>();
     Filter filter = expressionParser.buildFilter(query);
     for (Iterator<DBObject> iter = filterByIndexes(query, objects.values()).iterator(); iter.hasNext(); ) {
       DBObject value = iter.next();
-      if (filter.apply(value) && !results.contains(value.get(key))) {
-        results.add(value.get(key));
+      if (filter.apply(value)) {
+        List<Object> keyValues = expressionParser.getEmbeddedValues(key, value);
+        LOG.info("{}", keyValues);
+        for (Object keyValue : keyValues) {
+          if (keyValue instanceof List) {
+            results.addAll((List) keyValue);
+          } else {
+            results.add(keyValue);
+          }
+        }
       }
     }
-    return results;
+    return new ArrayList(results);
   }
 
   protected void _dropIndexes(String name) throws MongoException {

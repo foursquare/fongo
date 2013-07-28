@@ -668,6 +668,15 @@ public class FongoTest {
   }
 
   @Test
+  public void testDistinctHierarchicalQueryWithArray() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("n", new BasicDBObject("i", Util.list(1, 2 , 3))).append("_id", 1));
+    collection.insert(new BasicDBObject("n", new BasicDBObject("i", Util.list(3, 4))).append("_id", 2));
+    collection.insert(new BasicDBObject("n", new BasicDBObject("i", Util.list(1, 5))).append("_id", 3));
+    assertEquals(Arrays.asList(1, 2, 3, 4, 5), collection.distinct("n.i"));
+  }
+
+  @Test
   public void testGetLastError(){
     Fongo fongo = newFongo();
     DB db = fongo.getDB("db");
