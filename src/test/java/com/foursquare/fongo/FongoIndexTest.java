@@ -395,5 +395,41 @@ public class FongoIndexTest {
     collection.update(new BasicDBObject("_id", 2), new BasicDBObject("date", 1));
     collection.insert(new BasicDBObject("_id", 3).append("date", 1));
   }
+
+  // Add or remove a field in an object must populate the index.
+  @Test
+  public void updateAndAddFieldMustAddIntoIndex() {
+    FongoDBCollection collection = (FongoDBCollection) FongoTest.newCollection();
+
+    collection.ensureIndex(new BasicDBObject("date", 1));
+
+    // Insert
+    collection.insert(new BasicDBObject("_id", 2));
+
+    assertEquals(1, collection.getIndexes().size());
+    Index index = collection.getIndexes().iterator().next();
+    assertEquals(0, index.size());
+
+    collection.update(new BasicDBObject("_id", 2), new BasicDBObject("date", 1));
+    assertEquals(1, index.size());
+  }
+
+  // Add or remove a field in an object must populate the index.
+  @Test
+  public void updateAndRemoveFieldMustAddIntoIndex() {
+    FongoDBCollection collection = (FongoDBCollection) FongoTest.newCollection();
+
+    collection.ensureIndex(new BasicDBObject("date", 1));
+
+    // Insert
+    collection.insert(new BasicDBObject("_id", 1).append("date", 1));
+
+    assertEquals(1, collection.getIndexes().size());
+    Index index = collection.getIndexes().iterator().next();
+    assertEquals(1, index.size());
+
+    collection.update(new BasicDBObject("_id", 1), new BasicDBObject("$unset", new BasicDBObject("date", 1)));
+    assertEquals(0, index.size());
+  }
 }
 

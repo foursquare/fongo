@@ -147,4 +147,7 @@ public class Index {
         '}';
   }
 
+  public synchronized int size() {
+    return mapValues.size();
+  }
 }
