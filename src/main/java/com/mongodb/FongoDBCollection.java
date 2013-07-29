@@ -349,7 +349,7 @@ public class FongoDBCollection extends DBCollection {
   }
 
   @Override
-  public void createIndex(DBObject keys, DBObject options, DBEncoder encoder) throws MongoException {
+  public synchronized void createIndex(DBObject keys, DBObject options, DBEncoder encoder) throws MongoException {
     DBCollection indexColl = fongoDb.getCollection("system.indexes");
     BasicDBObject rec = new BasicDBObject();
     rec.append("v", 1);
@@ -696,7 +696,7 @@ public class FongoDBCollection extends DBCollection {
     return new ArrayList(results);
   }
 
-  protected void _dropIndexes(String name) throws MongoException {
+  protected synchronized void _dropIndexes(String name) throws MongoException {
     DBCollection indexColl = fongoDb.getCollection("system.indexes");
     indexColl.remove(new BasicDBObject("name", name));
     for (Map.Entry<Set<String>, Index> entry : indexes.entrySet()) {
@@ -707,7 +707,7 @@ public class FongoDBCollection extends DBCollection {
     }
   }
 
-  protected void _dropIndexes() {
+  protected synchronized void _dropIndexes() {
     List<DBObject> indexes = fongoDb.getCollection("system.indexes").find().toArray();
     // Two step for no concurrent modification exception
     for (DBObject index : indexes) {
@@ -718,6 +718,7 @@ public class FongoDBCollection extends DBCollection {
   @Override
   public void drop() {
     objects.clear();
+    indexes.clear();
     fongoDb.removeCollection(this);
   }
 
@@ -727,13 +728,13 @@ public class FongoDBCollection extends DBCollection {
    * @param query
    * @return the most restrictive index, or null.
    */
-  private Index searchIndex(DBObject query) {
+  private synchronized Index searchIndex(DBObject query) {
     Index index = null;
     int foundCommon = -1;
     Set<String> queryFields = query.keySet();
     for (Map.Entry<Set<String>, Index> entry : indexes.entrySet()) {
       if (queryFields.containsAll(entry.getKey())) {
-        if (entry.getKey().size() > foundCommon) {
+        if (entry.getKey().size() > foundCommon || index.isUnique()) {
           index = entry.getValue();
           foundCommon = entry.getKey().size();
         }
@@ -752,7 +753,7 @@ public class FongoDBCollection extends DBCollection {
    * @param object    new object to insert.
    * @param oldObject null if insert, old object if update.
    */
-  private void addToIndexes(DBObject object, DBObject oldObject) {
+  private synchronized void addToIndexes(DBObject object, DBObject oldObject) {
     Set<String> queryFields = object.keySet();
     // First, try to see if index can add the new value.
     for (Map.Entry<Set<String>, Index> entry : indexes.entrySet()) {
@@ -775,7 +776,7 @@ public class FongoDBCollection extends DBCollection {
     }
   }
 
-  private void removeFromIndexes(DBObject object) {
+  private synchronized void removeFromIndexes(DBObject object) {
     Set<String> queryFields = object.keySet();
     for (Map.Entry<Set<String>, Index> entry : indexes.entrySet()) {
       if (queryFields.containsAll(entry.getKey())) {
@@ -785,7 +786,7 @@ public class FongoDBCollection extends DBCollection {
   }
 
   //@VisibleForTesting
-  public Collection<Index> getIndexes() {
+  public synchronized Collection<Index> getIndexes() {
     return indexes.values();
   }
 }
