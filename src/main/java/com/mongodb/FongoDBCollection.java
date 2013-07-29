@@ -193,21 +193,29 @@ public class FongoDBCollection extends DBCollection {
       fInsert(o);
       updatedDocuments++;
     } else {
-      Filter filter = expressionParser.buildFilter(q);
-      for (DBObject obj : filterByIndexes(q)) {
-        if (filter.apply(obj)) {
-          DBObject newObject = Util.clone(obj);
-          updateEngine.doUpdate(newObject, o, q);
-          // Check for uniqueness (throw MongoException if error)
-          addToIndexes(newObject, obj);
-
-          // Set for real now.
-          updateEngine.doUpdate(obj, o, q);
-          updatedDocuments++;
-          updatedExisting = true;
-
-          if (!multi) {
-            break;
+      List idsIn = idsIn(q);
+      if (idOnlyUpdate && idsIn.size() > 0) {
+        for (Object id : idsIn) {
+          DBObject existingObject = objects.get(id);
+          if (existingObject != null) {
+            updatedDocuments++;
+            updatedExisting = true;
+            updateEngine.doUpdate(existingObject, o, q);
+            if (!multi) {
+              break;
+            }
+          }
+        }
+      } else {
+        Filter filter = expressionParser.buildFilter(q);
+        for (DBObject obj : objects.values()) {
+          if (filter.apply(obj)) {
+            updatedDocuments++;
+            updatedExisting = true;
+            updateEngine.doUpdate(obj, o, q);
+            if (!multi) {
+              break;
+            }
           }
         }
       }
