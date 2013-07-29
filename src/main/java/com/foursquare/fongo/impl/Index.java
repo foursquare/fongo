@@ -120,17 +120,22 @@ public class Index {
   /**
    * Multiple add of objects.
    *
-   * @param objectsById <_id, value>
+   * @param objects to add.
    * @return keys in error if uniqueness is not respected, empty collection otherwise.
    */
-  public synchronized List<List<Object>> addAll(Set<Map.Entry<Object, DBObject>> objectsById) {
-    for (Map.Entry<Object, DBObject> entry : objectsById) {
-      List<List<Object>> nonUnique = addOrUpdate(entry.getValue(), null);
+  public synchronized List<List<Object>> addAll(Iterable<DBObject> objects) {
+    for (DBObject object : objects) {
+      List<List<Object>> nonUnique = addOrUpdate(object, null);
       if (!nonUnique.isEmpty()) {
         return nonUnique;
       }
     }
     return Collections.emptyList();
+  }
+
+  public List<DBObject> get(DBObject query) {
+    List<List<Object>> fieldsForIndex = IndexUtil.INSTANCE.extractFields(query, getFields());
+    return mapValues.get(fieldsForIndex);
   }
 
   public synchronized Collection<DBObject> retrieveObjects(DBObject query) {
@@ -153,5 +158,17 @@ public class Index {
 
   public synchronized int size() {
     return mapValues.size();
+  }
+
+  public synchronized List<DBObject> values() {
+    List<DBObject> values = new ArrayList<DBObject>(mapValues.size() * 10);
+    for (List<DBObject> objects : mapValues.values()) {
+      values.addAll(objects);
+    }
+    return values;
+  }
+
+  public void clear() {
+    mapValues.clear();
   }
 }

@@ -26,12 +26,13 @@ public class FongoDBCollection extends DBCollection {
   private final FongoDB fongoDb;
   // LinkedHashMap maintains insertion order
   // TODO(jon) separate _id index from storage
-  private final Map<Object, DBObject> objects = new LinkedHashMap<Object, DBObject>();
+//  private final Map<Object, DBObject> objects = new LinkedHashMap<Object, DBObject>();
   private final ExpressionParser expressionParser;
   private final UpdateEngine updateEngine;
   private final boolean nonIdCollection;
   private final ObjectComparator objectComparator;
   private final Map<Set<String>, Index> indexes = new LinkedHashMap<Set<String>, Index>();
+  private final Index _idIndex;
 
   public FongoDBCollection(FongoDB db, String name) {
     super(db, name);
@@ -40,6 +41,8 @@ public class FongoDBCollection extends DBCollection {
     this.expressionParser = new ExpressionParser();
     this.updateEngine = new UpdateEngine();
     this.objectComparator = new ObjectComparator();
+    _idIndex = new Index("_id", Collections.singletonList("_id"), true);
+    this.indexes.put(Collections.singleton("_id"), _idIndex);
   }
 
   class ObjectComparator implements Comparator {
@@ -76,15 +79,15 @@ public class FongoDBCollection extends DBCollection {
       }
       Object id = putIdIfNotPresent(obj);
 
-      if (objects.containsKey(id)) {
-        if (enforceDuplicates(concern)) {
-          throw new MongoException.DuplicateKey(fongoDb.errorResult(0, "Attempting to insert duplicate _id: " + id));
-        } else {
-          // TODO(jon) log          
-        }
-      } else {
-        putSizeCheck(id, obj);
-      }
+//      if (_idIndex.containsKey(id)) {
+//        if (enforceDuplicates(concern)) {
+//          throw new MongoException.DuplicateKey(fongoDb.errorResult(0, "Attempting to insert duplicate _id: " + id));
+//        } else {
+//          // TODO(jon) log
+//        }
+//      } else {
+      putSizeCheck(id, obj);
+//      }
     }
     return new WriteResult(insertResult(toInsert.size()), concern);
   }
@@ -97,9 +100,9 @@ public class FongoDBCollection extends DBCollection {
     if (obj.get(ID_KEY) == null) {
       ObjectId id = new ObjectId();
       id.notNew();
-      if (!nonIdCollection) {
-        obj.put(ID_KEY, id);
-      }
+//      if (!nonIdCollection) {
+      obj.put(ID_KEY, id);
+//      }
       return id;
     } else {
       return obj.get(ID_KEY);
@@ -107,12 +110,11 @@ public class FongoDBCollection extends DBCollection {
   }
 
   public void putSizeCheck(Object id, DBObject obj) {
-    if (objects.size() > 100000) {
+    if (_idIndex.size() > 100000) {
       throw new FongoException("Whoa, hold up there.  Fongo's designed for lightweight testing.  100,000 items per collection max");
     }
 
     addToIndexes(obj, null);
-    objects.put(id, obj);
   }
 
   public DBObject filterLists(DBObject dbo) {
@@ -184,50 +186,28 @@ public class FongoDBCollection extends DBCollection {
         o.put(ID_KEY, q.get(ID_KEY));
       }
       // TODO : try to find a more efficient way.
-      DBObject oldObject = objects.get(o.get(ID_KEY));
-      if (oldObject != null) {
-        removeFromIndexes(oldObject);
+      List<DBObject> oldObject = _idIndex.get(o);
+      if (oldObject != null && oldObject.size() == 1) {
+        removeFromIndexes(oldObject.iterator().next());// Unique index = One element
       }
       fInsert(o);
       updatedDocuments++;
     } else {
-      List idsIn = idsIn(q);
-      if (idOnlyUpdate && idsIn.size() > 0) {
-        for (Object id : idsIn) {
-          DBObject existingObject = objects.get(id);
-          if (existingObject != null) {
-            DBObject newObject = Util.clone(existingObject);
-            updateEngine.doUpdate(newObject, o, q);
-            // Check for uniqueness
-            addToIndexes(newObject, existingObject);
+      Filter filter = expressionParser.buildFilter(q);
+      for (DBObject obj : filterByIndexes(q)) {
+        if (filter.apply(obj)) {
+          DBObject newObject = Util.clone(obj);
+          updateEngine.doUpdate(newObject, o, q);
+          // Check for uniqueness (throw MongoException if error)
+          addToIndexes(newObject, obj);
 
-            // Set object now.
-            objects.put(id, newObject);
-            updatedDocuments++;
-            updatedExisting = true;
+          // Set for real now.
+          updateEngine.doUpdate(obj, o, q);
+          updatedDocuments++;
+          updatedExisting = true;
 
-            if (!multi) {
-              break;
-            }
-          }
-        }
-      } else {
-        Filter filter = expressionParser.buildFilter(q);
-        for (DBObject obj : filterByIndexes(q, filterByIndexes(q, objects.values()))) {
-          if (filter.apply(obj)) {
-            DBObject newObject = Util.clone(obj);
-            updateEngine.doUpdate(newObject, o, q);
-            // Check for uniqueness (throw MongoException if error)
-            addToIndexes(newObject, obj);
-
-            // Set for real now.
-            updateEngine.doUpdate(obj, o, q);
-            updatedDocuments++;
-            updatedExisting = true;
-
-            if (!multi) {
-              break;
-            }
+          if (!multi) {
+            break;
           }
         }
       }
@@ -306,44 +286,21 @@ public class FongoDBCollection extends DBCollection {
     if (LOG.isDebugEnabled()) {
       LOG.debug("remove: " + o);
     }
-    List idList = idsIn(o);
-
     int updatedDocuments = 0;
-    if (!idList.isEmpty()) {
-      for (Object id : idList) {
-        DBObject object = objects.remove(id);
-        removeFromIndexes(object);
+    Collection<DBObject> objectsByIndex = filterByIndexes(o);
+    Filter filter = expressionParser.buildFilter(o);
+    List<DBObject> ids = new ArrayList<DBObject>();
+    // Double pass, objectsByIndex can be not "objects"
+    for (DBObject object : objectsByIndex) {
+      if (filter.apply(object)) {
+        ids.add(object);
       }
-      updatedDocuments = idList.size();
-    } else {
-      Collection<DBObject> objectsValues = objects.values();
-      Collection<DBObject> objectsByIndex = filterByIndexes(o, objectsValues);
-      Filter filter = expressionParser.buildFilter(o);
-      if (nonIdCollection || objectsValues == objectsByIndex) {
-        for (Iterator<DBObject> iter = objectsByIndex.iterator(); iter.hasNext(); ) {
-          DBObject dbo = iter.next();
-          if (filter.apply(dbo)) {
-            iter.remove();
-            removeFromIndexes(dbo);
-            updatedDocuments++;
-          }
-        }
-      } else {
-        List<Object> ids = new ArrayList<Object>();
-        // Double pass, objectsByIndex can be not "objects"
-        for (DBObject object : objectsByIndex) {
-          if (filter.apply(object)) {
-            ids.add(object.get(ID_KEY));
-          }
-        }
-        // Real remove.
-        for (Object id : ids) {
-          DBObject object = objects.remove(id);
-          LOG.debug("remove id {}, object : {}", id, object);
-          removeFromIndexes(object);
-          updatedDocuments++;
-        }
-      }
+    }
+    // Real remove.
+    for (DBObject object : ids) {
+      LOG.debug("remove object : {}", object);
+      removeFromIndexes(object);
+      updatedDocuments++;
     }
     return new WriteResult(updateResult(updatedDocuments, false), concern);
   }
@@ -382,10 +339,13 @@ public class FongoDBCollection extends DBCollection {
     rec.putAll(options);
 
     Index index = new Index((String) rec.get("name"), keys, unique);
-    List<List<Object>> notUnique = index.addAll(objects.entrySet());
+    List<List<Object>> notUnique = index.addAll(_idIndex.values());
     if (!notUnique.isEmpty()) {
       // Duplicate key.
-      fongoDb.errorResult(11000, "E11000 duplicate key error index: " + getFullName() + "." + rec.get("name") + "  dup key: { : " + notUnique + " }").throwOnError();
+      if (!enforceDuplicates(getWriteConcern())) {
+        fongoDb.errorResult(11000, "E11000 duplicate key error index: " + getFullName() + "." + rec.get("name") + "  dup key: { : " + notUnique + " }").throwOnError();
+      }
+      return;
     }
     indexes.put(new HashSet<String>(index.getFields()), index);
 
@@ -417,47 +377,38 @@ public class FongoDBCollection extends DBCollection {
     filterLists(ref);
     if (LOG.isDebugEnabled()) {
       LOG.debug("find({}, {}).skip({}).limit({})", new Object[]{ref, fields, numToSkip, limit,});
-      LOG.debug("the db looks like {}", objects);
+      LOG.debug("the db looks like {}", _idIndex.values());
     }
 
-    List idList = idsIn(ref);
     List<DBObject> results = new ArrayList<DBObject>();
 
-    if (!idList.isEmpty()) {
-      if (LOG.isDebugEnabled()) {
-        LOG.debug("find using id index only {}", idList);
-      }
-      for (Object id : idList) {
-        DBObject result = objects.get(id);
-        if (result != null) {
-          results.add(result);
-        }
-      }
-    } else {
-      DBObject orderby = null;
-      if (ref.containsField("$query") && ref.containsField("$orderby")) {
-        orderby = (DBObject) ref.get("$orderby");
-        ref = (DBObject) ref.get("$query");
-      }
+    DBObject orderby = null;
+    if (ref.containsField("$query") && ref.containsField("$orderby")) {
+      orderby = (DBObject) ref.get("$orderby");
+      ref = (DBObject) ref.get("$query");
+    }
 
-      Filter filter = expressionParser.buildFilter(ref);
-      int foundCount = 0;
-      int upperLimit = Integer.MAX_VALUE;
-      if (limit > 0) {
-        upperLimit = limit;
-      }
+    Filter filter = expressionParser.buildFilter(ref);
+    int foundCount = 0;
+    int upperLimit = Integer.MAX_VALUE;
+    if (limit > 0) {
+      upperLimit = limit;
+    }
 
-      Collection<DBObject> objectsFromIndex = filterByIndexes(ref, objects.values());
+    Collection<DBObject> objectsFromIndex = filterByIndexes(ref);
 
-      int seen = 0;
-      Collection<DBObject> objectsToSearch = sortObjects(orderby, objectsFromIndex);
-      for (Iterator<DBObject> iter = objectsToSearch.iterator(); iter.hasNext() && foundCount <= upperLimit; ) {
-        DBObject dbo = iter.next();
-        if (filter.apply(dbo)) {
-          if (seen++ >= numToSkip) {
-            foundCount++;
-            results.add(dbo);
+    int seen = 0;
+    Collection<DBObject> objectsToSearch = sortObjects(orderby, objectsFromIndex);
+    for (Iterator<DBObject> iter = objectsToSearch.iterator(); iter.hasNext() && foundCount <= upperLimit; ) {
+      DBObject dbo = iter.next();
+      if (filter.apply(dbo)) {
+        if (seen++ >= numToSkip) {
+          foundCount++;
+          DBObject clonedDbo = Util.clone(dbo);
+          if (nonIdCollection) {
+            clonedDbo.removeField("_id");
           }
+          results.add(clonedDbo);
         }
       }
     }
@@ -478,19 +429,21 @@ public class FongoDBCollection extends DBCollection {
    * Return "objects.values()" if no index found.
    *
    * @param ref
-   * @param objectsValues
-   * @return objectsValues if no index found, elsewhere the restricted values from an index.
+   * @return objects from "_id" if no index found, elsewhere the restricted values from an index.
    */
-  private Collection<DBObject> filterByIndexes(DBObject ref, Collection<DBObject> objectsValues) {
-    Collection<DBObject> dbObjectIterable = objectsValues;
+  private Collection<DBObject> filterByIndexes(DBObject ref) {
+    Collection<DBObject> dbObjectIterable = null;
     if (ref != null) {
       Index matchingIndex = searchIndex(ref);
       if (matchingIndex != null) {
         dbObjectIterable = matchingIndex.retrieveObjects(ref);
         if (LOG.isDebugEnabled()) {
-          LOG.debug("restrict with index {}, from {} to {} elements", matchingIndex.getName(), objectsValues.size(), dbObjectIterable.size());
+          LOG.debug("restrict with index {}, from {} to {} elements", matchingIndex.getName(), _idIndex.size(), dbObjectIterable.size());
         }
       }
+    }
+    if (dbObjectIterable == null) {
+      dbObjectIterable = _idIndex.values();
     }
     return dbObjectIterable;
   }
@@ -622,7 +575,7 @@ public class FongoDBCollection extends DBCollection {
       upperLimit = limit;
     }
     int seen = 0;
-    for (Iterator<DBObject> iter = filterByIndexes(query, objects.values()).iterator(); iter.hasNext() && count <= upperLimit; ) {
+    for (Iterator<DBObject> iter = filterByIndexes(query).iterator(); iter.hasNext() && count <= upperLimit; ) {
       DBObject value = iter.next();
       if (filter.apply(value)) {
         if (seen++ >= skip) {
@@ -645,7 +598,7 @@ public class FongoDBCollection extends DBCollection {
     filterLists(update);
     Filter filter = expressionParser.buildFilter(query);
 
-    Collection<DBObject> objectsToSearch = sortObjects(sort, filterByIndexes(query, objects.values()));
+    Collection<DBObject> objectsToSearch = sortObjects(sort, filterByIndexes(query));
     DBObject beforeObject = null;
     DBObject afterObject = null;
     for (DBObject dbo : objectsToSearch) {
@@ -680,7 +633,7 @@ public class FongoDBCollection extends DBCollection {
     filterLists(query);
     Set<Object> results = new LinkedHashSet<Object>();
     Filter filter = expressionParser.buildFilter(query);
-    for (Iterator<DBObject> iter = filterByIndexes(query, objects.values()).iterator(); iter.hasNext(); ) {
+    for (Iterator<DBObject> iter = filterByIndexes(query).iterator(); iter.hasNext(); ) {
       DBObject value = iter.next();
       if (filter.apply(value)) {
         List<Object> keyValues = expressionParser.getEmbeddedValues(key, value);
@@ -717,7 +670,7 @@ public class FongoDBCollection extends DBCollection {
 
   @Override
   public void drop() {
-    objects.clear();
+    _idIndex.clear();
     indexes.clear();
     fongoDb.removeCollection(this);
   }
@@ -761,7 +714,10 @@ public class FongoDBCollection extends DBCollection {
         List<List<Object>> error = entry.getValue().checkAddOrUpdate(object, oldObject);
         if (!error.isEmpty()) {
           //E11000 duplicate key error index: test.zip.$city_1_state_1_pop_1  dup key: { : "BARRE", : "MA", : 4546.0 }
-          this.fongoDb.errorResult(11000, "E11000 duplicate key error index: " + this.getFullName() + "." + entry.getValue().getName() + "  dup key : {" + error + " }").throwOnError();
+          if (!enforceDuplicates(this.getWriteConcern())) {
+            this.fongoDb.errorResult(11000, "E11000 duplicate key error index: " + this.getFullName() + "." + entry.getValue().getName() + "  dup key : {" + error + " }").throwOnError();
+          }
+          return; // silently ignore.
         }
       }
     }
