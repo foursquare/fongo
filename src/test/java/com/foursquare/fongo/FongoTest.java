@@ -43,7 +43,7 @@ public class FongoTest {
     assertEquals(Arrays.asList(db), fongo.getUsedDatabases());
     assertEquals(Arrays.asList("db"), fongo.getDatabaseNames());
   }
-  
+
   @Test
   public void testGetCollection() {
     Fongo fongo = newFongo();
@@ -54,22 +54,22 @@ public class FongoTest {
     assertSame("getCollection should be idempotent", collection, db.getCollectionFromString("coll"));
     assertEquals(new HashSet<String>(Arrays.asList("coll")), db.getCollectionNames());
   }
-  
+
   @Test
   public void testCreateCollection() {
-      Fongo fongo = newFongo();
-      DB db = fongo.getDB("db");
-      db.createCollection("coll", null);
-      assertEquals(Collections.singleton("coll"), db.getCollectionNames());
+    Fongo fongo = newFongo();
+    DB db = fongo.getDB("db");
+    db.createCollection("coll", null);
+    assertEquals(Collections.singleton("coll"), db.getCollectionNames());
   }
 
-  @Test 
+  @Test
   public void testCountMethod() {
     DBCollection collection = newCollection();
     assertEquals(0, collection.count());
   }
-  
-  @Test 
+
+  @Test
   public void testCountWithQueryCommand() {
     DBCollection collection = newCollection();
     collection.insert(new BasicDBObject("n", 1));
@@ -77,23 +77,23 @@ public class FongoTest {
     collection.insert(new BasicDBObject("n", 2));
     assertEquals(2, collection.count(new BasicDBObject("n", 2)));
   }
-  
+
   @Test
   public void testCountOnCursor() {
     DBCollection collection = newCollection();
     collection.insert(new BasicDBObject("n", 1));
     collection.insert(new BasicDBObject("n", 2));
     collection.insert(new BasicDBObject("n", 2));
-    assertEquals(3,collection.find(QueryBuilder.start("n").exists(true).get()).count());
+    assertEquals(3, collection.find(QueryBuilder.start("n").exists(true).get()).count());
   }
-  
+
   @Test
   public void testInsertIncrementsCount() {
     DBCollection collection = newCollection();
     collection.insert(new BasicDBObject("name", "jon"));
     assertEquals(1, collection.count());
   }
-  
+
   @Test
   public void testFindOne() {
     DBCollection collection = newCollection();
@@ -102,19 +102,19 @@ public class FongoTest {
     assertNotNull(result);
     assertNotNull("should have an _id", result.get("_id"));
   }
-  
+
   @Test
   public void testFindOneNoData() {
     DBCollection collection = newCollection();
     DBObject result = collection.findOne();
     assertNull(result);
   }
-  
+
   @Test
   public void testFindOneIn() {
     DBCollection collection = newCollection();
     collection.insert(new BasicDBObject("_id", 1));
-    DBObject result = collection.findOne(new BasicDBObject("_id", new BasicDBObject("$in", Arrays.asList(1,2))));
+    DBObject result = collection.findOne(new BasicDBObject("_id", new BasicDBObject("$in", Arrays.asList(1, 2))));
     assertEquals(new BasicDBObject("_id", 1), result);
   }
 
@@ -124,7 +124,7 @@ public class FongoTest {
     collection.insert(new BasicDBObject("_id", 1));
     collection.insert(new BasicDBObject("_id", 2));
 
-    DBObject result = collection.findOne(new BasicDBObject("_id", new BasicDBObject("$in", new Integer[] {1, 3})));
+    DBObject result = collection.findOne(new BasicDBObject("_id", new BasicDBObject("$in", new Integer[]{1, 3})));
     assertEquals(new BasicDBObject("_id", 1), result);
   }
 
@@ -134,7 +134,7 @@ public class FongoTest {
     collection.insert(new BasicDBObject("_id", 1));
     collection.insert(new BasicDBObject("_id", 2));
 
-    DBObject result = collection.findOne(new BasicDBObject("_id", new BasicDBObject("$nin", new Integer[] {1, 3})));
+    DBObject result = collection.findOne(new BasicDBObject("_id", new BasicDBObject("$nin", new Integer[]{1, 3})));
     assertEquals(new BasicDBObject("_id", 2), result);
   }
 
@@ -144,14 +144,14 @@ public class FongoTest {
     collection.insert(new BasicDBObject("_id", 1));
     DBObject result = collection.findOne(new BasicDBObject("_id", 1));
     assertEquals(new BasicDBObject("_id", 1), result);
-    
+
     assertEquals(null, collection.findOne(new BasicDBObject("_id", 2)));
   }
 
   @Test
   public void testFindOneWithFields() {
     DBCollection collection = newCollection();
-    collection.insert(new BasicDBObject().append("name", "jon").append("foo","bar"));
+    collection.insert(new BasicDBObject().append("name", "jon").append("foo", "bar"));
     DBObject result = collection.findOne(new BasicDBObject(), new BasicDBObject("foo", 1));
     assertNotNull(result);
     assertNotNull("should have an _id", result.get("_id"));
@@ -210,7 +210,7 @@ public class FongoTest {
         new BasicDBObject("_id", 2)
     ), cursor.toArray());
   }
-  
+
   @Test
   public void testFindWithSkipLimit() {
     DBCollection collection = newCollection();
@@ -225,7 +225,7 @@ public class FongoTest {
         new BasicDBObject("_id", 4)
     ), cursor.toArray());
   }
-    
+
   @Test
   public void testFindWithSkipLimitNoResult() {
     DBCollection collection = newCollection();
@@ -261,7 +261,7 @@ public class FongoTest {
     assertEquals(Arrays.asList(), cursor.toArray());
   }
 
-    @Test
+  @Test
   public void testIdInQueryResultsInIndexOrder() {
     DBCollection collection = newCollection();
     collection.insert(new BasicDBObject("_id", 4));
@@ -270,14 +270,14 @@ public class FongoTest {
     collection.insert(new BasicDBObject("_id", 2));
 
     DBCursor cursor = collection.find(new BasicDBObject("_id",
-        new BasicDBObject("$in", Arrays.asList(3,2,1))));
+        new BasicDBObject("$in", Arrays.asList(3, 2, 1))));
     assertEquals(Arrays.asList(
         new BasicDBObject("_id", 1),
         new BasicDBObject("_id", 2),
         new BasicDBObject("_id", 3)
     ), cursor.toArray());
   }
-  
+
   @Test
   public void testSort() {
     DBCollection collection = newCollection();
@@ -296,7 +296,7 @@ public class FongoTest {
         new BasicDBObject("_id", 5)
     ), cursor.toArray());
   }
-  
+
   @Test
   public void testCompoundSort() {
     DBCollection collection = newCollection();
@@ -315,7 +315,7 @@ public class FongoTest {
         new BasicDBObject("a", 2).append("_id", 4)
     ), cursor.toArray());
   }
-  
+
   @Test
   public void testEmbeddedSort() {
     DBCollection collection = newCollection();
@@ -334,7 +334,7 @@ public class FongoTest {
         new BasicDBObject("_id", 3)
     ), cursor.toArray());
   }
-  
+
 
   @Test
   public void testBasicUpdate() {
@@ -343,11 +343,11 @@ public class FongoTest {
     collection.insert(new BasicDBObject("_id", 2).append("b", 5));
     collection.insert(new BasicDBObject("_id", 3));
     collection.insert(new BasicDBObject("_id", 4));
-    
+
     collection.update(new BasicDBObject("_id", 2), new BasicDBObject("a", 5));
-    
-    assertEquals(new BasicDBObject("_id", 2).append("a", 5), 
-        collection.findOne(new BasicDBObject("_id",2)));
+
+    assertEquals(new BasicDBObject("_id", 2).append("a", 5),
+        collection.findOne(new BasicDBObject("_id", 2)));
   }
 
   @Test
@@ -363,22 +363,22 @@ public class FongoTest {
         new BasicDBObject("_id", 2).append("a", 5));
 
     assertEquals(new BasicDBObject("_id", 2).append("a", 5),
-            collection.findOne(new BasicDBObject("_id", 2)));
+        collection.findOne(new BasicDBObject("_id", 2)));
   }
 
   @Test
   public void testIdNotAllowedToBeUpdated() {
     DBCollection collection = newCollection();
     collection.insert(new BasicDBObject("_id", 1));
-    
+
     try {
       collection.update(new BasicDBObject("_id", 1), new BasicDBObject("_id", 2).append("a", 5));
       fail("should throw exception");
     } catch (MongoException e) {
-      
+
     }
   }
-  
+
   @Test
   public void testUpsert() {
     DBCollection collection = newCollection();
@@ -388,7 +388,7 @@ public class FongoTest {
         collection.findOne());
     assertFalse(result.getLastError().getBoolean("updatedExisting"));
   }
-  
+
   @Test
   public void testUpsertExisting() {
     DBCollection collection = newCollection();
@@ -399,41 +399,41 @@ public class FongoTest {
         collection.findOne());
     assertTrue(result.getLastError().getBoolean("updatedExisting"));
   }
-  
+
   @Test
   public void testUpsertWithConditional() {
     DBCollection collection = newCollection();
-    collection.update(new BasicDBObject("_id", 1).append("b", new BasicDBObject("$gt", 5)), 
+    collection.update(new BasicDBObject("_id", 1).append("b", new BasicDBObject("$gt", 5)),
         new BasicDBObject("$inc", new BasicDBObject("a", 1)), true, false);
     assertEquals(new BasicDBObject("_id", 1).append("a", 1),
         collection.findOne());
   }
-  
+
   @Test
   public void testUpsertWithIdIn() {
     DBCollection collection = newCollection();
     DBObject query = new BasicDBObjectBuilder().push("_id").append("$in", Arrays.asList(1)).pop().get();
     DBObject update = new BasicDBObjectBuilder()
-      .push("$push").push("n").append("_id", 2).append("u", 3).pop().pop()
-      .push("$inc").append("c",4).pop().get();
+        .push("$push").push("n").append("_id", 2).append("u", 3).pop().pop()
+        .push("$inc").append("c", 4).pop().get();
     DBObject expected = new BasicDBObjectBuilder().append("_id", 1).append("n", Arrays.asList(new BasicDBObject("_id", 2).append("u", 3))).append("c", 4).get();
     collection.update(query, update, true, false);
     assertEquals(expected, collection.findOne());
   }
-  
+
   @Test
   public void testUpdateWithIdIn() {
     DBCollection collection = newCollection();
     collection.insert(new BasicDBObject("_id", 1));
     DBObject query = new BasicDBObjectBuilder().push("_id").append("$in", Arrays.asList(1)).pop().get();
     DBObject update = new BasicDBObjectBuilder()
-      .push("$push").push("n").append("_id", 2).append("u", 3).pop().pop()
-      .push("$inc").append("c",4).pop().get();
+        .push("$push").push("n").append("_id", 2).append("u", 3).pop().pop()
+        .push("$inc").append("c", 4).pop().get();
     DBObject expected = new BasicDBObjectBuilder().append("_id", 1).append("n", Arrays.asList(new BasicDBObject("_id", 2).append("u", 3))).append("c", 4).get();
     collection.update(query, update, false, true);
     assertEquals(expected, collection.findOne());
   }
-  
+
   @Test
   public void testUpdateWithObjectId() {
     DBCollection collection = newCollection();
@@ -443,107 +443,107 @@ public class FongoTest {
     collection.update(query, update, false, false);
     assertEquals(new BasicDBObject("_id", new BasicDBObject("n", 1)).append("a", 1), collection.findOne());
   }
-  
+
   @Test
   public void testUpdateWithIdInMulti() {
     DBCollection collection = newCollection();
-    collection.insert(new BasicDBObject("_id", 1),new BasicDBObject("_id", 2));
-    collection.update(new BasicDBObject("_id", new BasicDBObject("$in", Arrays.asList(1,2))), 
+    collection.insert(new BasicDBObject("_id", 1), new BasicDBObject("_id", 2));
+    collection.update(new BasicDBObject("_id", new BasicDBObject("$in", Arrays.asList(1, 2))),
         new BasicDBObject("$set", new BasicDBObject("n", 1)), false, true);
     List<DBObject> results = collection.find().toArray();
     assertEquals(Arrays.asList(
         new BasicDBObject("_id", 1).append("n", 1),
         new BasicDBObject("_id", 2).append("n", 1)
     ), results);
-    
+
   }
-  
+
   @Test
   public void testUpdateWithIdQuery() {
     DBCollection collection = newCollection();
-    collection.insert(new BasicDBObject("_id", 1),new BasicDBObject("_id", 2));
-    collection.update(new BasicDBObject("_id", new BasicDBObject("$gt", 1)), 
+    collection.insert(new BasicDBObject("_id", 1), new BasicDBObject("_id", 2));
+    collection.update(new BasicDBObject("_id", new BasicDBObject("$gt", 1)),
         new BasicDBObject("$set", new BasicDBObject("n", 1)), false, true);
     List<DBObject> results = collection.find().toArray();
     assertEquals(Arrays.asList(
         new BasicDBObject("_id", 1),
         new BasicDBObject("_id", 2).append("n", 1)
     ), results);
-    
+
   }
-  
+
   @Test
-  public void testCompoundDateIdUpserts(){
+  public void testCompoundDateIdUpserts() {
     DBCollection collection = newCollection();
     DBObject query = new BasicDBObjectBuilder().push("_id")
-      .push("$lt").add("n", "a").add("t", 10).pop()
-      .push("$gte").add("n", "a").add("t", 1).pop()
-      .pop().get();
+        .push("$lt").add("n", "a").add("t", 10).pop()
+        .push("$gte").add("n", "a").add("t", 1).pop()
+        .pop().get();
     List<BasicDBObject> toUpsert = Arrays.asList(
-        new BasicDBObject("_id", new BasicDBObject("n","a").append("t", 1)),
-        new BasicDBObject("_id", new BasicDBObject("n","a").append("t", 2)),
-        new BasicDBObject("_id", new BasicDBObject("n","a").append("t", 3)),
-        new BasicDBObject("_id", new BasicDBObject("n","a").append("t", 11))
+        new BasicDBObject("_id", new BasicDBObject("n", "a").append("t", 1)),
+        new BasicDBObject("_id", new BasicDBObject("n", "a").append("t", 2)),
+        new BasicDBObject("_id", new BasicDBObject("n", "a").append("t", 3)),
+        new BasicDBObject("_id", new BasicDBObject("n", "a").append("t", 11))
     );
     for (BasicDBObject dbo : toUpsert) {
-      collection.update(dbo, ((BasicDBObject)dbo.copy()).append("foo", "bar"), true, false);
+      collection.update(dbo, ((BasicDBObject) dbo.copy()).append("foo", "bar"), true, false);
     }
     System.out.println(collection.find().toArray());
     List<DBObject> results = collection.find(query).toArray();
     assertEquals(Arrays.<DBObject>asList(
-        new BasicDBObject("_id", new BasicDBObject("n","a").append("t", 1)).append("foo", "bar"),
-        new BasicDBObject("_id", new BasicDBObject("n","a").append("t", 2)).append("foo", "bar"),
-        new BasicDBObject("_id", new BasicDBObject("n","a").append("t", 3)).append("foo", "bar")
+        new BasicDBObject("_id", new BasicDBObject("n", "a").append("t", 1)).append("foo", "bar"),
+        new BasicDBObject("_id", new BasicDBObject("n", "a").append("t", 2)).append("foo", "bar"),
+        new BasicDBObject("_id", new BasicDBObject("n", "a").append("t", 3)).append("foo", "bar")
     ), results);
   }
-  
+
   @Test
   public void testAnotherUpsert() {
     DBCollection collection = newCollection();
     BasicDBObjectBuilder queryBuilder = BasicDBObjectBuilder.start().push("_id").
         append("f", "ca").push("1").append("l", 2).pop().push("t").append("t", 11).pop().pop();
     DBObject query = queryBuilder.get();
-    
+
     DBObject update = BasicDBObjectBuilder.start().push("$inc").append("n.!", 1).append("n.a.b:false", 1).pop().get();
     collection.update(query, update, true, false);
-    
+
     DBObject expected = queryBuilder.push("n").append("!", 1).push("a").append("b:false", 1).pop().pop().get();
     assertEquals(expected, collection.findOne());
   }
-  
+
   @Test
   public void testUpsertOnIdWithPush() {
     DBCollection collection = newCollection();
 
     DBObject update1 = BasicDBObjectBuilder.start().push("$push")
-        .push("c").append("a",1).append("b", 2).pop().pop().get();
-    
+        .push("c").append("a", 1).append("b", 2).pop().pop().get();
+
     DBObject update2 = BasicDBObjectBuilder.start().push("$push")
-        .push("c").append("a",3).append("b", 4).pop().pop().get();
+        .push("c").append("a", 3).append("b", 4).pop().pop().get();
 
     collection.update(new BasicDBObject("_id", 1), update1, true, false);
     collection.update(new BasicDBObject("_id", 1), update2, true, false);
-    
+
     DBObject expected = new BasicDBObject("_id", 1).append("c", Util.list(
         new BasicDBObject("a", 1).append("b", 2),
         new BasicDBObject("a", 3).append("b", 4)));
-    
+
     assertEquals(expected, collection.findOne(new BasicDBObject("c.a", 3).append("c.b", 4)));
   }
-  
+
   @Test
   public void testUpsertWithEmbeddedQuery() {
     DBCollection collection = newCollection();
 
-    DBObject update = BasicDBObjectBuilder.start().push("$set").append("a",1).pop().get();
-    
+    DBObject update = BasicDBObjectBuilder.start().push("$set").append("a", 1).pop().get();
+
     collection.update(new BasicDBObject("_id", 1).append("e.i", 1), update, true, false);
-    
+
     DBObject expected = BasicDBObjectBuilder.start().append("_id", 1).push("e").append("i", 1).pop().append("a", 1).get();
-    
+
     assertEquals(expected, collection.findOne(new BasicDBObject("_id", 1)));
   }
-  
+
   @Test
   public void testFindAndModifyReturnOld() {
     final DBCollection collection = newCollection();
@@ -570,49 +570,49 @@ public class FongoTest {
 
     assertEquals(new BasicDBObject("_id", 1).append("a", 2).append("b", new BasicDBObject("c", 2)), result);
   }
-  
+
   @Test
   public void testFindAndModifyUpsert() {
     DBCollection collection = newCollection();
-    
+
     DBObject result = collection.findAndModify(new BasicDBObject("_id", 1),
         null, null, false, new BasicDBObject("$inc", new BasicDBObject("a", 1)), true, true);
-    
+
     assertEquals(new BasicDBObject("_id", 1).append("a", 1), result);
     assertEquals(new BasicDBObject("_id", 1).append("a", 1), collection.findOne());
   }
-  
+
   @Test
   public void testFindAndModifyUpsertReturnNewFalse() {
     DBCollection collection = newCollection();
-    
-    DBObject result = collection.findAndModify(new BasicDBObject("_id", 1), 
+
+    DBObject result = collection.findAndModify(new BasicDBObject("_id", 1),
         null, null, false, new BasicDBObject("$inc", new BasicDBObject("a", 1)), false, true);
-    
+
     assertEquals(new BasicDBObject(), result);
     assertEquals(new BasicDBObject("_id", 1).append("a", 1), collection.findOne());
   }
-  
+
   @Test
   public void testFindAndRemoveFromEmbeddedList() {
     DBCollection collection = newCollection();
     BasicDBObject obj = new BasicDBObject("_id", 1).append("a", Arrays.asList(1));
     collection.insert(obj);
-    DBObject result = collection.findAndRemove(new BasicDBObject("_id",1));
+    DBObject result = collection.findAndRemove(new BasicDBObject("_id", 1));
     assertEquals(obj, result);
   }
-  
+
   @Test
   public void testFindAndModifyRemove() {
     DBCollection collection = newCollection();
     collection.insert(new BasicDBObject("_id", 1).append("a", 1));
     DBObject result = collection.findAndModify(new BasicDBObject("_id", 1),
         null, null, true, null, false, false);
-    
+
     assertEquals(new BasicDBObject("_id", 1).append("a", 1), result);
     assertEquals(null, collection.findOne());
   }
-  
+
   @Test
   public void testRemove() {
     DBCollection collection = newCollection();
@@ -620,31 +620,31 @@ public class FongoTest {
     collection.insert(new BasicDBObject("_id", 2));
     collection.insert(new BasicDBObject("_id", 3));
     collection.insert(new BasicDBObject("_id", 4));
-    
+
     collection.remove(new BasicDBObject("_id", 2));
-    
-    assertEquals(null, 
-        collection.findOne(new BasicDBObject("_id",2)));
+
+    assertEquals(null,
+        collection.findOne(new BasicDBObject("_id", 2)));
   }
-  
+
   @Test
   public void testConvertJavaListToDbList() {
     DBCollection collection = newCollection();
-    collection.insert(new BasicDBObject("_id", 1).append("n", Arrays.asList(1,2)));
+    collection.insert(new BasicDBObject("_id", 1).append("n", Arrays.asList(1, 2)));
     DBObject result = collection.findOne();
     assertTrue("not a DBList", result.get("n") instanceof BasicDBList);
-    
+
   }
-  
+
   @Test
   public void testConvertJavaMapToDBObject() {
     DBCollection collection = newCollection();
     collection.insert(new BasicDBObject("_id", 1).append("n", Collections.singletonMap("a", 1)));
     DBObject result = collection.findOne();
     assertTrue("not a DBObject", result.get("n") instanceof BasicDBObject);
-    
+
   }
-  
+
   @Test
   public void testDistinctQuery() {
     DBCollection collection = newCollection();
@@ -670,14 +670,14 @@ public class FongoTest {
   @Test
   public void testDistinctHierarchicalQueryWithArray() {
     DBCollection collection = newCollection();
-    collection.insert(new BasicDBObject("n", new BasicDBObject("i", Util.list(1, 2 , 3))).append("_id", 1));
+    collection.insert(new BasicDBObject("n", new BasicDBObject("i", Util.list(1, 2, 3))).append("_id", 1));
     collection.insert(new BasicDBObject("n", new BasicDBObject("i", Util.list(3, 4))).append("_id", 2));
     collection.insert(new BasicDBObject("n", new BasicDBObject("i", Util.list(1, 5))).append("_id", 3));
     assertEquals(Arrays.asList(1, 2, 3, 4, 5), collection.distinct("n.i"));
   }
 
   @Test
-  public void testGetLastError(){
+  public void testGetLastError() {
     Fongo fongo = newFongo();
     DB db = fongo.getDB("db");
     DBCollection collection = db.getCollection("coll");
@@ -685,7 +685,7 @@ public class FongoTest {
     CommandResult error = db.getLastError();
     assertTrue(error.ok());
   }
-  
+
   @Test
   public void testSave() {
     DBCollection collection = newCollection();
@@ -693,23 +693,23 @@ public class FongoTest {
     collection.insert(inserted);
     collection.save(inserted);
   }
-  
+
   @Test(expected = MongoException.DuplicateKey.class)
-  public void testInsertDuplicateWithConcernThrows(){
+  public void testInsertDuplicateWithConcernThrows() {
     DBCollection collection = newCollection();
     collection.insert(new BasicDBObject("_id", 1));
     collection.insert(new BasicDBObject("_id", 1), WriteConcern.SAFE);
   }
-  
+
   @Test(expected = MongoException.DuplicateKey.class)
-  public void testInsertDuplicateWithDefaultConcernOnMongo(){
+  public void testInsertDuplicateWithDefaultConcernOnMongo() {
     DBCollection collection = newCollection();
     collection.insert(new BasicDBObject("_id", 1));
     collection.insert(new BasicDBObject("_id", 1));
   }
 
   @Test
-  public void testInsertDuplicateIgnored(){
+  public void testInsertDuplicateIgnored() {
     DBCollection collection = newCollection();
     collection.getDB().getMongo().setWriteConcern(WriteConcern.UNACKNOWLEDGED);
     collection.insert(new BasicDBObject("_id", 1));
@@ -718,7 +718,7 @@ public class FongoTest {
   }
 
   @Test
-  public void testSortByEmeddedKey(){
+  public void testSortByEmeddedKey() {
     DBCollection collection = newCollection();
     collection.insert(new BasicDBObject("_id", 1).append("a", new BasicDBObject("b", 1)));
     collection.insert(new BasicDBObject("_id", 2).append("a", new BasicDBObject("b", 2)));
@@ -729,7 +729,7 @@ public class FongoTest {
             new BasicDBObject("_id", 3).append("a", new BasicDBObject("b", 3)),
             new BasicDBObject("_id", 2).append("a", new BasicDBObject("b", 2)),
             new BasicDBObject("_id", 1).append("a", new BasicDBObject("b", 1))
-        ),results);
+        ), results);
   }
 
   @Test
@@ -738,16 +738,16 @@ public class FongoTest {
     WriteResult result = collection.insert(new BasicDBObject("_id", new BasicDBObject("n", 1)));
     assertEquals(1, result.getN());
   }
-  
+
   @Test
   public void testUpdateWithIdInMultiReturnModifiedDocumentCount() {
     DBCollection collection = newCollection();
-    collection.insert(new BasicDBObject("_id", 1),new BasicDBObject("_id", 2));
+    collection.insert(new BasicDBObject("_id", 1), new BasicDBObject("_id", 2));
     WriteResult result = collection.update(new BasicDBObject("_id", new BasicDBObject("$in", Arrays.asList(1, 2))),
         new BasicDBObject("$set", new BasicDBObject("n", 1)), false, true);
     assertEquals(2, result.getN());
   }
-  
+
   @Test
   public void testUpdateWithObjectIdReturnModifiedDocumentCount() {
     DBCollection collection = newCollection();
@@ -778,7 +778,7 @@ public class FongoTest {
     final String ID_KEY = "_id";
     assertNotNull("Expected _id to be generated" + result.get(ID_KEY));
   }
-  
+
   @Test
   public void testDropDatabaseAlsoDropsCollectionData() throws Exception {
     DBCollection collection = newCollection();
@@ -786,7 +786,7 @@ public class FongoTest {
     collection.getDB().dropDatabase();
     assertEquals("Collection should have no data", 0, collection.count());
   }
-  
+
   @Test
   public void testDropCollectionAlsoDropsFromDB() throws Exception {
     DBCollection collection = newCollection();
@@ -795,7 +795,7 @@ public class FongoTest {
     assertEquals("Collection should have no data", 0, collection.count());
     assertFalse("Collection shouldn't exist in DB", collection.getDB().getCollectionNames().contains(collection.getName()));
   }
-  
+
   @Test
   public void testDropDatabaseFromFongoDropsAllData() throws Exception {
     Fongo fongo = newFongo();
@@ -812,13 +812,13 @@ public class FongoTest {
     Fongo fongo = newFongo();
     DB db = fongo.getDB("db");
     DBCollection collection1 = db.getCollection("coll1");
-    DBCollection collection2= db.getCollection("coll2");
+    DBCollection collection2 = db.getCollection("coll2");
     db.dropDatabase();
     assertFalse("Collection 1 shouldn't exist in DB", db.collectionExists(collection1.getName()));
     assertFalse("Collection 2 shouldn't exist in DB", db.collectionExists(collection2.getName()));
     assertFalse("DB shouldn't exist in fongo", fongo.getDatabaseNames().contains("db"));
   }
-  
+
   @Test
   public void testDropCollectionsFromGetCollectionNames() {
     Fongo fongo = newFongo();
@@ -826,7 +826,7 @@ public class FongoTest {
     db.getCollection("coll1");
     db.getCollection("coll2");
     int dropCount = 0;
-    for (String name : db.getCollectionNames()){
+    for (String name : db.getCollectionNames()) {
       db.getCollection(name).drop();
       dropCount++;
     }
@@ -851,7 +851,7 @@ public class FongoTest {
     assertEquals("ok should always be defined", false, result.get("ok"));
     assertEquals("undefined command: { \"undefined\" : true}", result.get("err"));
   }
-  
+
   @Test
   public void testCountCommand() {
     DBObject countCmd = new BasicDBObject("count", "coll");
@@ -893,12 +893,12 @@ public class FongoTest {
     DBCollection coll = db.getCollection("coll");
     ObjectId oid = new ObjectId();
     assertTrue("new should be true", oid.isNew());
-    coll.save(new BasicDBObject("_id", oid ));
+    coll.save(new BasicDBObject("_id", oid));
     ObjectId retrievedOid = (ObjectId) coll.findOne().get("_id");
     assertEquals("retrieved should still equal the inserted", oid, retrievedOid);
     assertFalse("retrieved should not be new", retrievedOid.isNew());
   }
-  
+
   @Test
   public void testAutoCreatedObjectIdNotNew() {
     Fongo fongo = newFongo();
@@ -908,9 +908,9 @@ public class FongoTest {
     ObjectId retrievedOid = (ObjectId) coll.findOne().get("_id");
     assertFalse("retrieved should not be new", retrievedOid.isNew());
   }
-  
+
   @Test
-  public void testDbRefs(){
+  public void testDbRefs() {
     Fongo fong = newFongo();
     DB db = fong.getDB("db");
     DBCollection coll1 = db.getCollection("coll");
@@ -919,8 +919,8 @@ public class FongoTest {
     BasicDBObject coll2doc = new BasicDBObject("_id", coll2oid);
     coll2.insert(coll2doc);
     coll1.insert(new BasicDBObject("ref", new DBRef(db, "coll2", coll2oid)));
-    
-    DBRef ref = (DBRef)coll1.findOne().get("ref");
+
+    DBRef ref = (DBRef) coll1.findOne().get("ref");
     assertEquals("db", ref.getDB().getName());
     assertEquals("coll2", ref.getRef());
     assertEquals(coll2oid, ref.getId());
@@ -946,7 +946,7 @@ public class FongoTest {
     DBObject result2 = collection.findOne(new BasicDBObject("_id", new BasicDBObject("$nin", new Seq(1, 3))));
     assertEquals(new BasicDBObject("_id", 2), result2);
   }
-  
+
   @Test
   public void testModificationsOfResultShouldNotChangeStorage() {
     DBCollection collection = newCollection();
@@ -968,7 +968,7 @@ public class FongoTest {
 
       final CountDownLatch lockSynchro = new CountDownLatch(size);
       final CountDownLatch lockDone = new CountDownLatch(size);
-      for(int i = 0; i < size; i ++) {
+      for (int i = 0; i < size; i++) {
         new Thread() {
           public void run() {
             lockSynchro.countDown();
@@ -981,15 +981,38 @@ public class FongoTest {
       lockDone.await(5, TimeUnit.SECONDS);
 
       // Count must be same value as size
-       assertEquals(size, col.getCount());
+      assertEquals(size, col.getCount());
     } finally {
       LOG.setLevel(oldLevel);
     }
   }
 
+  // Don't know why, but request by _id only return document event if limit is set
+  @Test
+  public void testFindLimit0ById() throws Exception {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", "jon").append("name", "hoff"));
+    List<DBObject> result = collection.find().limit(0).toArray();
+    assertNotNull(result);
+    assertEquals(1, result.size());
+  }
+
+  // Don't know why, but request by _id only return document even if skip is set
+  @Test
+  public void testFindSkip1yId() throws Exception {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", "jon").append("name", "hoff"));
+    List<DBObject> result = collection.find().skip(1).toArray();
+    assertNotNull(result);
+    assertEquals(1, result.size());
+  }
+
   static class Seq {
     Object[] data;
-    Seq(Object... data) { this.data = data; }
+
+    Seq(Object... data) {
+      this.data = data;
+    }
   }
 
   public static DBCollection newCollection() {
