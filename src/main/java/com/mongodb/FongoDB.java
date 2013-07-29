@@ -16,7 +16,7 @@ import com.foursquare.fongo.Fongo;
 /**
  * fongo override of com.mongodb.DB
  * you shouldn't need to use this class directly
- * 
+ *
  * @author jon
  */
 public class FongoDB extends DB {
@@ -24,9 +24,9 @@ public class FongoDB extends DB {
 
   private final Map<String, FongoDBCollection> collMap = Collections.synchronizedMap(new HashMap<String, FongoDBCollection>());
   private final Fongo fongo;
-  
+
   public FongoDB(Fongo fongo, String name) {
-    super(fongo.getMongo(), name);
+    super(fongo.getMongoClient(), name);
     this.fongo = fongo;
   }
 
@@ -50,7 +50,7 @@ public class FongoDB extends DB {
       return coll;
     }
   }
-  
+
   @Override
   public Set<String> getCollectionNames() throws MongoException {
     return new HashSet<String>(collMap.keySet());
@@ -58,22 +58,22 @@ public class FongoDB extends DB {
 
   @Override
   public void cleanCursors(boolean force) throws MongoException {}
-  
+
   @Override
   public DB getSisterDB(String name) {
    return fongo.getDB(name);
   }
-  
+
   @Override
   public WriteConcern getWriteConcern() {
     return fongo.getWriteConcern();
   }
-  
+
   @Override
   public ReadPreference getReadPreference() {
     return ReadPreference.primaryPreferred();
   }
-  
+
   @Override
   public void dropDatabase() throws MongoException {
     this.fongo.dropDatabase(this.getName());
@@ -108,20 +108,30 @@ public class FongoDB extends DB {
       this.collMap.remove(cmd.get("drop").toString());
       return okResult();
     } else if(cmd.containsField("create")) {
-        String collectionName = (String) cmd.get("create");
-        doGetCollection(collectionName);
-        return okResult();
+      String collectionName = (String) cmd.get("create");
+      doGetCollection(collectionName);
+      return okResult();
     } else if (cmd.containsField("count")) {
       String collectionName = (String) cmd.get("count");
       Number limit = (Number) cmd.get("limit");
       Number skip = (Number) cmd.get("skip");
       long result = doGetCollection(collectionName).getCount(
-          (DBObject) cmd.get("query"), 
-          null, 
-          limit == null ? 0L : limit.longValue(), 
+          (DBObject) cmd.get("query"),
+          null,
+          limit == null ? 0L : limit.longValue(),
           skip == null ? 0L : skip.longValue());
       CommandResult okResult = okResult();
       okResult.append("n", result);
+      return okResult;
+    } else if(cmd.containsField("deleteIndexes")) {
+      String collectionName = (String) cmd.get("deleteIndexes");
+      String indexName = (String) cmd.get("index");
+      if("*".equals(indexName)) {
+        doGetCollection(collectionName)._dropIndexes();
+      } else {
+        doGetCollection(collectionName)._dropIndexes(indexName);
+      }
+      CommandResult okResult = okResult();
       return okResult;
     }
     return errorResult("undefined command: " + cmd);
@@ -143,6 +153,7 @@ public class FongoDB extends DB {
   public CommandResult errorResult(int code, String err) {
     CommandResult result = errorResult(err);
     result.put("err", err);
+    result.put("code", code);
     return result;
   }
 

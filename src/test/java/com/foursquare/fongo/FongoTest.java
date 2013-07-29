@@ -655,7 +655,27 @@ public class FongoTest {
     collection.insert(new BasicDBObject("n", 1).append("_id", 5));
     assertEquals(Arrays.asList(1, 2, 3), collection.distinct("n"));
   }
-  
+
+  @Test
+  public void testDistinctHierarchicalQuery() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("n", new BasicDBObject("i", 1)).append("_id", 1));
+    collection.insert(new BasicDBObject("n", new BasicDBObject("i", 2)).append("_id", 2));
+    collection.insert(new BasicDBObject("n", new BasicDBObject("i", 3)).append("_id", 3));
+    collection.insert(new BasicDBObject("n", new BasicDBObject("i", 1)).append("_id", 4));
+    collection.insert(new BasicDBObject("n", new BasicDBObject("i", 1)).append("_id", 5));
+    assertEquals(Arrays.asList(1, 2, 3), collection.distinct("n.i"));
+  }
+
+  @Test
+  public void testDistinctHierarchicalQueryWithArray() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("n", new BasicDBObject("i", Util.list(1, 2 , 3))).append("_id", 1));
+    collection.insert(new BasicDBObject("n", new BasicDBObject("i", Util.list(3, 4))).append("_id", 2));
+    collection.insert(new BasicDBObject("n", new BasicDBObject("i", Util.list(1, 5))).append("_id", 3));
+    assertEquals(Arrays.asList(1, 2, 3, 4, 5), collection.distinct("n.i"));
+  }
+
   @Test
   public void testGetLastError(){
     Fongo fongo = newFongo();
@@ -696,20 +716,7 @@ public class FongoTest {
     collection.insert(new BasicDBObject("_id", 1));
     assertEquals(1, collection.count());
   }
-  
-  @Test
-  public void testCreateIndexes() {
-    DBCollection collection = newCollection();
-    collection.ensureIndex("n");
-    collection.ensureIndex("b");
-    List<DBObject> indexes = collection.getDB().getCollection("system.indexes").find().toArray();
-    assertEquals(
-        Arrays.asList(
-            new BasicDBObject("v", 1).append("key", new BasicDBObject("n", 1)).append("ns", "db.coll").append("name", "n_1"),
-            new BasicDBObject("v", 1).append("key", new BasicDBObject("b", 1)).append("ns", "db.coll").append("name", "b_1")
-        ), indexes);
-  }
-  
+
   @Test
   public void testSortByEmeddedKey(){
     DBCollection collection = newCollection();
@@ -736,7 +743,7 @@ public class FongoTest {
   public void testUpdateWithIdInMultiReturnModifiedDocumentCount() {
     DBCollection collection = newCollection();
     collection.insert(new BasicDBObject("_id", 1),new BasicDBObject("_id", 2));
-    WriteResult result = collection.update(new BasicDBObject("_id", new BasicDBObject("$in", Arrays.asList(1,2))), 
+    WriteResult result = collection.update(new BasicDBObject("_id", new BasicDBObject("$in", Arrays.asList(1, 2))),
         new BasicDBObject("$set", new BasicDBObject("n", 1)), false, true);
     assertEquals(2, result.getN());
   }
@@ -830,7 +837,12 @@ public class FongoTest {
   public void testToString() {
     new Fongo("test").getMongo().toString();
   }
-  
+
+  @Test
+  public void testToStringMongoClient() {
+    new Fongo("test").getMongoClient().toString();
+  }
+
   @Test
   public void testUndefinedCommand() {
     Fongo fongo = newFongo();
@@ -975,19 +987,19 @@ public class FongoTest {
     }
   }
 
-  class Seq {
+  static class Seq {
     Object[] data;
     Seq(Object... data) { this.data = data; }
   }
 
-  private DBCollection newCollection() {
+  public static DBCollection newCollection() {
     Fongo fongo = newFongo();
     DB db = fongo.getDB("db");
     DBCollection collection = db.getCollection("coll");
     return collection;
   }
 
-  public Fongo newFongo() {
+  public static Fongo newFongo() {
     Fongo fongo = new Fongo("test");
     return fongo;
   }
