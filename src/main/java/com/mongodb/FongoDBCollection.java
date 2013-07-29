@@ -213,7 +213,7 @@ public class FongoDBCollection extends DBCollection {
         }
       } else {
         Filter filter = expressionParser.buildFilter(q);
-        for (DBObject obj : filterByIndexes(q, filterByIndexes(q, objects.values()))) {
+        for (DBObject obj : filterByIndexes(q, objects.values())) {
           if (filter.apply(obj)) {
             DBObject newObject = Util.clone(obj);
             updateEngine.doUpdate(newObject, o, q);
