@@ -313,16 +313,30 @@ public class FongoDBCollection extends DBCollection {
     rec.append("v", 1);
     rec.append("key", keys);
     rec.append("ns", this.getDB().getName() + "." + this.getName());
-    StringBuilder sb = new StringBuilder();
-    boolean firstLoop = true;
-    for (String keyName : keys.keySet()) {
-      if (!firstLoop){
-        sb.append("_");
+    if (options != null && !options.containsField("name")) {
+      StringBuilder sb = new StringBuilder();
+      boolean firstLoop = true;
+      for (String keyName : keys.keySet()) {
+        if (!firstLoop) {
+          sb.append("_");
+        }
+        sb.append(keyName).append("_").append(keys.get(keyName));
+        firstLoop = false;
       }
-      sb.append(keyName).append("_").append(keys.get(keyName));
-      firstLoop = false;
+      rec.append("name", sb.toString());
+    } else {
+      rec.append("name", options.get("name"));
     }
-    rec.append("name", sb.toString());
+    // Ensure index doesn't exist.
+    if (indexColl.findOne(rec) != null) {
+      return;
+    }
+
+    // Unique index must not be in previous find.
+    boolean unique = options != null && Boolean.TRUE.equals(options.get("unique"));
+    if (unique) {
+      rec.append("unique", unique);
+    }
     rec.putAll(options);
     indexColl.insert(rec);
   }
@@ -600,9 +614,18 @@ public class FongoDBCollection extends DBCollection {
     return results;
   }
 
-  @Override
-  public void dropIndexes(String name) throws MongoException {
+  protected void _dropIndexes(String name) throws MongoException {
     // do nothing
+    DBCollection indexColl = fongoDb.getCollection("system.indexes");
+    indexColl.remove(new BasicDBObject("name", name));
+  }
+
+  protected void _dropIndexes() {
+    List<DBObject> indexes = fongoDb.getCollection("system.indexes").find().toArray();
+    // Two step for no concurrent modification exception
+    for (DBObject index : indexes) {
+      dropIndexes(index.get("name").toString());
+    }
   }
 
   @Override

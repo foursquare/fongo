@@ -696,20 +696,7 @@ public class FongoTest {
     collection.insert(new BasicDBObject("_id", 1));
     assertEquals(1, collection.count());
   }
-  
-  @Test
-  public void testCreateIndexes() {
-    DBCollection collection = newCollection();
-    collection.ensureIndex("n");
-    collection.ensureIndex("b");
-    List<DBObject> indexes = collection.getDB().getCollection("system.indexes").find().toArray();
-    assertEquals(
-        Arrays.asList(
-            new BasicDBObject("v", 1).append("key", new BasicDBObject("n", 1)).append("ns", "db.coll").append("name", "n_1"),
-            new BasicDBObject("v", 1).append("key", new BasicDBObject("b", 1)).append("ns", "db.coll").append("name", "b_1")
-        ), indexes);
-  }
-  
+
   @Test
   public void testSortByEmeddedKey(){
     DBCollection collection = newCollection();
@@ -975,19 +962,19 @@ public class FongoTest {
     }
   }
 
-  class Seq {
+  static class Seq {
     Object[] data;
     Seq(Object... data) { this.data = data; }
   }
 
-  private DBCollection newCollection() {
+  public static DBCollection newCollection() {
     Fongo fongo = newFongo();
     DB db = fongo.getDB("db");
     DBCollection collection = db.getCollection("coll");
     return collection;
   }
 
-  public Fongo newFongo() {
+  public static Fongo newFongo() {
     Fongo fongo = new Fongo("test");
     return fongo;
   }
