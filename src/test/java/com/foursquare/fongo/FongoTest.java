@@ -123,7 +123,7 @@ public class FongoTest {
   public void testFindOneIn() {
     DBCollection collection = newCollection();
     collection.insert(new BasicDBObject("date", 1));
-    DBObject result = collection.findOne(new BasicDBObject("date", new BasicDBObject("$in", Arrays.asList(1, 2))));
+    DBObject result = collection.findOne(new BasicDBObject("date", new BasicDBObject("$in", Arrays.asList(1, 2))), new BasicDBObject("date", 1).append("_id", 0));
     assertEquals(new BasicDBObject("date", 1), result);
   }
 

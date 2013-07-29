@@ -450,7 +450,7 @@ public class FongoDBCollection extends DBCollection {
       Collection<DBObject> objectsFromIndex = filterByIndexes(ref, objects.values());
 
       int seen = 0;
-      Collection<DBObject> objectsToSearch = sortObjects(orderby, objectsFromIndex);
+      Iterable<DBObject> objectsToSearch = sortObjects(orderby, objectsFromIndex);
       for (Iterator<DBObject> iter = objectsToSearch.iterator(); iter.hasNext() && foundCount <= upperLimit; ) {
         DBObject dbo = iter.next();
         if (filter.apply(dbo)) {
@@ -577,14 +577,14 @@ public class FongoDBCollection extends DBCollection {
     return fieldsToRetain;
   }
 
-  public Collection<DBObject> sortObjects(final DBObject orderby, final Collection<DBObject> objects) {
-    Collection<DBObject> objectsToSearch = objects;
+  public Iterable<DBObject> sortObjects(final DBObject orderby, final Collection<DBObject> objects) {
+    Iterable<DBObject> objectsToSearch = objects;
     if (orderby != null) {
       final Set<String> orderbyKeySet = orderby.keySet();
       if (!orderbyKeySet.isEmpty()) {
-        DBObject[] objectsToSort = objects.toArray(new DBObject[objects.size()]);
+        List<DBObject> objectsToSort = new ArrayList(objects);
 
-        Arrays.sort(objectsToSort, new Comparator<DBObject>() {
+        Collections.sort(objectsToSort, new Comparator<DBObject>() {
           @Override
           public int compare(DBObject o1, DBObject o2) {
             for (String sortKey : orderbyKeySet) {
@@ -602,7 +602,7 @@ public class FongoDBCollection extends DBCollection {
             return 0;
           }
         });
-        objectsToSearch = Arrays.asList(objectsToSort);
+        objectsToSearch = objectsToSort;
       }
     }
     if (LOG.isDebugEnabled()) {
@@ -645,7 +645,7 @@ public class FongoDBCollection extends DBCollection {
     filterLists(update);
     Filter filter = expressionParser.buildFilter(query);
 
-    Collection<DBObject> objectsToSearch = sortObjects(sort, filterByIndexes(query, objects.values()));
+    Iterable<DBObject> objectsToSearch = sortObjects(sort, filterByIndexes(query, objects.values()));
     DBObject beforeObject = null;
     DBObject afterObject = null;
     for (DBObject dbo : objectsToSearch) {
