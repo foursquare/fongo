@@ -7,6 +7,7 @@ import com.mongodb.DBObject;
 import com.mongodb.DBRefBase;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -41,6 +42,23 @@ public class ExpressionParser {
     for (String key : ref.keySet()) {
       Object expression = ref.get(key);
       andFilter.addFilter(buildExpressionFilter(key, expression));
+    }
+    return andFilter;
+  }
+
+  /**
+   * Only build the filter for this keys.
+   * @param ref  query for filter.
+   * @param keys must match to build the filter.
+   * @return
+   */
+  public Filter buildFilter(DBObject ref, Collection<String> keys) {
+    AndFilter andFilter = new AndFilter();
+    for (String key : ref.keySet()) {
+      if(keys.contains(key)) {
+        Object expression = ref.get(key);
+        andFilter.addFilter(buildExpressionFilter(key, expression));
+      }
     }
     return andFilter;
   }

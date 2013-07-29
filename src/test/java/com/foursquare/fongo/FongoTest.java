@@ -22,6 +22,7 @@ import com.mongodb.MongoException;
 import com.mongodb.QueryBuilder;
 import com.mongodb.WriteConcern;
 import com.mongodb.WriteResult;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -111,11 +112,19 @@ public class FongoTest {
   }
 
   @Test
-  public void testFindOneIn() {
+  public void testFindOneInId() {
     DBCollection collection = newCollection();
     collection.insert(new BasicDBObject("_id", 1));
     DBObject result = collection.findOne(new BasicDBObject("_id", new BasicDBObject("$in", Arrays.asList(1, 2))));
     assertEquals(new BasicDBObject("_id", 1), result);
+  }
+
+  @Test
+  public void testFindOneIn() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("date", 1));
+    DBObject result = collection.findOne(new BasicDBObject("date", new BasicDBObject("$in", Arrays.asList(1, 2))), new BasicDBObject("date", 1).append("_id", 0));
+    assertEquals(new BasicDBObject("date", 1), result);
   }
 
   @Test
@@ -126,6 +135,22 @@ public class FongoTest {
 
     DBObject result = collection.findOne(new BasicDBObject("_id", new BasicDBObject("$in", new Integer[]{1, 3})));
     assertEquals(new BasicDBObject("_id", 1), result);
+  }
+
+  @Test
+  public void testFindOneOrId() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1));
+    DBObject result = collection.findOne(new BasicDBObject("$or", Util.list(new BasicDBObject("_id", 1), new BasicDBObject("_id", 2))));
+    assertEquals(new BasicDBObject("_id", 1), result);
+  }
+
+  @Test
+  public void testFindOneOrData() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("date", 1));
+    DBObject result = collection.findOne(new BasicDBObject("$or", Util.list(new BasicDBObject("date", 1), new BasicDBObject("date", 2))));
+    assertEquals(1, result.get("date"));
   }
 
   @Test

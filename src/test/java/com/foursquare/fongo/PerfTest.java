@@ -17,7 +17,7 @@ public class PerfTest {
     LOG.setLevel(Level.ERROR);
 
     // Microbenchmark
-    for (int i = 0; i < 10000; i++) {
+    for (int i = 0; i < 20000; i++) {
       doit(100);
       doitFindN(100);
       doitIndexes(100);

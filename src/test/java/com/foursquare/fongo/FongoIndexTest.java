@@ -1,6 +1,7 @@
 package com.foursquare.fongo;
 
 import com.foursquare.fongo.impl.Index;
+import com.foursquare.fongo.impl.Util;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBCollection;
 import com.mongodb.DBObject;
@@ -214,7 +215,6 @@ public class FongoIndexTest {
     assertEquals("date_1", indexInfos.get(0).get("name"));
     assertEquals("stringIndex", indexInfos.get(1).get("name"));
   }
-
 
   @Test
   public void indexesMustBeUsedForFind() {
@@ -431,5 +431,49 @@ public class FongoIndexTest {
     collection.update(new BasicDBObject("_id", 1), new BasicDBObject("$unset", new BasicDBObject("date", 1)));
     assertEquals(0, index.size());
   }
-}
 
+  @Test
+  public void indexesMustBeUsedForFindWithInFilter() {
+    FongoDBCollection collection = (FongoDBCollection) FongoTest.newCollection();
+
+    collection.ensureIndex(new BasicDBObject("date", 1));
+
+    for (int i = 0; i < 20; i++) {
+      collection.insert(new BasicDBObject("date", i % 10).append("_id", i));
+    }
+
+    Index indexDate = getIndex(collection, "date_1");
+
+    assertEquals(0, indexDate.getUsedTime());
+
+    List<DBObject> objects = collection.find(new BasicDBObject("date", new BasicDBObject("$in", Util.list(0, 1, 2)))).toArray();
+    // No index used.
+    assertEquals(1, indexDate.getUsedTime());
+    assertEquals(6, objects.size());
+  }
+
+  @Test
+  public void testFindOneOrData() {
+    DBCollection collection = FongoTest.newCollection();
+    collection.ensureIndex(new BasicDBObject("date", 1));
+    collection.insert(new BasicDBObject("date", 1));
+    DBObject result = collection.findOne(new BasicDBObject("$or", Util.list(new BasicDBObject("date", 1), new BasicDBObject("date", 2))));
+    assertEquals(1, result.get("date"));
+  }
+
+
+  private Index getIndex(DBCollection collection, String name) {
+    FongoDBCollection fongoDBCollection = (FongoDBCollection) collection;
+
+    Index index = null;
+    for (Index i : fongoDBCollection.getIndexes()) {
+      if (i.getName().equals(name)) {
+        index = i;
+        break;
+      }
+    }
+    assertNotNull(index);
+    return index;
+  }
+
+}

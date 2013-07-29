@@ -17,6 +17,7 @@ public class Index {
   private final String name;
   private final List<String> fields;
   private final boolean unique;
+  private final ExpressionParser expressionParser = new ExpressionParser();
 
   // Contains all dbObject than field value can have.
   private final ConcurrentHashMap<List<List<Object>>, List<DBObject>> mapValues = new ConcurrentHashMap<List<List<Object>>, List<DBObject>>();
@@ -140,9 +141,19 @@ public class Index {
 
   public synchronized Collection<DBObject> retrieveObjects(DBObject query) {
     usedTime++;
-    List<List<Object>> queryValues = IndexUtil.INSTANCE.extractFields(query, fields);
-    List<DBObject> objects = mapValues.get(queryValues);
-    return objects != null ? objects : Collections.<DBObject>emptyList();
+    Filter filter = expressionParser.buildFilter(query);
+    List<DBObject> result = new ArrayList<DBObject>();
+    for (Map.Entry<List<List<Object>>, List<DBObject>> entry : mapValues.entrySet()) {
+      for(DBObject object : entry.getValue()) {
+        if(filter.apply(object)) {
+          result.add(object);
+        }
+      }
+    }
+//    List<List<Object>> queryValues = IndexUtil.INSTANCE.extractFields(query, fields);
+//    List<DBObject> objects = mapValues.get(queryValues);
+//    return objects != null ? objects : Collections.<DBObject>emptyList();
+    return result;
   }
 
   public long getUsedTime() {
