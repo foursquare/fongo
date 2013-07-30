@@ -41,6 +41,7 @@ public class FongoDBCollection extends DBCollection {
     this.objectComparator = expressionParser.buildObjectComparator(true);
     this._idIndex = new Index("_id", new BasicDBObject("_id", 1), true);
     this.indexes.put(Collections.singleton("_id"), _idIndex);
+    this.setWriteConcern(db.getWriteConcern());
   }
 
   private CommandResult insertResult(int updateCount) {
@@ -76,7 +77,8 @@ public class FongoDBCollection extends DBCollection {
   }
 
   boolean enforceDuplicates(WriteConcern concern) {
-    return /*concern._w > 0; */ !(WriteConcern.NONE.equals(concern) || WriteConcern.NORMAL.equals(concern));
+    WriteConcern writeConcern = concern == null ? getWriteConcern() : concern;
+    return writeConcern._w instanceof Number && ((Number) writeConcern._w).intValue() >= 0; // !(WriteConcern.NONE.equals(concern) || WriteConcern.NORMAL.equals(concern));
   }
 
   public void putIdIfNotPresent(DBObject obj) {
@@ -677,7 +679,7 @@ public class FongoDBCollection extends DBCollection {
       }
     }
 
-    LOG.info("searchIndex() found index {} for fields {}", result, queryFields);
+    LOG.debug("searchIndex() found index {} for fields {}", result, queryFields);
 
     return result;
   }
@@ -697,7 +699,7 @@ public class FongoDBCollection extends DBCollection {
       if (!error.isEmpty()) {
         // TODO formatting : E11000 duplicate key error index: test.zip.$city_1_state_1_pop_1  dup key: { : "BARRE", : "MA", : 4546.0 }
         if (enforceDuplicates(concern)) {
-          this.fongoDb.errorResult(11000, "E11000 duplicate key error index: " + this.getFullName() + "." + entry.getValue().getName() + "  dup key : {" + error + " }").throwOnError();
+          fongoDb.errorResult(11000, "E11000 duplicate key error index: " + this.getFullName() + "." + entry.getValue().getName() + "  dup key : {" + error + " }").throwOnError();
         }
         return; // silently ignore.
       }
