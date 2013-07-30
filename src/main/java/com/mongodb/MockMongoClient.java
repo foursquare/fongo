@@ -19,7 +19,6 @@ public class MockMongoClient extends MongoClient {
     MockMongoClient client = (MockMongoClient) new ObjenesisStd().getInstantiatorOf(MockMongoClient.class).newInstance();
     client.options = new MongoOptions(clientOptions);
     client.fongo = fongo;
-    // ObjenesisStd doesn't call constructor and doesn't initialize variables.
     client.setWriteConcern(clientOptions.getWriteConcern());
     return client;
   }
