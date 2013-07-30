@@ -41,7 +41,6 @@ public class FongoDBCollection extends DBCollection {
     this.objectComparator = expressionParser.buildObjectComparator(true);
     this._idIndex = new Index("_id", new BasicDBObject("_id", 1), true);
     this.indexes.put(Collections.singleton("_id"), _idIndex);
-    this.setWriteConcern(db.getWriteConcern());
   }
 
   private CommandResult insertResult(int updateCount) {
