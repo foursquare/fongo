@@ -78,7 +78,8 @@ public class FongoDBCollection extends DBCollection {
 
   boolean enforceDuplicates(WriteConcern concern) {
     WriteConcern writeConcern = concern == null ? getWriteConcern() : concern;
-    return writeConcern._w instanceof Number && ((Number) writeConcern._w).intValue() >= 0; // !(WriteConcern.NONE.equals(concern) || WriteConcern.NORMAL.equals(concern));
+    return writeConcern._w instanceof Number && ((Number) writeConcern._w).intValue() > 0;
+//    return  !(WriteConcern.NONE.equals(concern) || WriteConcern.NORMAL.equals(concern)); // UNACKNOWLEDGED and ERRORS_IGNORED missed.
   }
 
   public void putIdIfNotPresent(DBObject obj) {

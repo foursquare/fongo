@@ -1051,6 +1051,11 @@ public class FongoTest {
     assertEquals(1, result.size());
   }
 
+  @Test
+  public void testWriteConcern() {
+    assertNotNull(newFongo().getWriteConcern());
+  }
+
   static class Seq {
     Object[] data;
 
