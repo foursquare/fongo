@@ -1,13 +1,7 @@
 package com.foursquare.fongo;
 
 import ch.qos.logback.classic.Level;
-import com.mongodb.FongoDBCollection;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import org.bson.BSON;
-import org.bson.Transformer;
-import org.bson.types.ObjectId;
-
+import com.foursquare.fongo.impl.ExpressionParser;
 import com.foursquare.fongo.impl.Util;
 import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
@@ -18,19 +12,28 @@ import com.mongodb.DBCollection;
 import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
 import com.mongodb.DBRef;
+import com.mongodb.FongoDBCollection;
 import com.mongodb.MongoException;
 import com.mongodb.QueryBuilder;
 import com.mongodb.WriteConcern;
 import com.mongodb.WriteResult;
-import org.junit.Ignore;
-import org.junit.Test;
-
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
-
-import static org.junit.Assert.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import org.bson.BSON;
+import org.bson.Transformer;
+import org.bson.types.ObjectId;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import org.junit.Test;
 import org.slf4j.LoggerFactory;
 
 public class FongoTest {
@@ -995,11 +998,13 @@ public class FongoTest {
     assertEquals("should not have newkey", new BasicDBObject("_id", 1), collection.findOne());
   }
 
-  @Test(timeout = 7000)
+  @Test(timeout = 16000)
   public void testMultiThreadInsert() throws Exception {
-    final ch.qos.logback.classic.Logger LOG = (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(FongoDBCollection.class);
-    final Level oldLevel = LOG.getLevel();
+    ch.qos.logback.classic.Logger LOG = (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(FongoDBCollection.class);
+    Level oldLevel = LOG.getLevel();
     try {
+      LOG.setLevel(Level.ERROR);
+      LOG = (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(ExpressionParser.class);
       LOG.setLevel(Level.ERROR);
 
       int size = 1000;
@@ -1017,7 +1022,7 @@ public class FongoTest {
         }.start();
       }
 
-      lockDone.await(5, TimeUnit.SECONDS);
+      assertTrue("Too long :-(", lockDone.await(15, TimeUnit.SECONDS));
 
       // Count must be same value as size
       assertEquals(size, col.getCount());

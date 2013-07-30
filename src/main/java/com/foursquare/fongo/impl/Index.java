@@ -5,13 +5,10 @@ import com.mongodb.FongoDBCollection;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * An index for the MongoDB.
@@ -20,17 +17,35 @@ import java.util.concurrent.ConcurrentHashMap;
 public class Index {
   private final String name;
   private final DBObject keys;
+  private final Set<String> fields;
   private final boolean unique;
   private final ExpressionParser expressionParser = new ExpressionParser();
-  private final ExpressionParser.ObjectComparator objectComparator = expressionParser.objectComparator();
-  // Contains all dbObject than field value can have (Linked == preserve order)
-  private final TreeMap<DBObject, List<DBObject>> mapValues = new TreeMap<DBObject, List<DBObject>>(objectComparator);
+  private final ExpressionParser.ObjectComparator objectComparator;
+  // Contains all dbObject than field value can have
+  private final TreeMap<DBObject, List<DBObject>> mapValues;
   private int usedTime = 0;
 
   public Index(String name, DBObject keys, boolean unique) {
     this.name = name;
-    this.keys = keys;
+    this.fields = keys.keySet(); // Setup BEFORE keys.
+    this.keys = exludeIdIfNecessary(keys);
     this.unique = unique;
+
+    this.objectComparator = expressionParser.buildObjectComparator(isAsc(keys));
+    this.mapValues = new TreeMap<DBObject, List<DBObject>>(objectComparator);
+  }
+
+  private DBObject exludeIdIfNecessary(DBObject keys) {
+    DBObject nKeys = Util.clone(keys);
+    if (!nKeys.containsField(FongoDBCollection.ID_KEY)) {
+      // Remove _id for projection.
+      nKeys.put("_id", 0);
+    }
+    return nKeys;
+  }
+
+  private boolean isAsc(DBObject keys) {
+    return ((Comparable) keys.toMap().values().iterator().next()).compareTo(0) == 1;
   }
 
   public String getName() {
@@ -45,6 +60,10 @@ public class Index {
     return keys;
   }
 
+  public Set<String> getFields() {
+    return fields;
+  }
+
   /**
    * @param object    new object to insert in the index.
    * @param oldObject in update, old objet to remove from index.
@@ -55,15 +74,13 @@ public class Index {
       this.remove(oldObject); // TODO : optim ?
     }
 
-    DBObject key = FongoDBCollection.applyProjections(object, keys);
+    DBObject key = getKeyFor(object);
 
-//    List<List<Object>> fieldsForIndex = IndexUtil.INSTANCE.extractFields(object, getFields());
-//    DBObject id = new BasicDBObject(FongoDBCollection.ID_KEY, object.get(FongoDBCollection.ID_KEY));
     if (unique) {
       // Return null only if key was absent.
 //      if (mapValues.putIfAbsent(fieldsForIndex, Collections.singletonList(object)) != null) {
       if (mapValues.containsKey(key)) {
-        return IndexUtil.INSTANCE.extractFields(object, key.toMap().keySet());
+        return extractFields(object, key.toMap().keySet());
       }
       mapValues.put(key, Collections.singletonList(object));
     } else {
@@ -90,14 +107,24 @@ public class Index {
    */
   public synchronized List<List<Object>> checkAddOrUpdate(DBObject object, DBObject oldObject) {
     if (unique) {
-      DBObject key = FongoDBCollection.applyProjections(object, keys);
+      DBObject key = getKeyFor(object);
       List<DBObject> objects = mapValues.get(key);
       if (objects != null && !objects.contains(oldObject)) {
-        List<List<Object>> fieldsForIndex = IndexUtil.INSTANCE.extractFields(object, getFields());
+        List<List<Object>> fieldsForIndex = extractFields(object, getFields());
         return fieldsForIndex;
       }
     }
     return Collections.emptyList();
+  }
+
+  /**
+   * Create the key for the hashmap.
+   *
+   * @param object
+   * @return
+   */
+  private synchronized DBObject getKeyFor(DBObject object) {
+    return FongoDBCollection.applyProjections(object, keys);
   }
 
   /**
@@ -106,7 +133,7 @@ public class Index {
    * @param object to remove from the index.
    */
   public synchronized void remove(DBObject object) {
-    DBObject key = FongoDBCollection.applyProjections(object, keys);
+    DBObject key = getKeyFor(object);
     // Extract previous values
     List<DBObject> values = mapValues.get(key);
     if (values != null) {
@@ -128,6 +155,7 @@ public class Index {
   public synchronized List<List<Object>> addAll(Iterable<DBObject> objects) {
     for (DBObject object : objects) {
       List<List<Object>> nonUnique = addOrUpdate(object, null);
+      // TODO(twillouer) : must handle writeConcern.
       if (!nonUnique.isEmpty()) {
         return nonUnique;
       }
@@ -135,25 +163,29 @@ public class Index {
     return Collections.emptyList();
   }
 
-  public List<DBObject> get(DBObject query) {
-    DBObject key = FongoDBCollection.applyProjections(query, keys);
-    return mapValues.get(query);
+  // Only for unique index.
+  public synchronized List<DBObject> get(DBObject query) {
+    DBObject key = getKeyFor(query);
+    return mapValues.get(key);
   }
 
   public synchronized Collection<DBObject> retrieveObjects(DBObject query) {
     usedTime++;
+
+    // Filter for the key.
+    Filter filterKey = expressionParser.buildFilter(query, getFields());
+    // Filter for the data.
     Filter filter = expressionParser.buildFilter(query);
     List<DBObject> result = new ArrayList<DBObject>();
     for (Map.Entry<DBObject, List<DBObject>> entry : mapValues.entrySet()) {
-      for (DBObject object : entry.getValue()) {
-        if (filter.apply(object)) {
-          result.add(object);
+      if (filterKey.apply(entry.getKey())) {
+        for (DBObject object : entry.getValue()) {
+          if (filter.apply(object)) {
+            result.add(object);
+          }
         }
       }
     }
-//    List<List<Object>> queryValues = IndexUtil.INSTANCE.extractFields(query, fields);
-//    List<DBObject> objects = mapValues.get(queryValues);
-//    return objects != null ? objects : Collections.<DBObject>emptyList();
     return result;
   }
 
@@ -169,7 +201,15 @@ public class Index {
   }
 
   public synchronized int size() {
-    return mapValues.size();
+    int size = 0;
+    if (unique) {
+      size = mapValues.size();
+    } else {
+      for (Map.Entry<DBObject, List<DBObject>> entry : mapValues.entrySet()) {
+        size += entry.getValue().size();
+      }
+    }
+    return size;
   }
 
   public synchronized List<DBObject> values() {
@@ -180,12 +220,17 @@ public class Index {
     return values;
   }
 
-  public void clear() {
+  public synchronized void clear() {
     mapValues.clear();
   }
 
-  public Set<String> getFields() {
-    return keys.toMap().keySet();
+  private List<List<Object>> extractFields(DBObject dbObject, Collection<String> fields) {
+    List<List<Object>> fieldValue = new ArrayList<List<Object>>();
+    for (String field : fields) {
+      List<Object> embeddedValues = expressionParser.getEmbeddedValues(field, dbObject);
+      fieldValue.add(embeddedValues);
+    }
+    return fieldValue;
   }
 
 }

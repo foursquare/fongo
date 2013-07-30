@@ -4,6 +4,7 @@ import com.foursquare.fongo.impl.Index;
 import com.foursquare.fongo.impl.Util;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBCollection;
+import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
 import com.mongodb.FongoDBCollection;
 import com.mongodb.MongoException;
@@ -459,6 +460,24 @@ public class FongoIndexTest {
     collection.insert(new BasicDBObject("date", 1));
     DBObject result = collection.findOne(new BasicDBObject("$or", Util.list(new BasicDBObject("date", 1), new BasicDBObject("date", 2))));
     assertEquals(1, result.get("date"));
+  }
+
+  @Test
+  public void testIdInQueryResultsInIndexOnFieldOrder() {
+    DBCollection collection = FongoTest.newCollection();
+    collection.insert(new BasicDBObject("date", 4));
+    collection.insert(new BasicDBObject("date", 3));
+    collection.insert(new BasicDBObject("date", 1));
+    collection.insert(new BasicDBObject("date", 2));
+    collection.ensureIndex(new BasicDBObject("date", 1));
+
+    DBCursor cursor = collection.find(new BasicDBObject("date",
+        new BasicDBObject("$in", Arrays.asList(3, 2, 1))), new BasicDBObject("date", 1).append("_id", 0));
+    assertEquals(Arrays.asList(
+        new BasicDBObject("date", 1),
+        new BasicDBObject("date", 2),
+        new BasicDBObject("date", 3)
+    ), cursor.toArray());
   }
 
 

@@ -134,7 +134,7 @@ public class FongoDB extends DB {
       CommandResult okResult = okResult();
       return okResult;
     }
-    return errorResult("undefined command: " + cmd);
+    return koErrorResult("undefined command: " + cmd);
   }
 
   public CommandResult okResult() {
@@ -143,15 +143,22 @@ public class FongoDB extends DB {
     return result;
   }
 
-  public CommandResult errorResult(String err) {
+  public CommandResult koErrorResult(String err) {
     CommandResult result = new CommandResult(fongo.getServerAddress());
     result.put("ok", false);
     result.put("err", err);
     return result;
   }
 
+  public CommandResult koErrorResult(int code, String err) {
+    CommandResult result = koErrorResult(err);
+//    result.put("err", err);
+    result.put("code", code);
+    return result;
+  }
+
   public CommandResult errorResult(int code, String err) {
-    CommandResult result = errorResult(err);
+    CommandResult result = okResult();
     result.put("err", err);
     result.put("code", code);
     return result;
