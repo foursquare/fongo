@@ -7,10 +7,10 @@ import java.util.List;
 import org.objenesis.ObjenesisStd;
 
 public class MockMongoClient extends MongoClient {
-  
+
   // this is immutable 
   private final static MongoClientOptions clientOptions = MongoClientOptions.builder().build();
-  
+
   private Fongo fongo;
   private MongoOptions options;
 
@@ -19,13 +19,15 @@ public class MockMongoClient extends MongoClient {
     MockMongoClient client = (MockMongoClient) new ObjenesisStd().getInstantiatorOf(MockMongoClient.class).newInstance();
     client.options = new MongoOptions(clientOptions);
     client.fongo = fongo;
+    // ObjenesisStd doesn't call constructor and doesn't initialize variables.
+    client.setWriteConcern(clientOptions.getWriteConcern());
     return client;
   }
-  
+
   public MockMongoClient() throws UnknownHostException {
 
   }
-  
+
   @Override
   public String toString() {
     return fongo.toString();
@@ -55,17 +57,17 @@ public class MockMongoClient extends MongoClient {
   public void dropDatabase(String dbName) {
     fongo.dropDatabase(dbName);
   }
-  
+
   @Override
   boolean isMongosConnection() {
     return false;
   }
-  
+
   @Override
   public MongoOptions getMongoOptions() {
-    return options ;
+    return options;
   }
-  
+
   @Override
   public MongoClientOptions getMongoClientOptions() {
     return clientOptions;

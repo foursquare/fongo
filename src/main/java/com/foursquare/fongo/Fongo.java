@@ -58,6 +58,7 @@ public class Fongo {
       FongoDB fongoDb = dbMap.get(dbname);
       if (fongoDb == null) {
         fongoDb = new FongoDB(this, dbname);
+        fongoDb.setWriteConcern(getWriteConcern());
         dbMap.put(dbname, fongoDb);
       }
       return fongoDb;
