@@ -584,6 +584,20 @@ public class FongoTest {
   }
 
   @Test
+  public void testFindAndModifyWithInReturnOld() {
+    final DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1).append("a", 1).append("b", new BasicDBObject("c", 1)));
+
+    final BasicDBObject query = new BasicDBObject("_id", new BasicDBObject("$in", Util.list(1, 2, 3)));
+    final BasicDBObject update = new BasicDBObject("$inc", new BasicDBObject("a", 1).append("b.c", 1));
+    System.out.println("update: " + update);
+    final DBObject result = collection.findAndModify(query, null, null, false, update, false, false);
+
+    assertEquals(new BasicDBObject("_id", 1).append("a", 1).append("b", new BasicDBObject("c", 1)), result);
+    assertEquals(new BasicDBObject("_id", 1).append("a", 2).append("b", new BasicDBObject("c", 2)), collection.findOne());
+  }
+
+  @Test
   public void testFindAndModifyReturnNew() {
     final DBCollection collection = newCollection();
     collection.insert(new BasicDBObject("_id", 1).append("a", 1).append("b", new BasicDBObject("c", 1)));

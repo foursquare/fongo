@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +37,13 @@ public class ExpressionParser {
   public final static String AND = "$and";
   public final static String REGEX = "$regex";
   public final static String REGEX_OPTIONS = "$options";
+
+  public class ObjectComparator implements Comparator {
+    @Override
+    public int compare(Object o1, Object o2) {
+      return compareObjects(o1, o2);
+    }
+  }
 
   public Filter buildFilter(DBObject ref) {
     AndFilter andFilter = new AndFilter();
@@ -591,4 +599,7 @@ public class ExpressionParser {
     return flags;
   }
 
+  public ObjectComparator objectComparator() {
+    return new ObjectComparator();
+  }
 }

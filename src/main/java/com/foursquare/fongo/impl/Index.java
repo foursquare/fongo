@@ -4,9 +4,12 @@ import com.mongodb.DBObject;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -18,10 +21,9 @@ public class Index {
   private final List<String> fields;
   private final boolean unique;
   private final ExpressionParser expressionParser = new ExpressionParser();
-
-  // Contains all dbObject than field value can have.
-  private final ConcurrentHashMap<List<List<Object>>, List<DBObject>> mapValues = new ConcurrentHashMap<List<List<Object>>, List<DBObject>>();
-
+  private final ExpressionParser.ObjectComparator objectComparator = expressionParser.objectComparator();
+  // Contains all dbObject than field value can have (Linked == preserve order)
+  private final TreeMap<List<List<Object>>, List<DBObject>> mapValues = new TreeMap<List<List<Object>>, List<DBObject>>(objectComparator);
   private int usedTime = 0;
 
   public Index(String name, List<String> fields, boolean unique) {
@@ -59,9 +61,11 @@ public class Index {
 //    DBObject id = new BasicDBObject(FongoDBCollection.ID_KEY, object.get(FongoDBCollection.ID_KEY));
     if (unique) {
       // Return null only if key was absent.
-      if (mapValues.putIfAbsent(fieldsForIndex, Collections.singletonList(object)) != null) {
+//      if (mapValues.putIfAbsent(fieldsForIndex, Collections.singletonList(object)) != null) {
+      if (mapValues.containsKey(fieldsForIndex)) {
         return fieldsForIndex;
       }
+      mapValues.put(fieldsForIndex, Collections.singletonList(object));
     } else {
       // Extract previous values
       List<DBObject> values = mapValues.get(fieldsForIndex);
@@ -102,9 +106,6 @@ public class Index {
    */
   public synchronized void remove(DBObject object) {
     List<List<Object>> fieldsForIndex = IndexUtil.INSTANCE.extractFields(object, getFields());
-//    if (unique) {
-//      mapValues.remove(fieldsForIndex);
-//    } else {
     // Extract previous values
     List<DBObject> values = mapValues.get(fieldsForIndex);
     if (values != null) {
@@ -114,7 +115,6 @@ public class Index {
       } else {
         values.remove(object);
       }
-//      }
     }
   }
 
@@ -144,8 +144,8 @@ public class Index {
     Filter filter = expressionParser.buildFilter(query);
     List<DBObject> result = new ArrayList<DBObject>();
     for (Map.Entry<List<List<Object>>, List<DBObject>> entry : mapValues.entrySet()) {
-      for(DBObject object : entry.getValue()) {
-        if(filter.apply(object)) {
+      for (DBObject object : entry.getValue()) {
+        if (filter.apply(object)) {
           result.add(object);
         }
       }
