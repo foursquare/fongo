@@ -40,11 +40,8 @@ class FongoAggregationScalaTest extends FongoAbstractTest with ParallelTestExecu
   }
 
   test("Fongo should handle min") {
-    val list = Util.list("p0", "p1")
-    val `match` = new BasicDBObject("$match", new BasicDBObject("myId", new BasicDBObject("$in", list)))
-    val groupFields = new BasicDBObject("_id", "0")
-    groupFields.put("date", new BasicDBObject("$min", "$date"))
-    val group: DBObject = new BasicDBObject("$group", groupFields)
+    val `match` = new BasicDBObject("$match", new BasicDBObject("myId", new BasicDBObject("$in", Util.list("p0", "p1"))))
+    val group: DBObject = new BasicDBObject("$group", new BasicDBObject("_id", "0").append("date", new BasicDBObject("$min", "$date")))
     val output: AggregationOutput = collection.aggregate(`match`, group)
     var result = 0
     if (output.getCommandResult.ok && output.getCommandResult.containsField("result")) {
@@ -58,11 +55,8 @@ class FongoAggregationScalaTest extends FongoAbstractTest with ParallelTestExecu
   }
 
   test("Fongo should handle max") {
-    val list = Util.list("p0", "p1")
-    val `match` = new BasicDBObject("$match", new BasicDBObject("myId", new BasicDBObject("$in", list)))
-    val groupFields = new BasicDBObject("_id", "0")
-    groupFields.put("date", new BasicDBObject("$max", "$date"))
-    val group: DBObject = new BasicDBObject("$group", groupFields)
+    val `match` = new BasicDBObject("$match", new BasicDBObject("myId", new BasicDBObject("$in", Util.list("p0", "p1"))))
+    val group: DBObject = new BasicDBObject("$group", new BasicDBObject("_id", "0").append("date", new BasicDBObject("$max", "$date")))
     val output: AggregationOutput = collection.aggregate(`match`, group)
     var result = 0
     if (output.getCommandResult.ok && output.getCommandResult.containsField("result")) {
@@ -76,12 +70,9 @@ class FongoAggregationScalaTest extends FongoAbstractTest with ParallelTestExecu
   }
 
   test("Fongo should handle last") {
-    val list = Util.list("p1", "p2", "p3")
-    val `match`: DBObject = new BasicDBObject("$match", new BasicDBObject("myId", new BasicDBObject("$in", list)))
-    val groupFields: DBObject = new BasicDBObject("_id", "0")
-    groupFields.put("date", new BasicDBObject("$last", "$date"))
+    val `match`: DBObject = new BasicDBObject("$match", new BasicDBObject("myId", new BasicDBObject("$in", Util.list("p1", "p2", "p3"))))
     val sort = new BasicDBObject("$sort", new BasicDBObject("date", 1))
-    val group = new BasicDBObject("$group", groupFields)
+    val group = new BasicDBObject("$group", new BasicDBObject("_id", "0").append("date", new BasicDBObject("$last", "$date")))
     val output: AggregationOutput = collection.aggregate(`match`, sort, group)
     var result = 0
     if (output.getCommandResult.ok && output.getCommandResult.containsField("result")) {
@@ -95,11 +86,8 @@ class FongoAggregationScalaTest extends FongoAbstractTest with ParallelTestExecu
   }
 
   test("Fongo should handle last null value") {
-    val list = Util.list("p4")
-    val `match` = new BasicDBObject("$match", new BasicDBObject("myId", new BasicDBObject("$in", list)))
-    val groupFields: DBObject = new BasicDBObject("_id", "0")
-    groupFields.put("date", new BasicDBObject("$last", "$date"))
-    val group: DBObject = new BasicDBObject("$group", groupFields)
+    val `match` = new BasicDBObject("$match", new BasicDBObject("myId", new BasicDBObject("$in", Util.list("p4"))))
+    val group: DBObject = new BasicDBObject("$group", new BasicDBObject("_id", "0").append("date", new BasicDBObject("$last", "$date")))
     val output: AggregationOutput = collection.aggregate(`match`, group)
     var result = false
     if (output.getCommandResult.ok && output.getCommandResult.containsField("result")) {
@@ -114,11 +102,8 @@ class FongoAggregationScalaTest extends FongoAbstractTest with ParallelTestExecu
   }
 
   test("Fongo should handle first") {
-    val list = Util.list("p0", "p1")
-    val `match` = new BasicDBObject("$match", new BasicDBObject("myId", new BasicDBObject("$in", list)))
-    val groupFields = new BasicDBObject("_id", "0")
-    groupFields.put("date", new BasicDBObject("$first", "$date"))
-    val group: DBObject = new BasicDBObject("$group", groupFields)
+    val `match` = new BasicDBObject("$match", new BasicDBObject("myId", new BasicDBObject("$in", Util.list("p0", "p1"))))
+    val group: DBObject = new BasicDBObject("$group", new BasicDBObject("_id", "0").append("date", new BasicDBObject("$first", "$date")))
     val output: AggregationOutput = collection.aggregate(`match`, group)
     var result = 0
     if (output.getCommandResult.ok && output.getCommandResult.containsField("result")) {
@@ -132,11 +117,8 @@ class FongoAggregationScalaTest extends FongoAbstractTest with ParallelTestExecu
   }
 
   test("Fongo should handle first null") {
-    val list = Util.list("p4")
-    val `match` = new BasicDBObject("$match", new BasicDBObject("myId", new BasicDBObject("$in", list)))
-    val groupFields = new BasicDBObject("_id", "0")
-    groupFields.put("date", new BasicDBObject("$first", "$date"))
-    val group: DBObject = new BasicDBObject("$group", groupFields)
+    val `match` = new BasicDBObject("$match", new BasicDBObject("myId", new BasicDBObject("$in", Util.list("p4"))))
+    val group: DBObject = new BasicDBObject("$group", new BasicDBObject("_id", "0").append("date", new BasicDBObject("$first", "$date")))
     val output: AggregationOutput = collection.aggregate(`match`, group)
     var result = false
     if (output.getCommandResult.ok && output.getCommandResult.containsField("result")) {
@@ -151,12 +133,9 @@ class FongoAggregationScalaTest extends FongoAbstractTest with ParallelTestExecu
   }
 
   test("Fongo should handle max with limit") {
-    val list = Util.list("p0", "p1")
-    val `match`: DBObject = new BasicDBObject("$match", new BasicDBObject("myId", new BasicDBObject("$in", list)))
+    val `match`: DBObject = new BasicDBObject("$match", new BasicDBObject("myId", new BasicDBObject("$in", Util.list("p0", "p1"))))
     val limit = new BasicDBObject("$limit", 3)
-    val groupFields: DBObject = new BasicDBObject("_id", "0")
-    groupFields.put("date", new BasicDBObject("$max", "$date"))
-    val group: DBObject = new BasicDBObject("$group", groupFields)
+    val group: DBObject = new BasicDBObject("$group", new BasicDBObject("_id", "0").append("date", new BasicDBObject("$max", "$date")))
     val output: AggregationOutput = collection.aggregate(`match`, limit, group)
     var result = 0
     if (output.getCommandResult.ok && output.getCommandResult.containsField("result")) {
@@ -170,12 +149,9 @@ class FongoAggregationScalaTest extends FongoAbstractTest with ParallelTestExecu
   }
 
   test("Fongo should handle min with skip") {
-    val list = Util.list("p0", "p1")
-    val `match`: DBObject = new BasicDBObject("$match", new BasicDBObject("myId", new BasicDBObject("$in", list)))
+    val `match`: DBObject = new BasicDBObject("$match", new BasicDBObject("myId", new BasicDBObject("$in", Util.list("p0", "p1"))))
     val skip = new BasicDBObject("$skip", 3)
-    val groupFields: DBObject = new BasicDBObject("_id", "0")
-    groupFields.put("date", new BasicDBObject("$min", "$date"))
-    val group: DBObject = new BasicDBObject("$group", groupFields)
+    val group: DBObject = new BasicDBObject("$group", new BasicDBObject("_id", "0").append("date", new BasicDBObject("$min", "$date")))
     val output: AggregationOutput = collection.aggregate(`match`, skip, group)
     var result = 0
     if (output.getCommandResult.ok && output.getCommandResult.containsField("result")) {
@@ -189,8 +165,7 @@ class FongoAggregationScalaTest extends FongoAbstractTest with ParallelTestExecu
   }
 
   test("Fongo should handle avg of field") {
-    val list = Util.list("p0", "p1")
-    val `match` = new BasicDBObject("$match", new BasicDBObject("myId", new BasicDBObject("$in", list)))
+    val `match` = new BasicDBObject("$match", new BasicDBObject("myId", new BasicDBObject("$in", Util.list("p0", "p1"))))
     val groupFields = new BasicDBObject("_id", null)
     groupFields.put("date", new BasicDBObject("$avg", "$date"))
     val group = new BasicDBObject("$group", groupFields)
@@ -218,9 +193,7 @@ class FongoAggregationScalaTest extends FongoAbstractTest with ParallelTestExecu
     collection.insert(new BasicDBObject("myId", "p4").append("date", 10D))
 
     val `match` = new BasicDBObject("$match", new BasicDBObject("myId", "p4"))
-    val groupFields = new BasicDBObject("_id", null)
-    groupFields.put("date", new BasicDBObject("$avg", "$date"))
-    val group = new BasicDBObject("$group", groupFields)
+    val group = new BasicDBObject("$group", new BasicDBObject("_id", null).append("date", new BasicDBObject("$avg", "$date")))
     val output = collection.aggregate(`match`, group)
     var result: Number = 0
     if (output.getCommandResult.ok && output.getCommandResult.containsField("result")) {
@@ -254,9 +227,7 @@ class FongoAggregationScalaTest extends FongoAbstractTest with ParallelTestExecu
   // Group with "simple _id"
   test("Fongo should handle sum of number") {
     val `match` = new BasicDBObject("$match", new BasicDBObject("myId", new BasicDBObject("$in", Util.list("p0", "p1"))))
-    val groupFields = new BasicDBObject("_id", null)
-    groupFields.put("sum", new BasicDBObject("$sum", 2))
-    val group = new BasicDBObject("$group", groupFields)
+    val group = new BasicDBObject("$group", new BasicDBObject("_id", null).append("sum", new BasicDBObject("$sum", 2)))
     val output = collection.aggregate(`match`, group)
     var result: Number = -1
     assert(output.getCommandResult.ok)
@@ -273,10 +244,8 @@ class FongoAggregationScalaTest extends FongoAbstractTest with ParallelTestExecu
   // Group with "simple _id"
   test("Fongo should handle sum of field grouped by myId") {
     val `match` = new BasicDBObject("$match", new BasicDBObject("myId", new BasicDBObject("$in", Util.list("p0", "p1"))))
-    val groupFields = new BasicDBObject("_id", "$myId")
-    groupFields.put("count", new BasicDBObject("$sum", "$date"))
     val sort = new BasicDBObject("$sort", new BasicDBObject("_id", 1))
-    val group = new BasicDBObject("$group", groupFields)
+    val group = new BasicDBObject("$group", new BasicDBObject("_id", "$myId").append("count", new BasicDBObject("$sum", "$date")))
 
     val output = collection.aggregate(`match`, group, sort)
     assert(output.getCommandResult.ok)
@@ -291,12 +260,9 @@ class FongoAggregationScalaTest extends FongoAbstractTest with ParallelTestExecu
   }
 
   test("Fongo should handle sum of value grouped by myId") {
-    val list = Util.list("p0", "p1")
-    val `match` = new BasicDBObject("$match", new BasicDBObject("myId", new BasicDBObject("$in", list)))
-    val groupFields = new BasicDBObject("_id", "$myId")
+    val `match` = new BasicDBObject("$match", new BasicDBObject("myId", new BasicDBObject("$in", Util.list("p0", "p1"))))
     val sort = new BasicDBObject("$sort", new BasicDBObject("_id", 1))
-    groupFields.put("count", new BasicDBObject("$sum", 2))
-    val group = new BasicDBObject("$group", groupFields)
+    val group = new BasicDBObject("$group", new BasicDBObject("_id", "$myId").append("count", new BasicDBObject("$sum", 2)))
 
     val output = collection.aggregate(`match`, group, sort)
     assert(output.getCommandResult.ok)
@@ -416,5 +382,31 @@ class FongoAggregationScalaTest extends FongoAbstractTest with ParallelTestExecu
     }
     assert(output.getCode === 15978)
     //    assert(output.getMessage === "exception: $unwind:  value at end of field path must be an array")
+  }
+
+  test("Fongo should project array into array") {
+    collection.remove(new BasicDBObject())
+    collection.insert(new BasicDBObject("a", Util.list(1, 2, 3, 4)))
+    val project = new BasicDBObject("$project", new BasicDBObject("a", "$a"))
+
+    val output = collection.aggregate(project)
+    assert(output.getCommandResult.ok)
+    assert(output.getCommandResult.containsField("result"))
+    val result: BasicDBList = output.getCommandResult.get("result").asInstanceOf[BasicDBList]
+    assert(result.size() === 1)
+    assert(result.get(0).asInstanceOf[DBObject].get("a") === Util.list(1, 2, 3, 4))
+  }
+
+  test("Fongo should group array into array") {
+    collection.remove(new BasicDBObject())
+    collection.insert(new BasicDBObject("a", 1))
+    val group = new BasicDBObject("$group", new BasicDBObject("_id", "$a"))
+
+    val output = collection.aggregate(group)
+    assert(output.getCommandResult.ok)
+    assert(output.getCommandResult.containsField("result"))
+    val result: BasicDBList = output.getCommandResult.get("result").asInstanceOf[BasicDBList]
+    assert(result.size() === 1)
+    assert(result.get(0).asInstanceOf[DBObject].get("a") === Util.list(1, 2, 3, 4))
   }
 }
