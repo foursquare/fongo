@@ -7,12 +7,19 @@ import java.util.List;
 import org.objenesis.ObjenesisStd;
 
 public class MockMongoClient extends MongoClient {
+  
+  // this is immutable 
+  private final static MongoClientOptions clientOptions = MongoClientOptions.builder().build();
+  
   private Fongo fongo;
-  private final MongoOptions options = new MongoOptions();
+  private MongoOptions options;
 
   public static MockMongoClient create(Fongo fongo) {
+    // using objenesis here to prevent default constructor from spinning up background threads.
     MockMongoClient client = (MockMongoClient) new ObjenesisStd().getInstantiatorOf(MockMongoClient.class).newInstance();
-    client.setFongo(fongo);
+    client.options = new MongoOptions(clientOptions);
+    client.fongo = fongo;
+    client.setWriteConcern(clientOptions.getWriteConcern());
     return client;
   }
   
@@ -20,10 +27,6 @@ public class MockMongoClient extends MongoClient {
 
   }
   
-  public void setFongo(Fongo fongo) {
-    this.fongo = fongo;
-  }
-
   @Override
   public String toString() {
     return fongo.toString();
@@ -61,6 +64,11 @@ public class MockMongoClient extends MongoClient {
   
   @Override
   public MongoOptions getMongoOptions() {
-    return this.options ;
+    return options ;
+  }
+  
+  @Override
+  public MongoClientOptions getMongoClientOptions() {
+    return clientOptions;
   }
 }

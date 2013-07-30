@@ -63,7 +63,6 @@ public class FongoDB extends DB {
     return aggregator.computeResult();
   }
 
-
   @Override
   public Set<String> getCollectionNames() throws MongoException {
     return new HashSet<String>(collMap.keySet());
@@ -137,6 +136,16 @@ public class FongoDB extends DB {
           skip == null ? 0L : skip.longValue());
       CommandResult okResult = okResult();
       okResult.append("n", result);
+      return okResult;
+    } else if (cmd.containsField("deleteIndexes")) {
+      String collectionName = (String) cmd.get("deleteIndexes");
+      String indexName = (String) cmd.get("index");
+      if ("*".equals(indexName)) {
+        doGetCollection(collectionName)._dropIndexes();
+      } else {
+        doGetCollection(collectionName)._dropIndexes(indexName);
+      }
+      CommandResult okResult = okResult();
       return okResult;
     } else if (cmd.containsField("aggregate")) {
       List<DBObject> result = doAggregateCollection((String) cmd.get("aggregate"), (List<DBObject>) cmd.get("pipeline"));
