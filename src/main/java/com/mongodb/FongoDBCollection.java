@@ -41,7 +41,7 @@ public class FongoDBCollection extends DBCollection {
     this.expressionParser = new ExpressionParser();
     this.updateEngine = new UpdateEngine();
     this.objectComparator = expressionParser.objectComparator();
-    _idIndex = new Index("_id", Collections.singletonList("_id"), true);
+    _idIndex = new Index("_id", new BasicDBObject("_id", 1), true);
     this.indexes.put(Collections.singleton("_id"), _idIndex);
   }
 
@@ -464,7 +464,8 @@ public class FongoDBCollection extends DBCollection {
    * "http://docs.mongodb.org/manual/core/read-operations/#result-projections"
    * >projections</a> to the given object.
    */
-  protected DBObject applyProjections(DBObject result, DBObject projection) {
+  // TODO WDEL : remove static
+  public static DBObject applyProjections(DBObject result, DBObject projection) {
     Set<String> projectedFields = getProjectedFields(result, projection);
     LOG.debug("fields after projection of {}: {}", projection, projectedFields);
 
@@ -483,7 +484,8 @@ public class FongoDBCollection extends DBCollection {
     return ret;
   }
 
-  private Set<String> getProjectedFields(DBObject result, DBObject projections) {
+  // TODO WDEL : remove static
+  private static Set<String> getProjectedFields(DBObject result, DBObject projections) {
     Set<String> includedFields = new HashSet<String>();
     Set<String> excludedFields = new HashSet<String>();
 
