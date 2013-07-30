@@ -982,6 +982,31 @@ public class FongoTest {
     }
   }
 
+  // Don't know why, but request by _id only return document event if limit is set
+  @Test
+  public void testFindLimit0ById() throws Exception {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", "jon").append("name", "hoff"));
+    List<DBObject> result = collection.find().limit(0).toArray();
+    assertNotNull(result);
+    assertEquals(1, result.size());
+  }
+
+  // Don't know why, but request by _id only return document even if skip is set
+  @Test
+  public void testFindSkip1yId() throws Exception {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", "jon").append("name", "hoff"));
+    List<DBObject> result = collection.find(new BasicDBObject("_id", "jon")).skip(1).toArray();
+    assertNotNull(result);
+    assertEquals(1, result.size());
+  }
+
+  @Test
+  public void testWriteConcern() {
+    assertNotNull(newFongo().getWriteConcern());
+  }
+
   static class Seq {
     Object[] data;
     Seq(Object... data) { this.data = data; }
