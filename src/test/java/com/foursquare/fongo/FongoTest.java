@@ -1046,7 +1046,7 @@ public class FongoTest {
   public void testFindSkip1yId() throws Exception {
     DBCollection collection = newCollection();
     collection.insert(new BasicDBObject("_id", "jon").append("name", "hoff"));
-    List<DBObject> result = collection.find().skip(1).toArray();
+    List<DBObject> result = collection.find(new BasicDBObject("_id", "jon")).skip(1).toArray();
     assertNotNull(result);
     assertEquals(1, result.size());
   }

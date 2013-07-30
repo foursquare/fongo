@@ -229,22 +229,10 @@ public class FongoIndexTest {
       collection.insert(new BasicDBObject("firstname", "firstname" + i % 10).append("lastname", "lastname" + i % 10).append("date", i % 15).append("permalink", i));
     }
 
-    Index indexFLname = null;
-    Index indexDate = null;
-    Index indexPermalink = null;
-    for (Index index : collection.getIndexes()) {
-      if (index.getName().equals("firstname_1_lastname_1")) {
-        indexFLname = index;
-      } else if (index.getName().equals("permalink_1")) {
-        indexPermalink = index;
-      } else {
-        indexDate = index;
-      }
-    }
+    Index indexFLname = getIndex(collection, "firstname_1_lastname_1");
+    Index indexDate = getIndex(collection, "date_1");
+    Index indexPermalink = getIndex(collection, "permalink_1");
 
-    assertNotNull(indexFLname);
-    assertNotNull(indexDate);
-    assertNotNull(indexPermalink);
     assertEquals(0, indexFLname.getUsedTime());
     assertEquals(0, indexDate.getUsedTime());
     assertEquals(0, indexPermalink.getUsedTime());
@@ -308,6 +296,7 @@ public class FongoIndexTest {
     }
 
     // Verify object is NOT modify
+    assertEquals(1, collection.count(new BasicDBObject("_id", 2)));
     assertEquals(2, collection.find(new BasicDBObject("_id", 2)).next().get("date"));
   }
 
@@ -407,8 +396,7 @@ public class FongoIndexTest {
     // Insert
     collection.insert(new BasicDBObject("_id", 2));
 
-    assertEquals(1, collection.getIndexes().size());
-    Index index = collection.getIndexes().iterator().next();
+    Index index = getIndex(collection, "date_1");
     assertEquals(0, index.size());
 
     collection.update(new BasicDBObject("_id", 2), new BasicDBObject("date", 1));
@@ -425,8 +413,7 @@ public class FongoIndexTest {
     // Insert
     collection.insert(new BasicDBObject("_id", 1).append("date", 1));
 
-    assertEquals(1, collection.getIndexes().size());
-    Index index = collection.getIndexes().iterator().next();
+    Index index = getIndex(collection, "date_1");
     assertEquals(1, index.size());
 
     collection.update(new BasicDBObject("_id", 1), new BasicDBObject("$unset", new BasicDBObject("date", 1)));

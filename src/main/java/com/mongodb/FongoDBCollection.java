@@ -68,9 +68,9 @@ public class FongoDBCollection extends DBCollection {
       if (LOG.isDebugEnabled()) {
         LOG.debug("insert: " + obj);
       }
-      Object id = putIdIfNotPresent(obj);
+      putIdIfNotPresent(obj);
 
-      putSizeCheck(id, obj, concern);
+      putSizeCheck(obj, concern);
     }
     return new WriteResult(insertResult(toInsert.size()), concern);
   }
@@ -79,20 +79,17 @@ public class FongoDBCollection extends DBCollection {
     return /*concern._w > 0; */ !(WriteConcern.NONE.equals(concern) || WriteConcern.NORMAL.equals(concern));
   }
 
-  public Object putIdIfNotPresent(DBObject obj) {
+  public void putIdIfNotPresent(DBObject obj) {
     if (obj.get(ID_KEY) == null) {
       ObjectId id = new ObjectId();
       id.notNew();
 //      if (!nonIdCollection) {
       obj.put(ID_KEY, id);
 //      }
-      return id;
-    } else {
-      return obj.get(ID_KEY);
     }
   }
 
-  public void putSizeCheck(Object id, DBObject obj, WriteConcern concern) {
+  public void putSizeCheck(DBObject obj, WriteConcern concern) {
     if (_idIndex.size() > 100000) {
       throw new FongoException("Whoa, hold up there.  Fongo's designed for lightweight testing.  100,000 items per collection max");
     }
@@ -140,8 +137,8 @@ public class FongoDBCollection extends DBCollection {
 
 
   protected void fInsert(DBObject obj, WriteConcern concern) {
-    Object id = putIdIfNotPresent(obj);
-    putSizeCheck(id, obj, concern);
+    putIdIfNotPresent(obj);
+    putSizeCheck(obj, concern);
   }
 
 
@@ -168,12 +165,8 @@ public class FongoDBCollection extends DBCollection {
       if (!o.containsField(ID_KEY)) {
         o.put(ID_KEY, q.get(ID_KEY));
       }
-      // TODO : try to find a more efficient way.
       List<DBObject> oldObjects = _idIndex.get(o);
-      if (oldObjects != null && oldObjects.size() == 1) {
-        removeFromIndexes(oldObjects.get(0));
-      }
-      fInsert(o, concern);
+      addToIndexes(o, oldObjects == null ? null : oldObjects.get(0), concern);
       updatedDocuments++;
     } else {
       Filter filter = expressionParser.buildFilter(q);
@@ -377,6 +370,10 @@ public class FongoDBCollection extends DBCollection {
     }
 
     Collection<DBObject> objectsFromIndex = filterByIndexes(ref);
+    // TODO(twillouer) Don't know exactly why, but find({id:X}).skip(1) must return the object...
+    if (numToSkip > 0 && ref.keySet().size() == 1 && ref.containsField("_id") && !(ref.get("_id") instanceof DBObject)) {
+      numToSkip = 0;
+    }
 
     int seen = 0;
     Iterable<DBObject> objectsToSearch = sortObjects(orderby, objectsFromIndex);
@@ -454,7 +451,7 @@ public class FongoDBCollection extends DBCollection {
    * "http://docs.mongodb.org/manual/core/read-operations/#result-projections"
    * >projections</a> to the given object.
    */
-  // TODO(twillouer) : remove static
+  // TODO(twillouer) : remove static (can we take it into ExpressionFilter or somethings like this ?)
   public static DBObject applyProjections(DBObject result, DBObject projection) {
     Set<String> projectedFields = getProjectedFields(result, projection);
     LOG.debug("fields after projection of {}: {}", projection, projectedFields);
@@ -716,6 +713,11 @@ public class FongoDBCollection extends DBCollection {
     }
   }
 
+  /**
+   * Remove an object from indexes.
+   *
+   * @param object
+   */
   private synchronized void removeFromIndexes(DBObject object) {
     Set<String> queryFields = object.keySet();
     for (Map.Entry<Set<String>, Index> entry : indexes.entrySet()) {
