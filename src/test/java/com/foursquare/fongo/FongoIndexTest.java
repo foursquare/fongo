@@ -6,13 +6,17 @@ import com.mongodb.DBObject;
 import java.util.Arrays;
 import java.util.List;
 import static org.junit.Assert.assertEquals;
+import org.junit.Rule;
 import org.junit.Test;
 
 public class FongoIndexTest {
 
+  @Rule
+  public FongoRule fongoRule = new FongoRule();
+
   @Test
   public void testCreateIndexes() {
-    DBCollection collection = FongoTest.newCollection();
+    DBCollection collection = fongoRule.newCollection();
     collection.ensureIndex("n");
     collection.ensureIndex("b");
     List<DBObject> indexes = collection.getIndexInfo();
@@ -28,7 +32,7 @@ public class FongoIndexTest {
    */
   @Test
   public void testCreateSameIndex() {
-    DBCollection collection = FongoTest.newCollection();
+    DBCollection collection = fongoRule.newCollection();
     collection.ensureIndex("n");
     collection.ensureIndex("n");
     List<DBObject> indexes = collection.getIndexInfo();
@@ -43,7 +47,7 @@ public class FongoIndexTest {
    */
   @Test
   public void testCreateSameIndexButUnique() {
-    DBCollection collection = FongoTest.newCollection();
+    DBCollection collection = fongoRule.newCollection();
     collection.ensureIndex(new BasicDBObject("n", 1), "n_1");
     collection.ensureIndex(new BasicDBObject("n", 1), "n_1", true);
     List<DBObject> indexes = collection.getIndexInfo();
@@ -55,7 +59,7 @@ public class FongoIndexTest {
 
   @Test
   public void testDropIndex() {
-    DBCollection collection = FongoTest.newCollection();
+    DBCollection collection = fongoRule.newCollection();
     collection.ensureIndex("n");
     collection.ensureIndex("b");
 
@@ -76,7 +80,7 @@ public class FongoIndexTest {
 
   @Test
   public void testDropIndexes() {
-    DBCollection collection = FongoTest.newCollection();
+    DBCollection collection = fongoRule.newCollection();
     collection.ensureIndex("n");
     collection.ensureIndex("b");
 

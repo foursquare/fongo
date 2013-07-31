@@ -14,8 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * User: william
- * Date: 24/07/13
+ * TODO : $substr
  */
 @ThreadSafe
 public class Project extends PipelineKeyword {

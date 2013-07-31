@@ -396,17 +396,4 @@ class FongoAggregationScalaTest extends FongoAbstractTest with ParallelTestExecu
     assert(result.size() === 1)
     assert(result.get(0).asInstanceOf[DBObject].get("a") === Util.list(1, 2, 3, 4))
   }
-
-  test("Fongo should group array into array") {
-    collection.remove(new BasicDBObject())
-    collection.insert(new BasicDBObject("a", 1))
-    val group = new BasicDBObject("$group", new BasicDBObject("_id", "$a"))
-
-    val output = collection.aggregate(group)
-    assert(output.getCommandResult.ok)
-    assert(output.getCommandResult.containsField("result"))
-    val result: BasicDBList = output.getCommandResult.get("result").asInstanceOf[BasicDBList]
-    assert(result.size() === 1)
-    assert(result.get(0).asInstanceOf[DBObject].get("a") === Util.list(1, 2, 3, 4))
-  }
 }
