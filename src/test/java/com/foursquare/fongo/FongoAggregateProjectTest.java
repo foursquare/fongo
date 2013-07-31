@@ -1,11 +1,15 @@
 package com.foursquare.fongo;
 
+import com.foursquare.fongo.impl.Util;
 import com.mongodb.AggregationOutput;
+import com.mongodb.BasicDBList;
+import com.mongodb.BasicDBObject;
 import com.mongodb.DBCollection;
 import com.mongodb.DBObject;
 import com.mongodb.util.JSON;
 import java.util.List;
 import static org.junit.Assert.*;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -121,5 +125,21 @@ public class FongoAggregateProjectTest {
         "               { \"_id\" : 3, \"food\" : \"shepherd's pie\" },\n" +
         "               { \"_id\" : 4, \"food\" : \"chicken pot pie\" },\n" +
         "               { \"_id\" : 5, \"food\" : \"coffee <unknown category>\" }]\n"), result);
+  }
+
+  @Test
+  @Ignore // TODO(twillouer)
+  public void testProjectDoenstSendArray() {
+    DBCollection coll = fongoRule.newCollection();
+    coll.insert(new BasicDBObject("a", Util.list(1, 2, 3)));
+
+    // project doesn't handle array
+    AggregationOutput output = coll.aggregate(new BasicDBObject("$project", new BasicDBObject("e", "$a.0")));
+    assertTrue(output.getCommandResult().ok());
+
+    List<DBObject> result = (List<DBObject>) output.getCommandResult().get("result");
+    System.out.println(result);
+    assertNotNull(result);
+    assertEquals(new BasicDBList(), result.get(0).get("e"));
   }
 }
