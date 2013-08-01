@@ -41,7 +41,7 @@ public class Group extends PipelineKeyword {
     @Override
     public String toString() {
       return "Mapping{" +
-          "key=" + key +
+          "keyword=" + key +
           ", collection=" + collection +
           ", result=" + result +
           '}';
@@ -149,7 +149,7 @@ public class Group extends PipelineKeyword {
             if (keyword.canApply(objectValue)) {
               Object result = keyword.apply(workColl, objectValue);
               if (result != null || keyword.isCanReturnNull()) {
-                LOG.debug("_id:{}, key:{}, result:{}", entryMapping.getKey(), key, result);
+                LOG.debug("_id:{}, keyword:{}, result:{}", entryMapping.getKey(), key, result);
                 entryMapping.getValue().result.put(key, result);
               } else {
                 LOG.warn("result is null for entry {}", entry);
@@ -176,7 +176,7 @@ public class Group extends PipelineKeyword {
   }
 
   /**
-   * Create mapping. Group result with a 'key'.
+   * Create mapping. Group result with a 'keyword'.
    *
    * @param coll collection to be mapped
    * @param id   id of the group
@@ -194,7 +194,7 @@ public class Group extends PipelineKeyword {
         for (DBObject o : newCollection) {
           coll.remove(new BasicDBObject("_id", o.get("_id")));
         }
-        // Generate key
+        // Generate keyword
         DBObject key = keyForId(id, dbObject);
         // Save into mapping
         mapping.put(criteria, new Mapping(key, createAndInsert(newCollection), Util.clone(key)));
@@ -205,7 +205,7 @@ public class Group extends PipelineKeyword {
   }
 
   /**
-   * Get the key from the "_id".
+   * Get the keyword from the "_id".
    *
    * @param id
    * @param dbObject

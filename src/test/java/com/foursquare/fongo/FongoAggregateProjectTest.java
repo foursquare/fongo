@@ -223,4 +223,74 @@ public class FongoAggregateProjectTest {
 
     coll.aggregate(project);
   }
+
+
+  private DBCollection createTestCollection() {
+    DBCollection collection = fongoRule.newCollection();
+    collection.insert(new BasicDBObject("myId", "p0").append("date", 1));
+    collection.insert(new BasicDBObject("myId", "p0").append("date", 2));
+    collection.insert(new BasicDBObject("myId", "p0").append("date", 3));
+    collection.insert(new BasicDBObject("myId", "p0").append("date", 4));
+    collection.insert(new BasicDBObject("myId", "p0").append("date", 5));
+    collection.insert(new BasicDBObject("myId", "p1").append("date", 6));
+    collection.insert(new BasicDBObject("myId", "p2").append("date", 7));
+    collection.insert(new BasicDBObject("myId", "p3").append("date", 0));
+    collection.insert(new BasicDBObject("myId", "p0"));
+    collection.insert(new BasicDBObject("myId", "p4"));
+    return collection;
+  }
+
+  @Test
+  public void shouldHandleProjectWithRename() {
+    DBObject project = new BasicDBObject("$project", new BasicDBObject("renamedDate", "$date"));
+    AggregationOutput output = createTestCollection().aggregate(project);
+
+    assertTrue(output.getCommandResult().ok());
+    assertTrue(output.getCommandResult().containsField("result"));
+
+    BasicDBList result = (BasicDBList) output.getCommandResult().get("result");
+    assertEquals(10, result.size());
+    assertTrue(((DBObject) result.get(0)).containsField("renamedDate"));
+    assertTrue(((DBObject) result.get(0)).containsField("_id"));
+  }
+
+  @Test
+  public void shouldHandleProjectWithSublist() {
+    DBCollection collection = createTestCollection();
+    collection.insert(new BasicDBObject("myId", "sublist").append("sub", new BasicDBObject("obj", new BasicDBObject("ect", 1))));
+
+    DBObject matching = new BasicDBObject("$match", new BasicDBObject("myId", "sublist"));
+    DBObject project = new BasicDBObject("$project", new BasicDBObject("bar", "$sub.obj.ect"));
+    AggregationOutput output = collection.aggregate(matching, project);
+
+    assertTrue(output.getCommandResult().ok());
+    assertTrue(output.getCommandResult().containsField("result"));
+
+    BasicDBList result = (BasicDBList) output.getCommandResult().get("result");
+    assertEquals(1, result.size());
+    assertTrue(((DBObject) result.get(0)).containsField("bar"));
+    assertEquals(1, ((DBObject) result.get(0)).get("bar"));
+  }
+
+  @Test
+  public void shouldHandleProjectWithTwoSublist() {
+    DBCollection collection = createTestCollection();
+    collection.insert(new BasicDBObject("myId", "sublist").append("sub", new BasicDBObject("obj", new BasicDBObject("ect", 1).append("ect2", 2))));
+
+    DBObject matching = new BasicDBObject("$match", new BasicDBObject("myId", "sublist"));
+    DBObject project = new BasicDBObject("$project", new BasicDBObject("bar", "$sub.obj.ect").append("foo", "$sub.obj.ect2"));
+    AggregationOutput output = collection.aggregate(matching, project);
+
+    assertTrue(output.getCommandResult().ok());
+    assertTrue(output.getCommandResult().containsField("result"));
+
+    BasicDBList result = (BasicDBList) output.getCommandResult().get("result");
+    assertEquals(1, result.size());
+    assertTrue(((DBObject) result.get(0)).containsField("bar"));
+    assertEquals(1, ((DBObject) result.get(0)).get("bar"));
+    assertTrue(((DBObject) result.get(0)).containsField("foo"));
+    assertEquals(2, ((DBObject) result.get(0)).get("foo"));
+    assertTrue(!((DBObject) result.get(0)).containsField("sub"));
+  }
+
 }
