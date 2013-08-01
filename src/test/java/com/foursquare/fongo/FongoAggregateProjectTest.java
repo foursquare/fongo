@@ -225,6 +225,98 @@ public class FongoAggregateProjectTest {
   }
 
 
+  /**
+   * See http://docs.mongodb.org/manual/reference/aggregation/ifNull/
+   */
+  @Test
+  public void testIfNullWithValue() {
+    DBCollection coll = fongoRule.newCollection();
+    fongoRule.insertJSON(coll, "[{ _id: 1, item: { sec: \"dessert\", category: \"pie\", type: \"apple\" } },\n" +
+        "{ _id: 2, item: { sec: \"dessert\", category: \"pie\", type: \"cherry\" } },\n" +
+        "{ _id: 3, item: { sec: \"main\", category: \"pie\", type: \"shepherd's\" } },\n" +
+        "{ _id: 4, item: { sec: \"main\", category: \"pie\" } }]");
+
+    DBObject project = fongoRule.parseDEObject("{ $project: { food:\n" +
+        "                                       { $ifNull: [ \"$item.type\",\n" +
+        "                                                    \"wasNull\"\n" +
+        "                                                  ]\n" +
+        "                                       }\n" +
+        "                                }\n" +
+        "                   }");
+
+    AggregationOutput output = coll.aggregate(project);
+    assertTrue(output.getCommandResult().ok());
+
+    List<DBObject> result = (List<DBObject>) output.getCommandResult().get("result");
+    System.out.println(result);
+    assertNotNull(result);
+    assertEquals(fongoRule.parse("[{ \"_id\" : 1, \"food\" : \"apple\" },\n" +
+        "                    { \"_id\" : 2, \"food\" : \"cherry\" },\n" +
+        "                    { \"_id\" : 3, \"food\" : \"shepherd's\" },\n" +
+        "                    { \"_id\" : 4, \"food\" : \"wasNull\" }]\n"), result);
+  }
+
+  /**
+   * See http://docs.mongodb.org/manual/reference/aggregation/ifNull/
+   */
+  @Test
+  public void testIfNullWithField() {
+    DBCollection coll = fongoRule.newCollection();
+    fongoRule.insertJSON(coll, "[{ _id: 1, item: { sec: \"dessert\", category: \"pie\", type: \"apple\" } },\n" +
+        "{ _id: 2, item: { sec: \"dessert\", category: \"pie\", type: \"cherry\" } },\n" +
+        "{ _id: 3, item: { sec: \"main\", category: \"pie\", type: \"shepherd's\" } },\n" +
+        "{ _id: 4, item: { sec: \"main\", category: \"pie\" } }]");
+
+    DBObject project = fongoRule.parseDEObject("{ $project: { food:\n" +
+        "                                       { $ifNull: [ \"$item.type\",\n" +
+        "                                                    \"$item.category\"\n" +
+        "                                                  ]\n" +
+        "                                       }\n" +
+        "                                }\n" +
+        "                   }");
+
+    AggregationOutput output = coll.aggregate(project);
+    assertTrue(output.getCommandResult().ok());
+
+    List<DBObject> result = (List<DBObject>) output.getCommandResult().get("result");
+    System.out.println(result);
+    assertNotNull(result);
+    assertEquals(fongoRule.parse("[{ \"_id\" : 1, \"food\" : \"apple\" },\n" +
+        "                    { \"_id\" : 2, \"food\" : \"cherry\" },\n" +
+        "                    { \"_id\" : 3, \"food\" : \"shepherd's\" },\n" +
+        "                    { \"_id\" : 4, \"food\" : \"pie\" }]\n"), result);
+  }
+  /**
+   * See http://docs.mongodb.org/manual/reference/aggregation/ifNull/
+   */
+  @Test
+  public void testIfNullWithFieldArray() {
+    DBCollection coll = fongoRule.newCollection();
+    fongoRule.insertJSON(coll, "[{ _id: 1, item: { sec: \"dessert\", category: \"pie\", type: \"apple\" } },\n" +
+        "{ _id: 2, item: { sec: \"dessert\", category: \"pie\", type: \"cherry\" } },\n" +
+        "{ _id: 3, item: { sec: \"main\", category: \"pie\", type: \"shepherd's\" } },\n" +
+        "{ _id: 4, item: { sec: \"main\", category: \"pie\", repl : [1,2,3] } }]");
+
+    DBObject project = fongoRule.parseDEObject("{ $project: { food:\n" +
+        "                                       { $ifNull: [ \"$item.type\",\n" +
+        "                                                    \"$item.repl\"\n" +
+        "                                                  ]\n" +
+        "                                       }\n" +
+        "                                }\n" +
+        "                   }");
+
+    AggregationOutput output = coll.aggregate(project);
+    assertTrue(output.getCommandResult().ok());
+
+    List<DBObject> result = (List<DBObject>) output.getCommandResult().get("result");
+    System.out.println(result);
+    assertNotNull(result);
+    assertEquals(fongoRule.parse("[{ \"_id\" : 1, \"food\" : \"apple\" },\n" +
+        "                    { \"_id\" : 2, \"food\" : \"cherry\" },\n" +
+        "                    { \"_id\" : 3, \"food\" : \"shepherd's\" },\n" +
+        "                    { \"_id\" : 4, \"food\" : [1,2,3] }]\n"), result);
+  }
+
   @Test
   public void shouldHandleProjectWithRename() {
     DBObject project = new BasicDBObject("$project", new BasicDBObject("renamedDate", "$date"));
@@ -278,6 +370,22 @@ public class FongoAggregateProjectTest {
     assertTrue(!((DBObject) result.get(0)).containsField("sub"));
   }
 
+  @Test
+  public void shouldRenameIntoAnObject() {
+    DBCollection collection = fongoRule.newCollection();
+    collection.insert(new BasicDBObject("name", "jon").append("lastname", "hoff").append("_id", 1));
+    collection.insert(new BasicDBObject("name", "will").append("lastname", "del").append("_id", 2));
+
+    DBObject project = new BasicDBObject("$project", new BasicDBObject("author", new BasicDBObject("name", "$name").append("lastname", "$lastname")));
+    AggregationOutput output = collection.aggregate(project);
+
+    assertTrue(output.getCommandResult().ok());
+    assertTrue(output.getCommandResult().containsField("result"));
+
+    BasicDBList result = (BasicDBList) output.getCommandResult().get("result");
+    assertEquals(Util.list(new BasicDBObject("_id", 1).append("author", new BasicDBObject("name", "jon").append("lastname", "hoff")),
+        new BasicDBObject("_id", 2).append("author", new BasicDBObject("name", "will").append("lastname", "del"))), result);
+  }
 
   private DBCollection createTestCollection() {
     DBCollection collection = fongoRule.newCollection();

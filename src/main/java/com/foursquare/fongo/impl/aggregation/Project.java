@@ -36,6 +36,11 @@ public class Project extends PipelineKeyword {
 
     final List<Object> results = new ArrayList<Object>();
 
+    /**
+     * Set to true when work is done (unapply successful).
+     */
+    boolean done = false;
+
     private Projected(Keyword keyword, String destName) {
       this.keyword = keyword;
       this.destName = destName;
@@ -69,6 +74,18 @@ public class Project extends PipelineKeyword {
     public void unapply(DBObject result, DBObject object, String key) {
       this.keyword.unapply(result, object, this, key);
     }
+
+    public void done() {
+      done = true;
+    }
+
+    public boolean isDone() {
+      return done;
+    }
+
+    public void setDone(boolean done) {
+      this.done = done;
+    }
   }
 
   private enum Keyword {
@@ -78,12 +95,38 @@ public class Project extends PipelineKeyword {
       public void unapply(DBObject result, DBObject object, Projected projected, String key) {
         Object value = Util.extractField(object, key);
         Util.putValue(result, projected.destName, value);
+        projected.done();
       }
     },
     ALL(null) {
 
     },
-    IFNULL("$ifNull"),
+    IFNULL("$ifNull") {
+      @Override
+      void doWork(DBCollection coll, DBObject projectResult, Map<String, Projected> projectedFields, String key, Object value, String namespace) {
+        if (!(value instanceof List) || ((List) value).size() != 2) {
+//	"errmsg" : "exception: the $strcasecmp operator requires an array of 2 operands",
+//        "code" : 16019,
+          errorResult(coll, 16020, "the $ifNull operator requires an array of 2 operands");
+        }
+        List<String> values = (List<String>) value;
+        Projected projected = Projected.projection(this, key);
+        createMapping(coll, projectResult, projectedFields, (String) values.get(0), values.get(0), namespace, projected);
+        createMapping(coll, projectResult, projectedFields, (String) values.get(1), values.get(1), namespace, projected);
+        projected.done();
+      }
+
+      @Override
+      public void unapply(DBObject result, DBObject object, Projected projected, String key) {
+        Object value = extracetValue(object, projected.infos.get(0));
+        if (value == null) {
+          value = extracetValue(object, projected.infos.get(1));
+        }
+        result.put(projected.destName, value);
+        projected.done();
+      }
+
+    },
     CONCAT("$concat") {
       @Override
       void doWork(DBCollection coll, DBObject projectResult, Map<String, Projected> projectedFields, String key, Object value, String namespace) {
@@ -117,6 +160,7 @@ public class Project extends PipelineKeyword {
           }
         }
         result.put(projected.destName, sb.toString());
+        projected.done();
       }
     },
     SUBSTR("$substr"),
@@ -140,6 +184,7 @@ public class Project extends PipelineKeyword {
         String secondValue = extracetValue(object, projected.infos.get(1)).toString().toLowerCase();
         int strcmp = value.compareTo(secondValue);
         result.put(projected.destName, strcmp < 0 ? -1 : strcmp > 1 ? 1 : 0);
+        projected.done();
       }
     },
     CMP("$cmp"), // case sensitive
@@ -222,7 +267,7 @@ public class Project extends PipelineKeyword {
           // case : {biggestCity:  { name: "$biggestCity",  pop: "$biggestPop" }}
           projectResult.removeField(key);
           for (Map.Entry<String, Object> subentry : (Set<Map.Entry<String, Object>>) value.toMap().entrySet()) {
-            createMapping(coll, projectResult, projectedFields, subentry.getKey(), subentry.getValue(), namespace + key + ".", Projected.defaultProjection(subentry.getKey()));
+            createMapping(coll, projectResult, projectedFields, subentry.getKey(), subentry.getValue(), namespace + key + ".", Projected.defaultProjection(namespace + key + "." + subentry.getKey()));
           }
         }
       } else {
@@ -277,6 +322,15 @@ public class Project extends PipelineKeyword {
         if (Util.containsField(result, entry.getKey())) {
           entry.getValue().unapply(renamed, result, entry.getKey());
         }
+      }
+
+      // TODO REFACTOR
+      // Handle special case like ifNull who can doesn't have field in list.
+      for (Projected projected : projectedFields.values()) {
+        if (!projected.isDone() && projected.keyword == Keyword.IFNULL) {
+          projected.unapply(renamed, result, null);
+        }
+        projected.setDone(false);
       }
 
       objectsResults.add(renamed);
