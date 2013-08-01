@@ -407,7 +407,7 @@ public class FongoDBCollection extends DBCollection {
     }
 
     if (fields != null && !fields.keySet().isEmpty()) {
-      LOG.info("applying projections {}", fields);
+      LOG.debug("applying projections {}", fields);
       results = applyProjections(results, fields);
     } else {
       results = copyResults(results);
