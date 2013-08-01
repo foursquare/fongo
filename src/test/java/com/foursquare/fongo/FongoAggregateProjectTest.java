@@ -17,9 +17,9 @@ import org.junit.rules.TestRule;
 
 public class FongoAggregateProjectTest {
 
-  public FongoRule fongoRule = new FongoRule(false);
+  public final FongoRule fongoRule = new FongoRule(false);
 
-  public ExpectedException exception = ExpectedException.none();
+  public final ExpectedException exception = ExpectedException.none();
 
   @Rule
   public TestRule rules = RuleChain.outerRule(exception).around(fongoRule);
@@ -225,21 +225,6 @@ public class FongoAggregateProjectTest {
   }
 
 
-  private DBCollection createTestCollection() {
-    DBCollection collection = fongoRule.newCollection();
-    collection.insert(new BasicDBObject("myId", "p0").append("date", 1));
-    collection.insert(new BasicDBObject("myId", "p0").append("date", 2));
-    collection.insert(new BasicDBObject("myId", "p0").append("date", 3));
-    collection.insert(new BasicDBObject("myId", "p0").append("date", 4));
-    collection.insert(new BasicDBObject("myId", "p0").append("date", 5));
-    collection.insert(new BasicDBObject("myId", "p1").append("date", 6));
-    collection.insert(new BasicDBObject("myId", "p2").append("date", 7));
-    collection.insert(new BasicDBObject("myId", "p3").append("date", 0));
-    collection.insert(new BasicDBObject("myId", "p0"));
-    collection.insert(new BasicDBObject("myId", "p4"));
-    return collection;
-  }
-
   @Test
   public void shouldHandleProjectWithRename() {
     DBObject project = new BasicDBObject("$project", new BasicDBObject("renamedDate", "$date"));
@@ -293,4 +278,19 @@ public class FongoAggregateProjectTest {
     assertTrue(!((DBObject) result.get(0)).containsField("sub"));
   }
 
+
+  private DBCollection createTestCollection() {
+    DBCollection collection = fongoRule.newCollection();
+    collection.insert(new BasicDBObject("myId", "p0").append("date", 1));
+    collection.insert(new BasicDBObject("myId", "p0").append("date", 2));
+    collection.insert(new BasicDBObject("myId", "p0").append("date", 3));
+    collection.insert(new BasicDBObject("myId", "p0").append("date", 4));
+    collection.insert(new BasicDBObject("myId", "p0").append("date", 5));
+    collection.insert(new BasicDBObject("myId", "p1").append("date", 6));
+    collection.insert(new BasicDBObject("myId", "p2").append("date", 7));
+    collection.insert(new BasicDBObject("myId", "p3").append("date", 0));
+    collection.insert(new BasicDBObject("myId", "p0"));
+    collection.insert(new BasicDBObject("myId", "p4"));
+    return collection;
+  }
 }

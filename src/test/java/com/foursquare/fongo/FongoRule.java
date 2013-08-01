@@ -40,6 +40,10 @@ public class FongoRule extends ExternalResource {
     this(UUID.randomUUID().toString(), false);
   }
 
+  public FongoRule(boolean realMongo) {
+    this(UUID.randomUUID().toString(), realMongo);
+  }
+
   public FongoRule(String dbName) {
     this(dbName, false);
   }
