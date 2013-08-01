@@ -404,7 +404,6 @@ public class FongoDBCollection extends DBCollection {
           results.add(clonedDbo);
         }
       }
-//      }
     }
 
     if (fields != null && !fields.keySet().isEmpty()) {
