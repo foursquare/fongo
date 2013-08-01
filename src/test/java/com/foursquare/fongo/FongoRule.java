@@ -2,14 +2,16 @@ package com.foursquare.fongo;
 
 import com.mongodb.DB;
 import com.mongodb.DBCollection;
+import com.mongodb.DBObject;
 import com.mongodb.Mongo;
 import com.mongodb.MongoClient;
+import com.mongodb.util.JSON;
+
+import org.junit.rules.ExternalResource;
+
 import java.net.UnknownHostException;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.CopyOnWriteArrayList;
-import org.junit.rules.ExternalResource;
-import org.junit.rules.TestRule;
 
 public class FongoRule extends ExternalResource {
 
@@ -48,6 +50,25 @@ public class FongoRule extends ExternalResource {
   @Override
   protected void after() {
     db.dropDatabase();
+  }
+
+  public void insertJSON(DBCollection coll, String json) {
+    List<DBObject> objects = parseList(json);
+    for (DBObject object : objects) {
+      coll.insert(object);
+    }
+  }
+
+  public List<DBObject> parseList(String json) {
+    return parse(json);
+  }
+
+  public DBObject parseDEObject(String json) {
+    return parse(json);
+  }
+
+  public <T> T parse(String json) {
+    return (T) JSON.parse(json);
   }
 
   public DBCollection newCollection() {

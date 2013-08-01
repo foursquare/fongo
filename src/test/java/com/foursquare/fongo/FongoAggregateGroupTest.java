@@ -14,7 +14,7 @@ import org.junit.Test;
 public class FongoAggregateGroupTest {
 
   @Rule
-  public FongoRule fongoRule = new FongoRule(!false);
+  public FongoRule fongoRule = new FongoRule(false);
 
   /**
    * See http://docs.mongodb.org/manual/reference/aggregation/concat/
@@ -22,15 +22,12 @@ public class FongoAggregateGroupTest {
   @Test
   public void testConcat() {
     DBCollection coll = fongoRule.newCollection();
-    List<DBObject> objects = (List<DBObject>) JSON.parse("[{ _id: 1, item: { sec: \"dessert\", category: \"pie\", type: \"apple\" } },\n" +
+    fongoRule.insertJSON(coll, "[{ _id: 1, item: { sec: \"dessert\", category: \"pie\", type: \"apple\" } },\n" +
         "{ _id: 2, item: { sec: \"dessert\", category: \"pie\", type: \"cherry\" } },\n" +
         "{ _id: 3, item: { sec: \"main\", category: \"pie\", type: \"shepherd's\" } },\n" +
         "{ _id: 4, item: { sec: \"main\", category: \"pie\", type: \"chicken pot\" } }]");
-    for (DBObject object : objects) {
-      coll.insert(object);
-    }
 
-    DBObject project = (DBObject) JSON.parse("{ $group: { _id:\n" +
+    DBObject project = fongoRule.parseDEObject("{ $group: { _id:\n" +
         "                                    { $concat: [ \"$item.sec\",\n" +
         "                                                 \": \",\n" +
         "                                                 \"$item.category\"\n" +

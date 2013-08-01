@@ -4,6 +4,7 @@ import com.foursquare.fongo.impl.Util;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBCollection;
 import com.mongodb.DBObject;
+import com.mongodb.FongoDB;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -25,6 +26,113 @@ public class Project extends PipelineKeyword {
   private Project() {
   }
 
+  private enum Keyword {
+    ALL(null) {
+
+    },
+    IFNULL("$ifNull"),
+    CONCAT("$concat") {
+      @Override
+      void doWork(DBCollection coll, DBObject projectResult, Map<String, String> projectedFields, String key, Object value, String namespace) {
+      }
+    },
+    SUBSTR("$substr"),
+    STRCASECMP("$strcasecmp") {
+      @Override
+      void doWork(DBCollection coll, DBObject projectResult, Map<String, String> projectedFields, String key, Object value, String namespace) {
+//	"errmsg" : "exception: the $strcasecmp operator requires an array of 2 operands",
+//        "code" : 16019,
+        if (!(value instanceof List) || ((List) value).size() != 2) {
+          ((FongoDB) coll.getDB()).errorResult(16019, "the $strcasecmp operator requires an array of 2 operands").throwOnError();
+        }
+        List values = (List) value;
+        createMapping(coll, projectResult, projectedFields, key, values.get(0), namespace);
+        createMapping(coll, projectResult, projectedFields, key, values.get(1), namespace);
+      }
+    },
+    CMP("$cmp"), // case sensitive
+    TOLOWER("$toLower"),
+    TOUPPER("$toUpper");
+
+    private final String key;
+
+    Keyword(String key) {
+      this.key = key;
+    }
+
+    //@Nullable
+    public static Keyword getKeyword(DBObject object) {
+      Keyword ret = null;
+      for (Keyword keyword : values()) {
+        if (keyword.key != null && object.containsField(keyword.key)) {
+          ret = keyword;
+          break;
+        }
+      }
+      return ret;
+    }
+
+    void doWork(DBCollection coll, DBObject projectResult, Map<String, String> projectedFields, String key, Object value, String namespace) {
+
+    }
+
+    public final void apply(DBCollection coll, DBObject projectResult, Map<String, String> projectedFields, String key, Object value, String namespace) {
+      doWork(coll, projectResult, projectedFields, key, value, namespace);
+    }
+
+    /**
+     * Create the mapping and the criteria for the collection.
+     *
+     * @param projectResult   find criteria.
+     * @param projectedFields mapping from criteria to project structure.
+     * @param key             key from a DBObject.
+     * @param kvalue          value for k from a DBObject.
+     * @param namespace       "" if empty, "fieldname." elsewhere.
+     */
+    void createMapping(DBCollection coll, DBObject projectResult, Map<String, String> projectedFields, String key, Object kvalue, String namespace) {
+      // Simple case : nb : "$pop"
+      if (kvalue instanceof String) {
+        String value = kvalue.toString();
+        if (value.startsWith("$")) {
+          // Case { date: "$date"}
+
+          // Extract filename from projection.
+          String fieldName = kvalue.toString().substring(1);
+          // Prepare for renaming.
+          projectedFields.put(fieldName, namespace + key);
+          projectResult.removeField(key);
+
+          // Handle complex case like $bar.foo with a little trick.
+          if (fieldName.contains(".")) {
+            projectResult.put(fieldName.substring(0, fieldName.indexOf('.')), 1);
+          } else {
+            projectResult.put(fieldName, 1);
+          }
+        } else {
+          projectedFields.put(value, value);
+        }
+      } else if (kvalue instanceof DBObject) {
+        DBObject value = (DBObject) kvalue;
+        Keyword keyword = Keyword.getKeyword(value);
+        if (keyword != null) {
+          // case : {cmp : {$cmp:[$firstname, $lastname]}}
+          projectResult.removeField(key);
+          keyword.apply(coll, projectResult, projectedFields, key, kvalue, namespace);
+        } else {
+          // case : {biggestCity:  { name: "$biggestCity",  pop: "$biggestPop" }}
+          projectResult.removeField(key);
+          for (Map.Entry<String, Object> subentry : (Set<Map.Entry<String, Object>>) value.toMap().entrySet()) {
+            createMapping(coll, projectResult, projectedFields, subentry.getKey(), subentry.getValue(), namespace + key + ".");
+          }
+        }
+      } else {
+        // Case: {date : 1}
+        projectedFields.put(key, key);
+      }
+    }
+
+  }
+
   /**
    * Simple {@see http://docs.mongodb.org/manual/reference/aggregation/project/#pipe._S_project}
    *
@@ -43,11 +151,12 @@ public class Project extends PipelineKeyword {
     Map<String, String> projectedFields = new HashMap<String, String>();
     for (Map.Entry<String, Object> entry : (Set<Map.Entry<String, Object>>) project.toMap().entrySet()) {
       if (entry.getValue() != null) {
-        createMapping(projectResult, projectedFields, entry, "");
+        Keyword.ALL.createMapping(coll, projectResult, projectedFields, entry.getKey(), entry.getValue(), "");
       }
     }
 
-    LOG.debug("project() of {} renamed {}", projectResult, projectedFields);
+    LOG.info("project() of {} renamed {}", projectResult, projectedFields); // TODO
+    LOG.debug("project() of {} renamed {}", projectResult, projectedFields); // TODO
     List<DBObject> objects = coll.find(null, projectResult).toArray();
 
     // Rename fields
@@ -66,49 +175,6 @@ public class Project extends PipelineKeyword {
     coll = dropAndInsert(coll, objectsResults);
     LOG.debug("project() : {}, result : {}", object, objects);
     return coll;
-  }
-
-  /**
-   * Create the mapping and the criteria for the collection.
-   *
-   * @param projectResult   find criteria.
-   * @param projectedFields mapping from criteria to project structure.
-   * @param entry           from a DBObject.
-   * @param namespace       "" if empty, "fieldname." elsewhere.
-   */
-  private void createMapping(DBObject projectResult, Map<String, String> projectedFields, Map.Entry<String, Object> entry, String namespace) {
-    // Simple case : nb : "$pop"
-    if (entry.getValue() instanceof String) {
-      String value = entry.getValue().toString();
-      if (value.startsWith("$")) {
-        // Case { date: "$date"}
-
-        // Extract filename from projection.
-        String fieldName = entry.getValue().toString().substring(1);
-        // Prepare for renaming.
-        projectedFields.put(fieldName, namespace + entry.getKey());
-        projectResult.removeField(entry.getKey());
-
-        // Handle complex case like $bar.foo with a little trick.
-        if (fieldName.contains(".")) {
-          projectResult.put(fieldName.substring(0, fieldName.indexOf('.')), 1);
-        } else {
-          projectResult.put(fieldName, 1);
-        }
-      } else {
-        projectedFields.put(value, value);
-      }
-    } else if (entry.getValue() instanceof DBObject) {
-      // case : {biggestCity:  { name: "$biggestCity",  pop: "$biggestPop" }}
-      DBObject value = (DBObject) entry.getValue();
-      projectResult.removeField(entry.getKey());
-      for (Map.Entry<String, Object> subentry : (Set<Map.Entry<String, Object>>) value.toMap().entrySet()) {
-        createMapping(projectResult, projectedFields, subentry, namespace + entry.getKey() + ".");
-      }
-    } else {
-      // Case: {date : 1}
-      projectedFields.put(entry.getKey(), entry.getKey());
-    }
   }
 
   @Override
