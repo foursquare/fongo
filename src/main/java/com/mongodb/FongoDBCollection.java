@@ -21,7 +21,7 @@ import java.util.*;
 public class FongoDBCollection extends DBCollection {
   final static Logger LOG = LoggerFactory.getLogger(FongoDBCollection.class);
 
-  final static String ID_KEY = "_id";
+  public final static String ID_KEY = "_id";
   private final FongoDB fongoDb;
   // LinkedHashMap maintains insertion order
   // TODO(jon) separate _id index from storage
@@ -477,7 +477,7 @@ public class FongoDBCollection extends DBCollection {
     }
 
     boolean including = !includedFields.isEmpty();
-    boolean excluding = excludedFields.size() > (excludedFields.contains("_id") ? 1 : 0);
+    boolean excluding = excludedFields.size() > (excludedFields.contains(ID_KEY) ? 1 : 0);
 
     if (including && excluding) {
       throw new IllegalArgumentException(
@@ -486,8 +486,8 @@ public class FongoDBCollection extends DBCollection {
     }
 
     // the _id is always returned unless explicitly excluded
-    if (including && !excludedFields.contains("_id")) {
-      includedFields.add("_id");
+    if (including && !excludedFields.contains(ID_KEY)) {
+      includedFields.add(ID_KEY);
     }
 
     Set<String> fieldsToRetain = new HashSet<String>(result.keySet());

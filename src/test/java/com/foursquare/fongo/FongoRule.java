@@ -20,6 +20,8 @@ public class FongoRule extends ExternalResource {
    */
   private final boolean realMongo;
 
+  private final String dbName;
+
   private Mongo mongo;
 
   private DB db;
@@ -29,12 +31,17 @@ public class FongoRule extends ExternalResource {
    *
    * @param realMongo
    */
-  public FongoRule(boolean realMongo) {
+  public FongoRule(String dbName, boolean realMongo) {
+    this.dbName = dbName;
     this.realMongo = realMongo;
   }
 
   public FongoRule() {
-    this(false);
+    this(UUID.randomUUID().toString(), false);
+  }
+
+  public FongoRule(String dbName) {
+    this(dbName, false);
   }
 
   @Override
@@ -44,7 +51,7 @@ public class FongoRule extends ExternalResource {
     } else {
       mongo = newFongo().getMongo();
     }
-    db = mongo.getDB(UUID.randomUUID().toString());
+    db = mongo.getDB(dbName);
   }
 
   @Override
@@ -72,7 +79,11 @@ public class FongoRule extends ExternalResource {
   }
 
   public DBCollection newCollection() {
-    DBCollection collection = db.getCollection(UUID.randomUUID().toString());
+    return newCollection(UUID.randomUUID().toString());
+  }
+
+  public DBCollection newCollection(String collectionName) {
+    DBCollection collection = db.getCollection(collectionName);
     return collection;
   }
 
