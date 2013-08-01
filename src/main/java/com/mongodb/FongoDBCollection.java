@@ -368,36 +368,32 @@ public class FongoDBCollection extends DBCollection {
 
     Collection<DBObject> objectsFromIndex = filterByIndexes(ref);
     List<DBObject> results = new ArrayList<DBObject>();
-    // TODO(twillouer) Don't know exactly why, but find({id:X}).skip(1) must return the object...
     List objects = idsIn(ref);
     if (!objects.isEmpty()) {
-      for (Object id : objects) {
-        LOG.info("id : " + id);
-        List<DBObject> retrievedObjects = _idIndex.get(new BasicDBObject("_id", id));
-        if (retrievedObjects != null) {
-          for (DBObject object : retrievedObjects) {
-            if (filter.apply(object)) {
-              results.add(Util.clone(object));
-            }
+      if (!(ref.get(ID_KEY) instanceof DBObject)) {
+        // Special case : find({id:<val}) doesn't handle skip...
+        // But : find({_id:{$in:[1,2,3]}).skip(3) will return empty list.
+        numToSkip = 0;
+      }
+      if (orderby == null) {
+        orderby = new BasicDBObject(ID_KEY, 1);
+      }
+    }
+    int seen = 0;
+    Iterable<DBObject> objectsToSearch = sortObjects(orderby, objectsFromIndex);
+    for (Iterator<DBObject> iter = objectsToSearch.iterator(); iter.hasNext() && foundCount <= upperLimit; ) {
+      DBObject dbo = iter.next();
+      if (filter.apply(dbo)) {
+        if (seen++ >= numToSkip) {
+          foundCount++;
+          DBObject clonedDbo = Util.clone(dbo);
+          if (nonIdCollection) {
+            clonedDbo.removeField(ID_KEY);
           }
+          results.add(clonedDbo);
         }
       }
-    } else {
-      int seen = 0;
-      Iterable<DBObject> objectsToSearch = sortObjects(orderby, objectsFromIndex);
-      for (Iterator<DBObject> iter = objectsToSearch.iterator(); iter.hasNext() && foundCount <= upperLimit; ) {
-        DBObject dbo = iter.next();
-        if (filter.apply(dbo)) {
-          if (seen++ >= numToSkip) {
-            foundCount++;
-            DBObject clonedDbo = Util.clone(dbo);
-            if (nonIdCollection) {
-              clonedDbo.removeField("_id");
-            }
-            results.add(clonedDbo);
-          }
-        }
-      }
+//      }
     }
 
     if (fields != null && !fields.keySet().isEmpty()) {

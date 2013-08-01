@@ -535,7 +535,6 @@ public class FongoTest {
     for (BasicDBObject dbo : toUpsert) {
       collection.update(dbo, ((BasicDBObject) dbo.copy()).append("foo", "bar"), true, false);
     }
-    System.out.println(collection.find().toArray());
     List<DBObject> results = collection.find(query).toArray();
     assertEquals(Arrays.<DBObject>asList(
         new BasicDBObject("_id", new BasicDBObject("n", "a").append("t", 1)).append("foo", "bar"),
@@ -922,7 +921,7 @@ public class FongoTest {
   }
 
   @Test
-  public void testCountdWithSkipLimitWithSort() {
+  public void testCountWithSkipLimitWithSort() {
     Fongo fongo = newFongo();
     DB db = fongo.getDB("db");
     DBCollection collection = db.getCollection("coll");
@@ -940,7 +939,6 @@ public class FongoTest {
     // Without sort.
     assertEquals(0L, result.get("n"));
   }
-
 
   @Test
   public void testExplicitlyAddedObjectIdNotNew() {
@@ -1064,6 +1062,36 @@ public class FongoTest {
     assertNotNull(result);
     assertEquals(1, result.size());
   }
+
+  @Test
+  public void testFindIdInSkip() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 4));
+    collection.insert(new BasicDBObject("_id", 3));
+    collection.insert(new BasicDBObject("_id", 1));
+    collection.insert(new BasicDBObject("_id", 2));
+
+    DBCursor cursor = collection.find(new BasicDBObject("_id",
+        new BasicDBObject("$in", Arrays.asList(3, 2, 1)))).skip(3);
+    assertEquals(Collections.emptyList(), cursor.toArray());
+  }
+
+  @Test
+  public void testFindIdInLimit() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 4));
+    collection.insert(new BasicDBObject("_id", 3));
+    collection.insert(new BasicDBObject("_id", 1));
+    collection.insert(new BasicDBObject("_id", 2));
+
+    DBCursor cursor = collection.find(new BasicDBObject("_id",
+        new BasicDBObject("$in", Arrays.asList(3, 2, 1)))).skip(1);
+    assertEquals(Arrays.asList(
+        new BasicDBObject("_id", 2),
+        new BasicDBObject("_id", 3))
+        , cursor.toArray());
+  }
+
 
   @Test
   public void testWriteConcern() {
