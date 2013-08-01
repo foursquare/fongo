@@ -367,24 +367,35 @@ public class FongoDBCollection extends DBCollection {
     }
 
     Collection<DBObject> objectsFromIndex = filterByIndexes(ref);
-    // TODO(twillouer) Don't know exactly why, but find({id:X}).skip(1) must return the object...
-    if (numToSkip > 0 && ref.keySet().size() == 1 && ref.containsField("_id") && !(ref.get("_id") instanceof DBObject)) {
-      numToSkip = 0;
-    }
-
     List<DBObject> results = new ArrayList<DBObject>();
-    int seen = 0;
-    Iterable<DBObject> objectsToSearch = sortObjects(orderby, objectsFromIndex);
-    for (Iterator<DBObject> iter = objectsToSearch.iterator(); iter.hasNext() && foundCount <= upperLimit; ) {
-      DBObject dbo = iter.next();
-      if (filter.apply(dbo)) {
-        if (seen++ >= numToSkip) {
-          foundCount++;
-          DBObject clonedDbo = Util.clone(dbo);
-          if (nonIdCollection) {
-            clonedDbo.removeField("_id");
+    // TODO(twillouer) Don't know exactly why, but find({id:X}).skip(1) must return the object...
+    List objects = idsIn(ref);
+    if (!objects.isEmpty()) {
+      for (Object id : objects) {
+        LOG.info("id : " + id);
+        List<DBObject> retrievedObjects = _idIndex.get(new BasicDBObject("_id", id));
+        if (retrievedObjects != null) {
+          for (DBObject object : retrievedObjects) {
+            if (filter.apply(object)) {
+              results.add(Util.clone(object));
+            }
           }
-          results.add(clonedDbo);
+        }
+      }
+    } else {
+      int seen = 0;
+      Iterable<DBObject> objectsToSearch = sortObjects(orderby, objectsFromIndex);
+      for (Iterator<DBObject> iter = objectsToSearch.iterator(); iter.hasNext() && foundCount <= upperLimit; ) {
+        DBObject dbo = iter.next();
+        if (filter.apply(dbo)) {
+          if (seen++ >= numToSkip) {
+            foundCount++;
+            DBObject clonedDbo = Util.clone(dbo);
+            if (nonIdCollection) {
+              clonedDbo.removeField("_id");
+            }
+            results.add(clonedDbo);
+          }
         }
       }
     }
