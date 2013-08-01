@@ -1,10 +1,12 @@
 package com.mongodb;
 
+import com.foursquare.fongo.impl.Aggregator;
 import java.util.HashSet;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -31,24 +33,34 @@ public class FongoDB extends DB {
   }
 
   @Override
-  public void requestStart() {}
+  public void requestStart() {
+  }
 
   @Override
-  public void requestDone() {}
+  public void requestDone() {
+  }
 
   @Override
-  public void requestEnsureConnection() {}
+  public void requestEnsureConnection() {
+  }
 
   @Override
   protected FongoDBCollection doGetCollection(String name) {
-    synchronized(collMap){
+    synchronized (collMap) {
       FongoDBCollection coll = collMap.get(name);
-      if (coll == null){
+      if (coll == null) {
         coll = new FongoDBCollection(this, name);
         collMap.put(name, coll);
       }
       return coll;
     }
+  }
+
+  private List<DBObject> doAggregateCollection(String aggregate, List<DBObject> pipeline) {
+    FongoDBCollection coll = doGetCollection(aggregate);
+    Aggregator aggregator = new Aggregator(this, coll, pipeline);
+
+    return aggregator.computeResult();
   }
 
   @Override
@@ -57,11 +69,12 @@ public class FongoDB extends DB {
   }
 
   @Override
-  public void cleanCursors(boolean force) throws MongoException {}
+  public void cleanCursors(boolean force) throws MongoException {
+  }
 
   @Override
   public DB getSisterDB(String name) {
-   return fongo.getDB(name);
+    return fongo.getDB(name);
   }
 
   @Override
@@ -89,16 +102,17 @@ public class FongoDB extends DB {
 
   /**
    * Executes a database command.
-   * @see <a href="http://mongodb.onconfluence.com/display/DOCS/List+of+Database+Commands">List of Commands</a>
-   * @param cmd dbobject representing the command to execute
-   * @param options query options to use
+   *
+   * @param cmd       dbobject representing the command to execute
+   * @param options   query options to use
    * @param readPrefs ReadPreferences for this command (nodes selection is the biggest part of this)
    * @return result of command from the database
-   * @dochub commands
    * @throws MongoException
+   * @dochub commands
+   * @see <a href="http://mongodb.onconfluence.com/display/DOCS/List+of+Database+Commands">List of Commands</a>
    */
   @Override
-  public CommandResult command( DBObject cmd , int options, ReadPreference readPrefs ) throws MongoException {
+  public CommandResult command(DBObject cmd, int options, ReadPreference readPrefs) throws MongoException {
     if (LOG.isDebugEnabled()) {
       LOG.debug("Fongo got command " + cmd);
     }
@@ -107,7 +121,7 @@ public class FongoDB extends DB {
     } else if (cmd.containsField("drop")) {
       this.collMap.remove(cmd.get("drop").toString());
       return okResult();
-    } else if(cmd.containsField("create")) {
+    } else if (cmd.containsField("create")) {
       String collectionName = (String) cmd.get("create");
       doGetCollection(collectionName);
       return okResult();
@@ -123,15 +137,25 @@ public class FongoDB extends DB {
       CommandResult okResult = okResult();
       okResult.append("n", result);
       return okResult;
-    } else if(cmd.containsField("deleteIndexes")) {
+    } else if (cmd.containsField("deleteIndexes")) {
       String collectionName = (String) cmd.get("deleteIndexes");
       String indexName = (String) cmd.get("index");
-      if("*".equals(indexName)) {
+      if ("*".equals(indexName)) {
         doGetCollection(collectionName)._dropIndexes();
       } else {
         doGetCollection(collectionName)._dropIndexes(indexName);
       }
       CommandResult okResult = okResult();
+      return okResult;
+    } else if (cmd.containsField("aggregate")) {
+      List<DBObject> result = doAggregateCollection((String) cmd.get("aggregate"), (List<DBObject>) cmd.get("pipeline"));
+      if (result == null) {
+        return koErrorResult("can't aggregate");
+      }
+      CommandResult okResult = okResult();
+      BasicDBList list = new BasicDBList();
+      list.addAll(result);
+      okResult.put("result", list);
       return okResult;
     }
     return koErrorResult("undefined command: " + cmd);

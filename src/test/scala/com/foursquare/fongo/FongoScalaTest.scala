@@ -1,6 +1,6 @@
 package com.foursquare.fongo
 
-import _root_.com.mongodb.{MongoException, DBObject, WriteConcern, BasicDBObject}
+import _root_.com.mongodb.BasicDBObject
 import org.scalatest._
 import collection.JavaConversions._
 import org.scalatest.junit.JUnitRunner
@@ -29,5 +29,4 @@ class FongoScalaTest extends FunSuite with BeforeAndAfter {
 
     assert(1 === collection.count())
   }
-
 }

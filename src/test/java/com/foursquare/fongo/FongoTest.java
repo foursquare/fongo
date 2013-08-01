@@ -306,6 +306,26 @@ public class FongoTest {
     ), cursor.toArray());
   }
 
+  /**
+   * Must return in inserted order.
+   */
+  @Test
+  public void testIdInsertedOrder() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 4));
+    collection.insert(new BasicDBObject("_id", 3));
+    collection.insert(new BasicDBObject("_id", 1));
+    collection.insert(new BasicDBObject("_id", 2));
+
+    DBCursor cursor = collection.find();
+    assertEquals(Arrays.asList(
+        new BasicDBObject("_id", 4),
+        new BasicDBObject("_id", 3),
+        new BasicDBObject("_id", 1),
+        new BasicDBObject("_id", 2)
+    ), cursor.toArray());
+  }
+
   @Test
   public void testSort() {
     DBCollection collection = newCollection();
@@ -362,7 +382,6 @@ public class FongoTest {
         new BasicDBObject("_id", 3)
     ), cursor.toArray());
   }
-
 
   @Test
   public void testBasicUpdate() {

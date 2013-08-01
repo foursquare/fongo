@@ -1,0 +1,17 @@
+<configuration scan="true">
+
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>%d [%thread] %-5level %logger{36} - %X{addData} %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <logger name="org" level="INFO" />
+    <logger name="com.foursquare.fongo" level="INFO" />
+    <logger name="com.mongodb.FongoDBCollection" level="INFO" />
+    <logger name="com.mongodb.FongoDB" level="INFO" />
+
+    <root level="debug">
+        <appender-ref ref="STDOUT" />
+    </root>
+</configuration>

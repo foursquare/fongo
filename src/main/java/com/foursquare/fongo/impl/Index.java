@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -22,17 +23,21 @@ public class Index {
   private final ExpressionParser expressionParser = new ExpressionParser();
   private final ExpressionParser.ObjectComparator objectComparator;
   // Contains all dbObject than field value can have
-  private final TreeMap<DBObject, List<DBObject>> mapValues;
+  private final Map<DBObject, List<DBObject>> mapValues;
   private int lookupCount = 0;
 
-  public Index(String name, DBObject keys, boolean unique) {
+  public Index(String name, DBObject keys, boolean unique, boolean insertOrder) {
     this.name = name;
     this.fields = Collections.unmodifiableSet(keys.keySet()); // Setup BEFORE keys.
     this.keys = exludeIdIfNecessary(keys);
     this.unique = unique;
 
     this.objectComparator = expressionParser.buildObjectComparator(isAsc(keys));
-    this.mapValues = new TreeMap<DBObject, List<DBObject>>(objectComparator);
+    if (insertOrder) {
+      this.mapValues = new LinkedHashMap<DBObject, List<DBObject>>();
+    } else {
+      this.mapValues = new TreeMap<DBObject, List<DBObject>>(objectComparator);
+    }
   }
 
   private DBObject exludeIdIfNecessary(DBObject keys) {

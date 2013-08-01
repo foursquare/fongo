@@ -39,7 +39,7 @@ public class FongoDBCollection extends DBCollection {
     this.expressionParser = new ExpressionParser();
     this.updateEngine = new UpdateEngine();
     this.objectComparator = expressionParser.buildObjectComparator(true);
-    this._idIndex = new Index("_id", new BasicDBObject("_id", 1), true);
+    this._idIndex = new Index("_id", new BasicDBObject("_id", 1), true, true);
     this.indexes.put(Collections.singleton("_id"), _idIndex);
   }
 
@@ -311,7 +311,7 @@ public class FongoDBCollection extends DBCollection {
     }
     rec.putAll(options);
 
-    Index index = new Index((String) rec.get("name"), keys, unique);
+    Index index = new Index((String) rec.get("name"), keys, unique, false);
     List<List<Object>> notUnique = index.addAll(_idIndex.values());
     if (!notUnique.isEmpty()) {
       // Duplicate key.
@@ -353,8 +353,6 @@ public class FongoDBCollection extends DBCollection {
       LOG.debug("the db looks like {}", _idIndex.values());
     }
 
-    List<DBObject> results = new ArrayList<DBObject>();
-
     DBObject orderby = null;
     if (ref.containsField("$query") && ref.containsField("$orderby")) {
       orderby = (DBObject) ref.get("$orderby");
@@ -374,6 +372,7 @@ public class FongoDBCollection extends DBCollection {
       numToSkip = 0;
     }
 
+    List<DBObject> results = new ArrayList<DBObject>();
     int seen = 0;
     Iterable<DBObject> objectsToSearch = sortObjects(orderby, objectsFromIndex);
     for (Iterator<DBObject> iter = objectsToSearch.iterator(); iter.hasNext() && foundCount <= upperLimit; ) {
@@ -391,10 +390,8 @@ public class FongoDBCollection extends DBCollection {
     }
 
     if (fields != null && !fields.keySet().isEmpty()) {
-      LOG.info("applying projections {}", fields);
+      LOG.debug("applying projections {}", fields);
       results = applyProjections(results, fields);
-    } else {
-      results = copyResults(results);
     }
 
     LOG.debug("found results {}", results);
