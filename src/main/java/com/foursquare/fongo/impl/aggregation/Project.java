@@ -42,8 +42,9 @@ public class Project extends PipelineKeyword {
       void doWork(DBCollection coll, DBObject projectResult, Map<String, String> projectedFields, String key, Object value, String namespace) {
 //	"errmsg" : "exception: the $strcasecmp operator requires an array of 2 operands",
 //        "code" : 16019,
+        LOG.info("$strcasecmp() {}", value);
         if (!(value instanceof List) || ((List) value).size() != 2) {
-          ((FongoDB) coll.getDB()).errorResult(16019, "the $strcasecmp operator requires an array of 2 operands").throwOnError();
+          errorResult(coll, 16020, "the $strcasecmp operator requires an array of 2 operands");
         }
         List values = (List) value;
         createMapping(coll, projectResult, projectedFields, key, values.get(0), namespace);
@@ -76,8 +77,8 @@ public class Project extends PipelineKeyword {
 
     }
 
-    public final void apply(DBCollection coll, DBObject projectResult, Map<String, String> projectedFields, String key, Object value, String namespace) {
-      doWork(coll, projectResult, projectedFields, key, value, namespace);
+    public final void apply(DBCollection coll, DBObject projectResult, Map<String, String> projectedFields, String key, DBObject value, String namespace) {
+      doWork(coll, projectResult, projectedFields, key, value.get(this.key), namespace);
     }
 
     /**
@@ -116,8 +117,8 @@ public class Project extends PipelineKeyword {
         Keyword keyword = Keyword.getKeyword(value);
         if (keyword != null) {
           // case : {cmp : {$cmp:[$firstname, $lastname]}}
+          keyword.apply(coll, projectResult, projectedFields, key, value, namespace);
           projectResult.removeField(key);
-          keyword.apply(coll, projectResult, projectedFields, key, kvalue, namespace);
         } else {
           // case : {biggestCity:  { name: "$biggestCity",  pop: "$biggestPop" }}
           projectResult.removeField(key);
@@ -129,6 +130,10 @@ public class Project extends PipelineKeyword {
         // Case: {date : 1}
         projectedFields.put(key, key);
       }
+    }
+
+    private static void errorResult(DBCollection coll, int code, String err) {
+      ((FongoDB) coll.getDB()).errorResult(code, err).throwOnError();
     }
 
   }

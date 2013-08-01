@@ -6,17 +6,23 @@ import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBCollection;
 import com.mongodb.DBObject;
-import com.mongodb.util.JSON;
 import java.util.List;
 import static org.junit.Assert.*;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
+import org.junit.rules.RuleChain;
+import org.junit.rules.TestRule;
 
 public class FongoAggregateProjectTest {
 
-  @Rule
   public FongoRule fongoRule = new FongoRule(false);
+
+  public ExpectedException exception = ExpectedException.none();
+
+  @Rule
+  public TestRule rules = RuleChain.outerRule(exception).around(fongoRule);
 
   /**
    * See http://docs.mongodb.org/manual/reference/aggregation/concat/
@@ -44,7 +50,7 @@ public class FongoAggregateProjectTest {
     List<DBObject> result = (List<DBObject>) output.getCommandResult().get("result");
     System.out.println(result);
     assertNotNull(result);
-    assertEquals(JSON.parse("[{ \"_id\" : 1, \"food\" : \"apple pie\" },\n" +
+    assertEquals(fongoRule.parse("[{ \"_id\" : 1, \"food\" : \"apple pie\" },\n" +
         "                    { \"_id\" : 2, \"food\" : \"cherry pie\" },\n" +
         "                    { \"_id\" : 3, \"food\" : \"shepherd's pie\" },\n" +
         "                    { \"_id\" : 4, \"food\" : \"chicken pot pie\" }]\n"), result);
@@ -77,7 +83,7 @@ public class FongoAggregateProjectTest {
     List<DBObject> result = (List<DBObject>) output.getCommandResult().get("result");
     System.out.println(result);
     assertNotNull(result);
-    assertEquals(JSON.parse("[{ \"_id\" : 1, \"food\" : \"apple pie\" },\n" +
+    assertEquals(fongoRule.parse("[{ \"_id\" : 1, \"food\" : \"apple pie\" },\n" +
         "               { \"_id\" : 2, \"food\" : \"cherry pie\" },\n" +
         "               { \"_id\" : 3, \"food\" : \"shepherd's pie\" },\n" +
         "               { \"_id\" : 4, \"food\" : \"chicken pot pie\" },\n" +
@@ -111,7 +117,7 @@ public class FongoAggregateProjectTest {
     List<DBObject> result = (List<DBObject>) output.getCommandResult().get("result");
     System.out.println(result);
     assertNotNull(result);
-    assertEquals(JSON.parse("[ { \"_id\" : 1, \"food\" : \"apple pie\" },\n" +
+    assertEquals(fongoRule.parse("[ { \"_id\" : 1, \"food\" : \"apple pie\" },\n" +
         "               { \"_id\" : 2, \"food\" : \"cherry pie\" },\n" +
         "               { \"_id\" : 3, \"food\" : \"shepherd's pie\" },\n" +
         "               { \"_id\" : 4, \"food\" : \"chicken pot pie\" },\n" +
@@ -159,9 +165,62 @@ public class FongoAggregateProjectTest {
     List<DBObject> result = (List<DBObject>) output.getCommandResult().get("result");
     System.out.println(result);
     assertNotNull(result);
-    assertEquals(JSON.parse("[{ \"_id\" : 1, \"food\" : \"apple pie\" },\n" +
-        "                    { \"_id\" : 2, \"food\" : \"cherry pie\" },\n" +
-        "                    { \"_id\" : 3, \"food\" : \"shepherd's pie\" },\n" +
-        "                    { \"_id\" : 4, \"food\" : \"chicken pot pie\" }]\n"), result);
+    assertEquals(fongoRule.parse("[{ \"_id\" : 1, \"food\" : -1 },\n" +
+        "                    { \"_id\" : 2, \"food\" : -1 },\n" +
+        "                    { \"_id\" : 3, \"food\" : 1},\n" +
+        "                    { \"_id\" : 4, \"food\" : -1 }]\n"), result);
+  }
+
+  /**
+   * See http://docs.mongodb.org/manual/reference/aggregation/strcasecmp/
+   */
+  @Test
+  public void testStrcasecmpWithValue() {
+    DBCollection coll = fongoRule.newCollection();
+    fongoRule.insertJSON(coll, "[{ _id: 1, item: { sec: \"dessert\", category: \"pie\", type: \"apple\" } },\n" +
+        "{ _id: 2, item: { sec: \"dessert\", category: \"pie\", type: \"cherry\" } },\n" +
+        "{ _id: 3, item: { sec: \"main\", category: \"pie\", type: \"shepherd's\" } },\n" +
+        "{ _id: 4, item: { sec: \"main\", category: \"pie\", type: \"chicken pot\" } }]");
+
+    DBObject project = fongoRule.parseDEObject("{ $project: { food:\n" +
+        "                                       { $strcasecmp: [ \"$item.type\",\n" +
+        "                                                    \"apple\"\n" +
+        "                                                  ]\n" +
+        "                                       }\n" +
+        "                                }\n" +
+        "                   }");
+
+    AggregationOutput output = coll.aggregate(project);
+    assertTrue(output.getCommandResult().ok());
+
+    List<DBObject> result = (List<DBObject>) output.getCommandResult().get("result");
+    System.out.println(result);
+    assertNotNull(result);
+    assertEquals(fongoRule.parse("[{ \"_id\" : 1, \"food\" : 0 },\n" +
+        "                    { \"_id\" : 2, \"food\" : 1 },\n" +
+        "                    { \"_id\" : 3, \"food\" : 1 },\n" +
+        "                    { \"_id\" : 4, \"food\" : 1 }]\n"), result);
+  }
+
+  /**
+   * See http://docs.mongodb.org/manual/reference/aggregation/strcasecmp/
+   */
+  @Test
+  public void testStrcasecmpMustBeAnArray() {
+    ExpectedMongoException.expectCommandFailure(exception, 16020);
+    DBCollection coll = fongoRule.newCollection();
+    fongoRule.insertJSON(coll, "[{ _id: 1, item: { sec: \"dessert\", category: \"pie\", type: \"apple\" } },\n" +
+        "{ _id: 2, item: { sec: \"dessert\", category: \"pie\", type: \"cherry\" } },\n" +
+        "{ _id: 3, item: { sec: \"main\", category: \"pie\", type: \"shepherd's\" } },\n" +
+        "{ _id: 4, item: { sec: \"main\", category: \"pie\", type: \"chicken pot\" } }]");
+
+    DBObject project = fongoRule.parseDEObject("{ $project: { food:\n" +
+        "                                       { $strcasecmp: [ \"$item.type\"\n" +
+        "                                                  ]\n" +
+        "                                       }\n" +
+        "                                }\n" +
+        "                   }");
+
+    coll.aggregate(project);
   }
 }

@@ -55,7 +55,7 @@ public class Aggregator {
           }
         }
         if (!found) {
-          throw fongoDB.errorResult(16436, "exception: Unrecognized pipeline stage name: '" + object.keySet() + "'").getException();
+          fongoDB.errorResult(16436, "exception: Unrecognized pipeline stage name: '" + object.keySet() + "'").throwOnError();
         }
         // Not found : com.mongodb.CommandFailureException: { "serverUsed" : "localhost/127.0.0.1:27017" , "errmsg" : "exception: Unrecognized pipeline stage name: '_id'" , "code" : 16436 , "ok" : 0.0}
       }
