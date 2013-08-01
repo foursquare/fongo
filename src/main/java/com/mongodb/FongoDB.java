@@ -26,7 +26,7 @@ public class FongoDB extends DB {
   private final Fongo fongo;
 
   public FongoDB(Fongo fongo, String name) {
-    super(fongo.getMongoClient(), name);
+    super(fongo.getMongo(), name);
     this.fongo = fongo;
   }
 
@@ -152,7 +152,6 @@ public class FongoDB extends DB {
 
   public CommandResult koErrorResult(int code, String err) {
     CommandResult result = koErrorResult(err);
-//    result.put("err", err);
     result.put("code", code);
     return result;
   }

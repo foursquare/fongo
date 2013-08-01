@@ -78,16 +78,13 @@ public class FongoDBCollection extends DBCollection {
   boolean enforceDuplicates(WriteConcern concern) {
     WriteConcern writeConcern = concern == null ? getWriteConcern() : concern;
     return writeConcern._w instanceof Number && ((Number) writeConcern._w).intValue() > 0;
-//    return  !(WriteConcern.NONE.equals(concern) || WriteConcern.NORMAL.equals(concern)); // UNACKNOWLEDGED and ERRORS_IGNORED missed.
   }
 
   public void putIdIfNotPresent(DBObject obj) {
     if (obj.get(ID_KEY) == null) {
       ObjectId id = new ObjectId();
       id.notNew();
-//      if (!nonIdCollection) {
       obj.put(ID_KEY, id);
-//      }
     }
   }
 
@@ -517,9 +514,9 @@ public class FongoDBCollection extends DBCollection {
     if (orderby != null) {
       final Set<String> orderbyKeySet = orderby.keySet();
       if (!orderbyKeySet.isEmpty()) {
-        List<DBObject> objectsToSort = new ArrayList(objects);
+        DBObject[] objectsToSort = objects.toArray(new DBObject[objects.size()]);
 
-        Collections.sort(objectsToSort, new Comparator<DBObject>() {
+        Arrays.sort(objectsToSort, new Comparator<DBObject>() {
           @Override
           public int compare(DBObject o1, DBObject o2) {
             for (String sortKey : orderbyKeySet) {
@@ -537,7 +534,7 @@ public class FongoDBCollection extends DBCollection {
             return 0;
           }
         });
-        objectsToSearch = objectsToSort;
+        objectsToSearch = Arrays.asList(objectsToSort);
       }
     }
     if (LOG.isDebugEnabled()) {

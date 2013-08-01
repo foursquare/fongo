@@ -233,33 +233,33 @@ public class FongoIndexTest {
     Index indexDate = getIndex(collection, "date_1");
     Index indexPermalink = getIndex(collection, "permalink_1");
 
-    assertEquals(0, indexFLname.getUsedTime());
-    assertEquals(0, indexDate.getUsedTime());
-    assertEquals(0, indexPermalink.getUsedTime());
+    assertEquals(0, indexFLname.getLookupCount());
+    assertEquals(0, indexDate.getLookupCount());
+    assertEquals(0, indexPermalink.getLookupCount());
 
     collection.find(new BasicDBObject("firstname", "firstname0"));
     // No index used.
-    assertEquals(0, indexFLname.getUsedTime());
-    assertEquals(0, indexDate.getUsedTime());
-    assertEquals(0, indexPermalink.getUsedTime());
+    assertEquals(0, indexFLname.getLookupCount());
+    assertEquals(0, indexDate.getLookupCount());
+    assertEquals(0, indexPermalink.getLookupCount());
 
     List<DBObject> objects = collection.find(new BasicDBObject("firstname", "firstname0").append("lastname", "lastname0")).toArray();
     assertEquals(2, objects.size());
-    assertEquals(1, indexFLname.getUsedTime());
-    assertEquals(0, indexDate.getUsedTime());
-    assertEquals(0, indexPermalink.getUsedTime());
+    assertEquals(1, indexFLname.getLookupCount());
+    assertEquals(0, indexDate.getLookupCount());
+    assertEquals(0, indexPermalink.getLookupCount());
 
     objects = collection.find(new BasicDBObject("firstname", "firstname0").append("lastname", "lastname0").append("date", 0)).toArray();
     assertEquals(1, objects.size());
-    assertEquals(2, indexFLname.getUsedTime());
-    assertEquals(0, indexDate.getUsedTime());
-    assertEquals(0, indexPermalink.getUsedTime());
+    assertEquals(2, indexFLname.getLookupCount());
+    assertEquals(0, indexDate.getLookupCount());
+    assertEquals(0, indexPermalink.getLookupCount());
 
     objects = collection.find(new BasicDBObject("permalink", 0)).toArray();
     assertEquals(1, objects.size());
-    assertEquals(2, indexFLname.getUsedTime());
-    assertEquals(0, indexDate.getUsedTime());
-    assertEquals(1, indexPermalink.getUsedTime());
+    assertEquals(2, indexFLname.getLookupCount());
+    assertEquals(0, indexDate.getLookupCount());
+    assertEquals(1, indexPermalink.getLookupCount());
   }
 
   // Check if index is correctly cleaned.
@@ -432,11 +432,11 @@ public class FongoIndexTest {
 
     Index indexDate = getIndex(collection, "date_1");
 
-    assertEquals(0, indexDate.getUsedTime());
+    assertEquals(0, indexDate.getLookupCount());
 
     List<DBObject> objects = collection.find(new BasicDBObject("date", new BasicDBObject("$in", Util.list(0, 1, 2)))).toArray();
     // No index used.
-    assertEquals(1, indexDate.getUsedTime());
+    assertEquals(1, indexDate.getLookupCount());
     assertEquals(6, objects.size());
   }
 

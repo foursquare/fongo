@@ -5,6 +5,7 @@ import com.mongodb.FongoDBCollection;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -12,7 +13,6 @@ import java.util.TreeMap;
 
 /**
  * An index for the MongoDB.
- * Must be immutable.
  */
 public class Index {
   private final String name;
@@ -23,11 +23,11 @@ public class Index {
   private final ExpressionParser.ObjectComparator objectComparator;
   // Contains all dbObject than field value can have
   private final TreeMap<DBObject, List<DBObject>> mapValues;
-  private int usedTime = 0;
+  private int lookupCount = 0;
 
   public Index(String name, DBObject keys, boolean unique) {
     this.name = name;
-    this.fields = keys.keySet(); // Setup BEFORE keys.
+    this.fields = Collections.unmodifiableSet(keys.keySet()); // Setup BEFORE keys.
     this.keys = exludeIdIfNecessary(keys);
     this.unique = unique;
 
@@ -77,10 +77,9 @@ public class Index {
     DBObject key = getKeyFor(object);
 
     if (unique) {
-      // Return null only if key was absent.
-//      if (mapValues.putIfAbsent(fieldsForIndex, Collections.singletonList(object)) != null) {
+      // Unique must check if he's really unique.
       if (mapValues.containsKey(key)) {
-        return extractFields(object, key.toMap().keySet());
+        return extractFields(object, key.keySet());
       }
       mapValues.put(key, Collections.singletonList(object));
     } else {
@@ -170,7 +169,7 @@ public class Index {
   }
 
   public synchronized Collection<DBObject> retrieveObjects(DBObject query) {
-    usedTime++;
+    lookupCount++;
 
     // Filter for the key.
     Filter filterKey = expressionParser.buildFilter(query, getFields());
@@ -189,8 +188,8 @@ public class Index {
     return result;
   }
 
-  public long getUsedTime() {
-    return usedTime;
+  public long getLookupCount() {
+    return lookupCount;
   }
 
   @Override

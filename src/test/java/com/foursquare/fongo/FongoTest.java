@@ -881,11 +881,6 @@ public class FongoTest {
   }
 
   @Test
-  public void testToStringMongoClient() {
-    new Fongo("test").getMongoClient().toString();
-  }
-
-  @Test
   public void testUndefinedCommand() {
     Fongo fongo = newFongo();
     DB db = fongo.getDB("db");
@@ -1055,6 +1050,19 @@ public class FongoTest {
   public void testWriteConcern() {
     assertNotNull(newFongo().getWriteConcern());
   }
+
+  @Test
+  public void shouldChangeWriteConcern() {
+    Fongo fongo = newFongo();
+    WriteConcern writeConcern = fongo.getMongo().getMongoClientOptions().getWriteConcern();
+    assertEquals(writeConcern, fongo.getWriteConcern());
+    assertTrue(writeConcern != WriteConcern.FSYNC_SAFE);
+
+    // Change write concern
+    fongo.getMongo().setWriteConcern(WriteConcern.FSYNC_SAFE);
+    assertEquals(WriteConcern.FSYNC_SAFE, fongo.getWriteConcern());
+  }
+
 
   static class Seq {
     Object[] data;

@@ -30,18 +30,4 @@ class FongoScalaTest extends FunSuite with BeforeAndAfter {
     assert(1 === collection.count())
   }
 
-  test("MongoClient should return same DB as BB") {
-    assert(fongo.getMongoClient.getDB("db") === fongo.getDB("db"))
-  }
-
-  ignore("MongoClient should change writeConcern") {
-    val writeConcern = fongo.getMongoClient.getMongoClientOptions.getWriteConcern
-    assert(fongo.getWriteConcern === writeConcern)
-    assert(writeConcern != WriteConcern.FSYNC_SAFE)
-
-    // Change write concern
-    fongo.getMongoClient.setWriteConcern(WriteConcern.FSYNC_SAFE)
-    assert(fongo.getWriteConcern === WriteConcern.FSYNC_SAFE)
-  }
-
 }

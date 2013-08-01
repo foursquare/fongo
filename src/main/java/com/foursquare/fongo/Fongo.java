@@ -105,14 +105,6 @@ public class Fongo {
     return this.mongo;
   }
 
-  /**
-   * A mocked out instance of {@link com.mongodb.MongoClient}
-   * All methods calls are intercepted and execute associated Fongo method
-   */
-  public MongoClient getMongoClient() {
-    return this.mongo;
-  }
-
   public WriteConcern getWriteConcern() {
     return mongo.getWriteConcern();
   }
