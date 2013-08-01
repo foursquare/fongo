@@ -29,7 +29,7 @@ public class FongoDBCollection extends DBCollection {
   private final boolean nonIdCollection;
   private final ExpressionParser.ObjectComparator objectComparator;
   // Fields/Index
-  private final Map<Set<String>, Index> indexes = new LinkedHashMap<Set<String>, Index>();
+  private final List<Index> indexes = new ArrayList<Index>();
   private final Index _idIndex;
 
   public FongoDBCollection(FongoDB db, String name) {
@@ -40,7 +40,18 @@ public class FongoDBCollection extends DBCollection {
     this.updateEngine = new UpdateEngine();
     this.objectComparator = expressionParser.buildObjectComparator(true);
     this._idIndex = new Index("_id", new BasicDBObject("_id", 1), true, true);
-    this.indexes.put(Collections.singleton("_id"), _idIndex);
+    this.indexes.add(_idIndex);
+  }
+
+  private static class KeyIndex {
+    private final Set<String> fields;
+
+    private final DBObject keys;
+
+    private KeyIndex(DBObject keys) {
+      this.keys = Util.clone(keys);
+      this.fields = this.keys.keySet();
+    }
   }
 
   private CommandResult insertResult(int updateCount) {
@@ -320,7 +331,7 @@ public class FongoDBCollection extends DBCollection {
       }
       return;
     }
-    indexes.put(new HashSet<String>(index.getFields()), index);
+    indexes.add(index);
 
     // Add index if all fine.
     indexColl.insert(rec);
@@ -636,9 +647,11 @@ public class FongoDBCollection extends DBCollection {
   protected synchronized void _dropIndexes(String name) throws MongoException {
     DBCollection indexColl = fongoDb.getCollection("system.indexes");
     indexColl.remove(new BasicDBObject("name", name));
-    for (Map.Entry<Set<String>, Index> entry : indexes.entrySet()) {
-      if (entry.getValue().getName().equals(name)) {
-        indexes.remove(entry.getKey());
+    ListIterator<Index> iterator = indexes.listIterator();
+    while (iterator.hasNext()) {
+      Index index = iterator.next();
+      if (index.getName().equals(name)) {
+        iterator.remove();
         break;
       }
     }
@@ -669,13 +682,12 @@ public class FongoDBCollection extends DBCollection {
     Index result = null;
     int foundCommon = -1;
     Set<String> queryFields = query.keySet();
-    for (Map.Entry<Set<String>, Index> entry : indexes.entrySet()) {
-      Index index = entry.getValue();
-      if (queryFields.containsAll(entry.getKey())) {
+    for (Index index : indexes) {
+      if (index.canHandle(queryFields)) {
         // The most restrictive first.
-        if (entry.getKey().size() > foundCommon || (!result.isUnique() && index.isUnique())) {
+        if (index.getFields().size() > foundCommon || (!result.isUnique() && index.isUnique())) {
           result = index;
-          foundCommon = entry.getKey().size();
+          foundCommon = index.getFields().size();
         }
       }
     }
@@ -695,24 +707,24 @@ public class FongoDBCollection extends DBCollection {
   private synchronized void addToIndexes(DBObject object, DBObject oldObject, WriteConcern concern) {
     Set<String> queryFields = object.keySet();
     // First, try to see if index can add the new value.
-    for (Map.Entry<Set<String>, Index> entry : indexes.entrySet()) {
-      List<List<Object>> error = entry.getValue().checkAddOrUpdate(object, oldObject);
+    for (Index index : indexes) {
+      List<List<Object>> error = index.checkAddOrUpdate(object, oldObject);
       if (!error.isEmpty()) {
         // TODO formatting : E11000 duplicate key error index: test.zip.$city_1_state_1_pop_1  dup key: { : "BARRE", : "MA", : 4546.0 }
         if (enforceDuplicates(concern)) {
-          fongoDb.errorResult(11000, "E11000 duplicate key error index: " + this.getFullName() + "." + entry.getValue().getName() + "  dup key : {" + error + " }").throwOnError();
+          fongoDb.errorResult(11000, "E11000 duplicate key error index: " + this.getFullName() + "." + index.getName() + "  dup key : {" + error + " }").throwOnError();
         }
         return; // silently ignore.
       }
     }
 
     Set<String> oldQueryFields = oldObject == null ? Collections.<String>emptySet() : oldObject.keySet();
-    for (Map.Entry<Set<String>, Index> entry : indexes.entrySet()) {
-      if (queryFields.containsAll(entry.getKey())) {
-        entry.getValue().addOrUpdate(object, oldObject);
-      } else if (oldQueryFields.containsAll(entry.getKey()))
+    for (Index index : indexes) {
+      if (index.canHandle(queryFields)) {
+        index.addOrUpdate(object, oldObject);
+      } else if (index.canHandle(oldQueryFields))
         // In case of update and removing a field, we must remove from the index.
-        entry.getValue().remove(oldObject);
+        index.remove(oldObject);
     }
   }
 
@@ -723,15 +735,15 @@ public class FongoDBCollection extends DBCollection {
    */
   private synchronized void removeFromIndexes(DBObject object) {
     Set<String> queryFields = object.keySet();
-    for (Map.Entry<Set<String>, Index> entry : indexes.entrySet()) {
-      if (queryFields.containsAll(entry.getKey())) {
-        entry.getValue().remove(object);
+    for (Index index : indexes) {
+      if (index.canHandle(queryFields)) {
+        index.remove(object);
       }
     }
   }
 
   //@VisibleForTesting
   public synchronized Collection<Index> getIndexes() {
-    return indexes.values();
+    return Collections.unmodifiableList(indexes);
   }
 }

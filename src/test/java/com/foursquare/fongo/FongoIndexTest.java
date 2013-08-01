@@ -67,6 +67,34 @@ public class FongoIndexTest {
   }
 
   @Test
+  public void testCreateIndexOnSameFieldInversedOrder() {
+    DBCollection collection = FongoTest.newCollection();
+    collection.ensureIndex(new BasicDBObject("n", 1));
+    collection.ensureIndex(new BasicDBObject("n", -1));
+    List<DBObject> indexes = collection.getIndexInfo();
+    assertEquals(
+        Arrays.asList(
+            new BasicDBObject("v", 1).append("key", new BasicDBObject("n", 1)).append("ns", "db.coll").append("name", "n_1"),
+            new BasicDBObject("v", 1).append("key", new BasicDBObject("n", -1)).append("ns", "db.coll").append("name", "n_-1")
+        ), indexes);
+  }
+
+  @Test
+  public void testDropIndexOnSameFieldInversedOrder() {
+    DBCollection collection = FongoTest.newCollection();
+    collection.ensureIndex(new BasicDBObject("n", 1));
+    collection.ensureIndex(new BasicDBObject("n", -1));
+    List<DBObject> indexes = collection.getIndexInfo();
+    assertEquals(
+        Arrays.asList(
+            new BasicDBObject("v", 1).append("key", new BasicDBObject("n", 1)).append("ns", "db.coll").append("name", "n_1"),
+            new BasicDBObject("v", 1).append("key", new BasicDBObject("n", -1)).append("ns", "db.coll").append("name", "n_-1")
+        ), indexes);
+    Index index = getIndex(collection, "n_1");
+    index = getIndex(collection, "n_-1");
+  }
+
+  @Test
   public void testDropIndex() {
     DBCollection collection = FongoTest.newCollection();
     collection.ensureIndex("n");
@@ -478,7 +506,7 @@ public class FongoIndexTest {
         break;
       }
     }
-    assertNotNull(index);
+    assertNotNull("index not found :" + name, index);
     return index;
   }
 

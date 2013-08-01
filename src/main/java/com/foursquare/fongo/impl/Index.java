@@ -237,4 +237,13 @@ public class Index {
     return fieldValue;
   }
 
+  /**
+   * Return true if index can handle this query.
+   *
+   * @param queryFields fields of the query.
+   * @return true if index can be used.
+   */
+  public boolean canHandle(Set<String> queryFields) {
+    return queryFields.containsAll(fields);
+  }
 }
