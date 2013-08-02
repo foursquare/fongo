@@ -221,7 +221,31 @@ public class Project extends PipelineKeyword {
         projected.done();
       }
     },
-    CMP("$cmp"), // case sensitive
+    CMP("$cmp") // case sensitive
+        {
+          @Override
+          void doWork(DBCollection coll, DBObject projectResult, Map<String, Projected> projectedFields, String key, Object value, String namespace) {
+            if (!(value instanceof List) || ((List) value).size() != 2) {
+//	"errmsg" : "exception: the $cmp operator requires an array of 2 operands",
+//        "code" : 16019,
+              errorResult(coll, 16020, "the $cmp operator requires an array of 2 operands");
+            }
+            List<String> values = (List<String>) value;
+            Projected projected = Projected.projection(this, key);
+            createMapping(coll, projectResult, projectedFields, (String) values.get(0), values.get(0), namespace, projected);
+            createMapping(coll, projectResult, projectedFields, (String) values.get(1), values.get(1), namespace, projected);
+          }
+
+          @Override
+          public void unapply(DBObject result, DBObject object, Projected projected, String key) {
+            String value = extractValue(object, projected.infos.get(0)).toString();
+            String secondValue = extractValue(object, projected.infos.get(1)).toString();
+            int strcmp = value.compareTo(secondValue);
+            result.put(projected.destName, strcmp < 0 ? -1 : strcmp > 1 ? 1 : 0);
+            projected.done();
+          }
+
+        },
     TOLOWER("$toLower"),
     TOUPPER("$toUpper");
 

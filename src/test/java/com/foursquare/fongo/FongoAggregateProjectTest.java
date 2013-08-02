@@ -178,9 +178,9 @@ public class FongoAggregateProjectTest {
   public void testStrcasecmpWithValue() {
     DBCollection coll = fongoRule.newCollection();
     fongoRule.insertJSON(coll, "[{ _id: 1, item: { sec: \"dessert\", category: \"pie\", type: \"apple\" } },\n" +
-        "{ _id: 2, item: { sec: \"dessert\", category: \"pie\", type: \"cherry\" } },\n" +
+        "{ _id: 2, item: { sec: \"dessert\", category: \"pie\", type: \"APPLE\" } },\n" +
         "{ _id: 3, item: { sec: \"main\", category: \"pie\", type: \"shepherd's\" } },\n" +
-        "{ _id: 4, item: { sec: \"main\", category: \"pie\", type: \"chicken pot\" } }]");
+        "{ _id: 4, item: { sec: \"main\", category: \"pie\", type: \"ANN\" } }]");
 
     DBObject project = fongoRule.parseDEObject("{ $project: { food:\n" +
         "                                       { $strcasecmp: [ \"$item.type\",\n" +
@@ -197,9 +197,9 @@ public class FongoAggregateProjectTest {
     System.out.println(result);
     assertNotNull(result);
     assertEquals(fongoRule.parse("[{ \"_id\" : 1, \"food\" : 0 },\n" +
-        "                    { \"_id\" : 2, \"food\" : 1 },\n" +
+        "                    { \"_id\" : 2, \"food\" : 0 },\n" +
         "                    { \"_id\" : 3, \"food\" : 1 },\n" +
-        "                    { \"_id\" : 4, \"food\" : 1 }]\n"), result);
+        "                    { \"_id\" : 4, \"food\" : -1 }]\n"), result);
   }
 
   /**
@@ -482,6 +482,85 @@ public class FongoAggregateProjectTest {
         "                    { \"_id\" : 2, \"food\" : \"cherry\" },\n" +
         "                    { \"_id\" : 3, \"food\" : \"shepherd's\" },\n" +
         "                    { \"_id\" : 4, \"food\" : [1,2,3] }]\n"), result);
+  }
+
+
+
+  /**
+   * See http://docs.mongodb.org/manual/reference/aggregation/cmp/
+   */
+  @Test
+  public void testCmp() {
+    DBCollection coll = fongoRule.newCollection();
+    fongoRule.insertJSON(coll, "[{ _id: 1, item: { sec: \"dessert\", category: \"pie\", type: \"apple\" } },\n" +
+        "{ _id: 2, item: { sec: \"dessert\", category: \"pie\", type: \"cherry\" } },\n" +
+        "{ _id: 3, item: { sec: \"main\", category: \"pie\", type: \"shepherd's\" } },\n" +
+        "{ _id: 4, item: { sec: \"main\", category: \"pie\", type: \"chicken pot\" } }]");
+
+    DBObject project = fongoRule.parseDEObject("{ $project: { food:\n" +
+        "                                       { $cmp: [ \"$item.type\",\n" +
+        "                                                    \"$item.category\"\n" +
+        "                                                  ]\n" +
+        "                                       }\n" +
+        "                                }\n" +
+        "                   }");
+
+    AggregationOutput output = coll.aggregate(project);
+    assertTrue(output.getCommandResult().ok());
+
+    List<DBObject> result = (List<DBObject>) output.getCommandResult().get("result");
+    System.out.println(result);
+    assertNotNull(result);
+    assertEquals(fongoRule.parse("[{ \"_id\" : 1, \"food\" : -1 },\n" +
+        "                    { \"_id\" : 2, \"food\" : -1 },\n" +
+        "                    { \"_id\" : 3, \"food\" : 1},\n" +
+        "                    { \"_id\" : 4, \"food\" : -1 }]\n"), result);
+  }
+
+  @Test
+  public void testCmpWithValue() {
+    DBCollection coll = fongoRule.newCollection();
+    fongoRule.insertJSON(coll, "[{ _id: 1, item: { sec: \"dessert\", category: \"pie\", type: \"apple\" } },\n" +
+        "{ _id: 2, item: { sec: \"dessert\", category: \"pie\", type: \"cherry\" } },\n" +
+        "{ _id: 3, item: { sec: \"main\", category: \"pie\", type: \"shepherd's\" } },\n" +
+        "{ _id: 4, item: { sec: \"main\", category: \"pie\", type: \"chicken pot\" } }]");
+
+    DBObject project = fongoRule.parseDEObject("{ $project: { food:\n" +
+        "                                       { $cmp: [ \"$item.type\",\n" +
+        "                                                    \"apple\"\n" +
+        "                                                  ]\n" +
+        "                                       }\n" +
+        "                                }\n" +
+        "                   }");
+
+    AggregationOutput output = coll.aggregate(project);
+    assertTrue(output.getCommandResult().ok());
+
+    List<DBObject> result = (List<DBObject>) output.getCommandResult().get("result");
+    assertNotNull(result);
+    assertEquals(fongoRule.parse("[{ \"_id\" : 1, \"food\" : 0 },\n" +
+        "                    { \"_id\" : 2, \"food\" : 1 },\n" +
+        "                    { \"_id\" : 3, \"food\" : 1 },\n" +
+        "                    { \"_id\" : 4, \"food\" : 1 }]\n"), result);
+  }
+
+  @Test
+  public void testCmpMustBeAFailure() {
+    ExpectedMongoException.expectCommandFailure(exception, 16020);
+    DBCollection coll = fongoRule.newCollection();
+    fongoRule.insertJSON(coll, "[{ _id: 1, item: { sec: \"dessert\", category: \"pie\", type: \"apple\" } },\n" +
+        "{ _id: 2, item: { sec: \"dessert\", category: \"pie\", type: \"cherry\" } },\n" +
+        "{ _id: 3, item: { sec: \"main\", category: \"pie\", type: \"shepherd's\" } },\n" +
+        "{ _id: 4, item: { sec: \"main\", category: \"pie\", type: \"chicken pot\" } }]");
+
+    DBObject project = fongoRule.parseDEObject("{ $project: { food:\n" +
+        "                                       { $cmp: [ \"$item.type\"\n" +
+        "                                                  ]\n" +
+        "                                       }\n" +
+        "                                }\n" +
+        "                   }");
+
+    coll.aggregate(project);
   }
 
   @Test
