@@ -150,7 +150,7 @@ public class FongoDB extends DB {
     } else if (cmd.containsField("aggregate")) {
       List<DBObject> result = doAggregateCollection((String) cmd.get("aggregate"), (List<DBObject>) cmd.get("pipeline"));
       if (result == null) {
-        return koErrorResult("can't aggregate");
+        return notOkErrorResult("can't aggregate");
       }
       CommandResult okResult = okResult();
       BasicDBList list = new BasicDBList();
@@ -158,7 +158,7 @@ public class FongoDB extends DB {
       okResult.put("result", list);
       return okResult;
     }
-    return koErrorResult("undefined command: " + cmd);
+    return notOkErrorResult("undefined command: " + cmd);
   }
 
   public CommandResult okResult() {
@@ -167,15 +167,15 @@ public class FongoDB extends DB {
     return result;
   }
 
-  public CommandResult koErrorResult(String err) {
+  public CommandResult notOkErrorResult(String err) {
     CommandResult result = new CommandResult(fongo.getServerAddress());
     result.put("ok", false);
     result.put("err", err);
     return result;
   }
 
-  public CommandResult koErrorResult(int code, String err) {
-    CommandResult result = koErrorResult(err);
+  public CommandResult notOkErrorResult(int code, String err) {
+    CommandResult result = notOkErrorResult(err);
     result.put("code", code);
     return result;
   }
