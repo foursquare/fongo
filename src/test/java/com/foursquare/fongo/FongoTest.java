@@ -603,6 +603,12 @@ public class FongoTest {
   }
   
   @Test
+  public void testFindAndRemoveNothingFound() {
+    DBCollection coll = newCollection();
+    assertNull("should return null if nothing was found", coll.findAndRemove(new BasicDBObject()));
+  }
+  
+  @Test
   public void testFindAndModifyRemove() {
     DBCollection collection = newCollection();
     collection.insert(new BasicDBObject("_id", 1).append("a", 1));
