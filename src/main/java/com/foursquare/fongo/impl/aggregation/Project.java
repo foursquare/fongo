@@ -87,18 +87,209 @@ public class Project extends PipelineKeyword {
     }
   }
 
+
+  static abstract class ProjectedAbstract<T extends ProjectedAbstract> {
+    protected static final Map<String, Class<? extends ProjectedAbstract>> projectedAbstractMap = new HashMap<String, Class<? extends ProjectedAbstract>>();
+
+    final String keyword;
+
+    final String destName;
+
+    final List<String> infos = new ArrayList<String>();
+
+    final List<Object> results = new ArrayList<Object>();
+
+    /**
+     * Set to true when work is done (unapply successful).
+     */
+    boolean done = false;
+
+    private ProjectedAbstract(String keyword, String destName) {
+      this.keyword = keyword;
+      this.destName = destName;
+    }
+
+    public T addInfo(String info) {
+      infos.add(info);
+      return (T) this;
+    }
+
+    public T addResult(Object result) {
+      results.add(result);
+      return (T) this;
+    }
+
+    public static Projected defaultProjection(String destName) {
+      return projection(Keyword.RENAME, destName);
+    }
+
+    public static Projected projection(Keyword keyword, String destName) {
+      return new Projected(keyword, destName);
+    }
+
+    /**
+     * Transform the "object" into the "result" with this "value"
+     *
+     * @param result
+     * @param object
+     * @param key
+     */
+    public abstract void unapply(DBObject result, DBObject object, String key);
+
+    abstract void doWork(DBCollection coll, DBObject projectResult, Map<String, ProjectedAbstract> projectedFields, String key, Object value, String namespace);
+
+    public final void apply(DBCollection coll, DBObject projectResult, Map<String, ProjectedAbstract> projectedFields, String key, DBObject value, String namespace) {
+      doWork(coll, projectResult, projectedFields, key, value.get(this.keyword), namespace);
+    }
+
+    /**
+     * Create the mapping and the criteria for the collection.
+     *
+     * @param projectResult   find criteria.
+     * @param projectedFields mapping from criteria to project structure.
+     * @param key             keyword from a DBObject.
+     * @param kvalue          value for k from a DBObject.
+     * @param namespace       "" if empty, "fieldname." elsewhere.
+     * @param projected       use for unapplying.
+     */
+    void createMapping(DBCollection coll, DBObject projectResult, Map<String, ProjectedAbstract> projectedFields, String key, Object kvalue, String namespace, ProjectedAbstract projected) {
+      // Simple case : nb : "$pop"
+      if (kvalue instanceof String) {
+        String value = kvalue.toString();
+        if (value.startsWith("$")) {
+          // Case { date: "$date"}
+
+          // Extract filename from projection.
+          String fieldName = kvalue.toString().substring(1);
+          // Prepare for renaming.
+          projectedFields.put(fieldName, projected.addInfo(namespace + key));
+          projectResult.removeField(key);
+
+          // Handle complex case like $bar.foo with a little trick.
+          if (fieldName.contains(".")) {
+            projectResult.put(fieldName.substring(0, fieldName.indexOf('.')), 1);
+          } else {
+            projectResult.put(fieldName, 1);
+          }
+        } else {
+          projectedFields.put(value, projected.addInfo(value));
+        }
+      } else if (kvalue instanceof DBObject) {
+        DBObject value = (DBObject) kvalue;
+        ProjectedAbstract projectedAbstract = ProjectedAbstract.getProjected(value);
+        if (projectedAbstract != null) {
+          // case : {cmp : {$cmp:[$firstname, $lastname]}}
+          projectedAbstract.apply(coll, projectResult, projectedFields, key, value, namespace);
+          projectResult.removeField(key);
+        } else {
+          // case : {biggestCity:  { name: "$biggestCity",  pop: "$biggestPop" }}
+          projectResult.removeField(key);
+          for (Map.Entry<String, Object> subentry : (Set<Map.Entry<String, Object>>) value.toMap().entrySet()) {
+            createMapping(coll, projectResult, projectedFields, subentry.getKey(), subentry.getValue(), namespace + key + ".", Projected.defaultProjection(namespace + key + "." + subentry.getKey()));
+          }
+        }
+      } else {
+        // Case: {date : 1}
+        projectedFields.put(key, projected.addInfo(key));
+      }
+    }
+
+    private static ProjectedAbstract getProjected(DBObject value) {
+      for(Map.Entry<String, Class<? extends ProjectedAbstract>> entry : projectedAbstractMap.entrySet()) {
+        if(value.containsField(entry.getKey())) {
+          return entry.getValue().newInstance();
+        }
+      }
+
+      return null;
+    }
+
+    protected static void errorResult(DBCollection coll, int code, String err) {
+      ((FongoDB) coll.getDB()).notOkErrorResult(code, err).throwOnError();
+    }
+
+    protected static <T> T extractValue(DBObject object, Object fieldOrValue) {
+      if (fieldOrValue instanceof String && fieldOrValue.toString().startsWith("$")) {
+        return Util.extractField(object, fieldOrValue.toString().substring(1));
+      }
+      return (T) fieldOrValue;
+    }
+  }
+
+  static class ProjectedRename extends ProjectedAbstract<ProjectedRename> {
+    public static final String KEYWORD = "$___fongo$internal$";
+
+    static {
+      projectedAbstractMap.put(KEYWORD, ProjectedRename.class);
+    }
+
+    private ProjectedRename(String destName) {
+      super(KEYWORD, destName);
+    }
+
+    public static ProjectedRename newInstance(String destName) {
+      return new ProjectedRename(destName);
+    }
+
+    @Override
+    public void unapply(DBObject result, DBObject object, String key) {
+      Object value = Util.extractField(object, key);
+      Util.putValue(result, destName, value);
+    }
+
+    @Override
+    void doWork(DBCollection coll, DBObject projectResult, Map<String, ProjectedAbstract> projectedFields, String key, Object value, String namespace) {
+    }
+  }
+
+  static class ProjectedIfNull extends ProjectedAbstract<ProjectedIfNull> {
+    public static final String KEYWORD = "$ifNull";
+
+    static {
+      projectedAbstractMap.put(KEYWORD, ProjectedIfNull.class);
+    }
+
+    private String field = null;
+    private String valueIfNull = null;
+
+    private ProjectedIfNull(String destName, String field, String valueIfNull) {
+      super(KEYWORD, destName);
+      this.field = field;
+      this.valueIfNull = valueIfNull;
+    }
+
+    @Override
+    void doWork(DBCollection coll, DBObject projectResult, Map<String, ProjectedAbstract> projectedFields, String key, Object value, String namespace) {
+      if (!(value instanceof List) || ((List) value).size() != 2) {
+//	"errmsg" : "exception: the $strcasecmp operator requires an array of 2 operands",
+//        "code" : 16019,
+        errorResult(coll, 16020, "the $ifNull operator requires an array of 2 operands");
+      }
+      List<String> values = (List<String>) value;
+      ProjectedIfNull projected = new ProjectedIfNull(key, values.get(0), values.get(1));
+      createMapping(coll, projectResult, projectedFields, (String) values.get(0), values.get(0), namespace, projected);
+      createMapping(coll, projectResult, projectedFields, (String) values.get(1), values.get(1), namespace, projected);
+    }
+
+    @Override
+    public void unapply(DBObject result, DBObject object, String key) {
+      Object value = extractValue(object, field);
+      if (value == null) {
+        value = extractValue(object, valueIfNull);
+      }
+      result.put(destName, value);
+    }
+  }
+
   private enum Keyword {
     RENAME(null) {
       @Override
-      void doWork(DBCollection coll, DBObject projectResult, Map<String, Projected> projectedFields, String key, Object value, String namespace) {
+      void doWork(DBCollection coll, DBObject projectResult, Map<String, ProjectedAbstract> projectedFields, String key, Object value, String namespace) {
       }
 
       // Only a renaming.
       @Override
       public void unapply(DBObject result, DBObject object, Projected projected, String key) {
-        Object value = Util.extractField(object, key);
-        Util.putValue(result, projected.destName, value);
-        projected.done();
       }
     },
     ALL(null) {
@@ -113,29 +304,6 @@ public class Project extends PipelineKeyword {
       }
     },
     IFNULL("$ifNull", true) {
-      @Override
-      void doWork(DBCollection coll, DBObject projectResult, Map<String, Projected> projectedFields, String key, Object value, String namespace) {
-        if (!(value instanceof List) || ((List) value).size() != 2) {
-//	"errmsg" : "exception: the $strcasecmp operator requires an array of 2 operands",
-//        "code" : 16019,
-          errorResult(coll, 16020, "the $ifNull operator requires an array of 2 operands");
-        }
-        List<String> values = (List<String>) value;
-        Projected projected = Projected.projection(this, key);
-        createMapping(coll, projectResult, projectedFields, (String) values.get(0), values.get(0), namespace, projected);
-        createMapping(coll, projectResult, projectedFields, (String) values.get(1), values.get(1), namespace, projected);
-        projected.done();
-      }
-
-      @Override
-      public void unapply(DBObject result, DBObject object, Projected projected, String key) {
-        Object value = extractValue(object, projected.infos.get(0));
-        if (value == null) {
-          value = extractValue(object, projected.infos.get(1));
-        }
-        result.put(projected.destName, value);
-        projected.done();
-      }
 
     },
     CONCAT("$concat") {
@@ -344,78 +512,6 @@ public class Project extends PipelineKeyword {
       }
       return ret;
     }
-
-    abstract void doWork(DBCollection coll, DBObject projectResult, Map<String, Projected> projectedFields, String key, Object value, String namespace);
-
-    public final void apply(DBCollection coll, DBObject projectResult, Map<String, Projected> projectedFields, String key, DBObject value, String namespace) {
-      doWork(coll, projectResult, projectedFields, key, value.get(this.keyword), namespace);
-    }
-
-    private static <T> T extractValue(DBObject object, Object fieldOrValue) {
-      if (fieldOrValue instanceof String && fieldOrValue.toString().startsWith("$")) {
-        return Util.extractField(object, fieldOrValue.toString().substring(1));
-      }
-      return (T) fieldOrValue;
-    }
-
-    /**
-     * Create the mapping and the criteria for the collection.
-     *
-     * @param projectResult   find criteria.
-     * @param projectedFields mapping from criteria to project structure.
-     * @param key             keyword from a DBObject.
-     * @param kvalue          value for k from a DBObject.
-     * @param namespace       "" if empty, "fieldname." elsewhere.
-     * @param projected       use for unapplying.
-     */
-    void createMapping(DBCollection coll, DBObject projectResult, Map<String, Projected> projectedFields, String key, Object kvalue, String namespace, Projected projected) {
-      // Simple case : nb : "$pop"
-      if (kvalue instanceof String) {
-        String value = kvalue.toString();
-        if (value.startsWith("$")) {
-          // Case { date: "$date"}
-
-          // Extract filename from projection.
-          String fieldName = kvalue.toString().substring(1);
-          // Prepare for renaming.
-          projectedFields.put(fieldName, projected.addInfo(namespace + key));
-          projectResult.removeField(key);
-
-          // Handle complex case like $bar.foo with a little trick.
-          if (fieldName.contains(".")) {
-            projectResult.put(fieldName.substring(0, fieldName.indexOf('.')), 1);
-          } else {
-            projectResult.put(fieldName, 1);
-          }
-        } else {
-          projectedFields.put(value, projected.addInfo(value));
-        }
-      } else if (kvalue instanceof DBObject) {
-        DBObject value = (DBObject) kvalue;
-        Keyword keyword = Keyword.getKeyword(value);
-        if (keyword != null) {
-          // case : {cmp : {$cmp:[$firstname, $lastname]}}
-          keyword.apply(coll, projectResult, projectedFields, key, value, namespace);
-          projectResult.removeField(key);
-        } else {
-          // case : {biggestCity:  { name: "$biggestCity",  pop: "$biggestPop" }}
-          projectResult.removeField(key);
-          for (Map.Entry<String, Object> subentry : (Set<Map.Entry<String, Object>>) value.toMap().entrySet()) {
-            createMapping(coll, projectResult, projectedFields, subentry.getKey(), subentry.getValue(), namespace + key + ".", Projected.defaultProjection(namespace + key + "." + subentry.getKey()));
-          }
-        }
-      } else {
-        // Case: {date : 1}
-        projectedFields.put(key, projected.addInfo(key));
-      }
-    }
-
-    private static void errorResult(DBCollection coll, int code, String err) {
-      ((FongoDB) coll.getDB()).notOkErrorResult(code, err).throwOnError();
-    }
-
-    // Translate from result of find to user field.
-    public abstract void unapply(DBObject result, DBObject object, Projected projected, String key);
   }
 
   /**
