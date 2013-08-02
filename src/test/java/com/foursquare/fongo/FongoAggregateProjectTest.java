@@ -206,7 +206,7 @@ public class FongoAggregateProjectTest {
    * See http://docs.mongodb.org/manual/reference/aggregation/strcasecmp/
    */
   @Test
-  public void testStrcasecmpMustBeAnArray() {
+  public void testStrcasecmpMustBeAFailure() {
     ExpectedMongoException.expectCommandFailure(exception, 16020);
     DBCollection coll = fongoRule.newCollection();
     fongoRule.insertJSON(coll, "[{ _id: 1, item: { sec: \"dessert\", category: \"pie\", type: \"apple\" } },\n" +

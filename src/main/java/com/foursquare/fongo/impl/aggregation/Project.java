@@ -277,7 +277,7 @@ public class Project extends PipelineKeyword {
     }
 
     private static void errorResult(DBCollection coll, int code, String err) {
-      ((FongoDB) coll.getDB()).errorResult(code, err).throwOnError();
+      ((FongoDB) coll.getDB()).notOkErrorResult(code, err).throwOnError();
     }
 
     // Translate from result of find to user field.
