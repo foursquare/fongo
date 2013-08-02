@@ -48,7 +48,6 @@ public class FongoAggregateProjectTest {
     assertTrue(output.getCommandResult().ok());
 
     List<DBObject> result = (List<DBObject>) output.getCommandResult().get("result");
-    System.out.println(result);
     assertNotNull(result);
     assertEquals(fongoRule.parse("[{ \"_id\" : 1, \"food\" : \"apple pie\" },\n" +
         "                    { \"_id\" : 2, \"food\" : \"cherry pie\" },\n" +
@@ -81,7 +80,6 @@ public class FongoAggregateProjectTest {
     assertTrue(output.getCommandResult().ok());
 
     List<DBObject> result = (List<DBObject>) output.getCommandResult().get("result");
-    System.out.println(result);
     assertNotNull(result);
     assertEquals(fongoRule.parse("[{ \"_id\" : 1, \"food\" : \"apple pie\" },\n" +
         "               { \"_id\" : 2, \"food\" : \"cherry pie\" },\n" +
@@ -135,7 +133,6 @@ public class FongoAggregateProjectTest {
     assertTrue(output.getCommandResult().ok());
 
     List<DBObject> result = (List<DBObject>) output.getCommandResult().get("result");
-    System.out.println(result);
     assertNotNull(result);
     assertEquals(new BasicDBList(), result.get(0).get("e"));
   }
@@ -163,7 +160,6 @@ public class FongoAggregateProjectTest {
     assertTrue(output.getCommandResult().ok());
 
     List<DBObject> result = (List<DBObject>) output.getCommandResult().get("result");
-    System.out.println(result);
     assertNotNull(result);
     assertEquals(fongoRule.parse("[{ \"_id\" : 1, \"food\" : -1 },\n" +
         "                    { \"_id\" : 2, \"food\" : -1 },\n" +
@@ -194,7 +190,6 @@ public class FongoAggregateProjectTest {
     assertTrue(output.getCommandResult().ok());
 
     List<DBObject> result = (List<DBObject>) output.getCommandResult().get("result");
-    System.out.println(result);
     assertNotNull(result);
     assertEquals(fongoRule.parse("[{ \"_id\" : 1, \"food\" : 0 },\n" +
         "                    { \"_id\" : 2, \"food\" : 0 },\n" +
@@ -246,7 +241,6 @@ public class FongoAggregateProjectTest {
     assertTrue(output.getCommandResult().ok());
 
     List<DBObject> result = (List<DBObject>) output.getCommandResult().get("result");
-    System.out.println(result);
     assertNotNull(result);
     assertEquals(fongoRule.parse("[{ \"_id\" : 1, \"food\" : \"a\" },\n" +
         "                    { \"_id\" : 2, \"food\" : \"a\" },\n" +
@@ -275,7 +269,6 @@ public class FongoAggregateProjectTest {
     assertTrue(output.getCommandResult().ok());
 
     List<DBObject> result = (List<DBObject>) output.getCommandResult().get("result");
-    System.out.println(result);
     assertNotNull(result);
     assertEquals(fongoRule.parse("[{ \"_id\" : 1, \"food\" : \"a\" },\n" +
         "                    { \"_id\" : 2, \"food\" : \"c\" },\n" +
@@ -304,7 +297,6 @@ public class FongoAggregateProjectTest {
     assertTrue(output.getCommandResult().ok());
 
     List<DBObject> result = (List<DBObject>) output.getCommandResult().get("result");
-    System.out.println(result);
     assertNotNull(result);
     assertEquals(fongoRule.parse("[{ \"_id\" : 1, \"food\" : \"\" },\n" +
         "                    { \"_id\" : 2, \"food\" : \"\" },\n" +
@@ -333,7 +325,6 @@ public class FongoAggregateProjectTest {
     assertTrue(output.getCommandResult().ok());
 
     List<DBObject> result = (List<DBObject>) output.getCommandResult().get("result");
-    System.out.println(result);
     assertNotNull(result);
     assertEquals(fongoRule.parse("[{ \"_id\" : 1, \"food\" : \"apple\" },\n" +
         "                    { \"_id\" : 2, \"food\" : \"cherry\" },\n" +
@@ -362,7 +353,6 @@ public class FongoAggregateProjectTest {
     assertTrue(output.getCommandResult().ok());
 
     List<DBObject> result = (List<DBObject>) output.getCommandResult().get("result");
-    System.out.println(result);
     assertNotNull(result);
     assertEquals(fongoRule.parse("[{ \"_id\" : 1, \"food\" : \"a\" },\n" +
         "                    { \"_id\" : 2, \"food\" : \"c\" },\n" +
@@ -414,7 +404,6 @@ public class FongoAggregateProjectTest {
     assertTrue(output.getCommandResult().ok());
 
     List<DBObject> result = (List<DBObject>) output.getCommandResult().get("result");
-    System.out.println(result);
     assertNotNull(result);
     assertEquals(fongoRule.parse("[{ \"_id\" : 1, \"food\" : \"apple\" },\n" +
         "                    { \"_id\" : 2, \"food\" : \"cherry\" },\n" +
@@ -445,7 +434,6 @@ public class FongoAggregateProjectTest {
     assertTrue(output.getCommandResult().ok());
 
     List<DBObject> result = (List<DBObject>) output.getCommandResult().get("result");
-    System.out.println(result);
     assertNotNull(result);
     assertEquals(fongoRule.parse("[{ \"_id\" : 1, \"food\" : \"apple\" },\n" +
         "                    { \"_id\" : 2, \"food\" : \"cherry\" },\n" +
@@ -476,7 +464,6 @@ public class FongoAggregateProjectTest {
     assertTrue(output.getCommandResult().ok());
 
     List<DBObject> result = (List<DBObject>) output.getCommandResult().get("result");
-    System.out.println(result);
     assertNotNull(result);
     assertEquals(fongoRule.parse("[{ \"_id\" : 1, \"food\" : \"apple\" },\n" +
         "                    { \"_id\" : 2, \"food\" : \"cherry\" },\n" +
@@ -508,7 +495,6 @@ public class FongoAggregateProjectTest {
     assertTrue(output.getCommandResult().ok());
 
     List<DBObject> result = (List<DBObject>) output.getCommandResult().get("result");
-    System.out.println(result);
     assertNotNull(result);
     assertEquals(fongoRule.parse("[{ \"_id\" : 1, \"food\" : -1 },\n" +
         "                    { \"_id\" : 2, \"food\" : -1 },\n" +

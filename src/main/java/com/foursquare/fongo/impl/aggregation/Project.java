@@ -16,7 +16,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * TODO : $substr
  */
 @ThreadSafe
 public class Project extends PipelineKeyword {
@@ -145,7 +144,7 @@ public class Project extends PipelineKeyword {
         if (!(value instanceof List) || ((List) value).size() == 0) {
 //	"errmsg" : "exception: the $strcasecmp operator requires an array of 2 operands",
 //        "code" : 16019,
-          errorResult(coll, 16020, "the $concat operator requires an array of operands"); // TODO
+          errorResult(coll, 16020, "the $concat operator requires an array of operands");
         }
         List<Object> fields = (List<Object>) value;
         Projected projected = Projected.projection(this, key);
@@ -441,10 +440,8 @@ public class Project extends PipelineKeyword {
       }
     }
 
-    LOG.info("project() of {} renamed {}", projectResult, projectedFields); // TODO
-    LOG.debug("project() of {} renamed {}", projectResult, projectedFields); // TODO
+    LOG.debug("project() of {} renamed {}", projectResult, projectedFields);
     List<DBObject> objects = coll.find(null, projectResult).toArray();
-    LOG.info("project() of {} result {}", projectResult, objects); // TODO
 
     // Rename or transform fields
     List<DBObject> objectsResults = new ArrayList<DBObject>(objects.size());
