@@ -226,6 +226,172 @@ public class FongoAggregateProjectTest {
 
 
   /**
+   * See http://docs.mongodb.org/manual/reference/aggregation/substr/
+   */
+  @Test
+  public void testSubstrWithValue() {
+    DBCollection coll = fongoRule.newCollection();
+    fongoRule.insertJSON(coll, "[{ _id: 1, item: { sec: \"dessert\", category: \"pie\", type: \"apple\" } },\n" +
+        "{ _id: 2, item: { sec: \"dessert\", category: \"pie\", type: \"cherry\" } },\n" +
+        "{ _id: 3, item: { sec: \"main\", category: \"pie\", type: \"shepherd's\" } },\n" +
+        "{ _id: 4, item: { sec: \"main\", category: \"pie\" } }]");
+
+    DBObject project = fongoRule.parseDEObject("{ $project: { food:\n" +
+        "                                       { $substr: [ \"apple\", 0, 1 ]" +
+        "                                       }\n" +
+        "                                }\n" +
+        "                   }");
+
+    AggregationOutput output = coll.aggregate(project);
+    assertTrue(output.getCommandResult().ok());
+
+    List<DBObject> result = (List<DBObject>) output.getCommandResult().get("result");
+    System.out.println(result);
+    assertNotNull(result);
+    assertEquals(fongoRule.parse("[{ \"_id\" : 1, \"food\" : \"a\" },\n" +
+        "                    { \"_id\" : 2, \"food\" : \"a\" },\n" +
+        "                    { \"_id\" : 3, \"food\" : \"a\" },\n" +
+        "                    { \"_id\" : 4, \"food\" : \"a\" }]\n"), result);
+  }
+
+  /**
+   * See http://docs.mongodb.org/manual/reference/aggregation/substr/
+   */
+  @Test
+  public void testSubstrWithField() {
+    DBCollection coll = fongoRule.newCollection();
+    fongoRule.insertJSON(coll, "[{ _id: 1, item: { sec: \"dessert\", category: \"pie\", type: \"apple\" } },\n" +
+        "{ _id: 2, item: { sec: \"dessert\", category: \"pie\", type: \"cherry\" } },\n" +
+        "{ _id: 3, item: { sec: \"main\", category: \"pie\", type: \"shepherd's\" } },\n" +
+        "{ _id: 4, item: { sec: \"main\", category: \"pie\", type: \"chicken pot\" } }]");
+
+    DBObject project = fongoRule.parseDEObject("{ $project: { food:\n" +
+        "                                       { $substr: [ \"$item.type\", 0, 1 ]" +
+        "                                       }\n" +
+        "                                }\n" +
+        "                   }");
+
+    AggregationOutput output = coll.aggregate(project);
+    assertTrue(output.getCommandResult().ok());
+
+    List<DBObject> result = (List<DBObject>) output.getCommandResult().get("result");
+    System.out.println(result);
+    assertNotNull(result);
+    assertEquals(fongoRule.parse("[{ \"_id\" : 1, \"food\" : \"a\" },\n" +
+        "                    { \"_id\" : 2, \"food\" : \"c\" },\n" +
+        "                    { \"_id\" : 3, \"food\" : \"s\" },\n" +
+        "                    { \"_id\" : 4, \"food\" : \"c\" }]\n"), result);
+  }
+
+  /**
+   * See http://docs.mongodb.org/manual/reference/aggregation/substr/
+   */
+  @Test
+  public void testSubstrWithFieldOutOf() {
+    DBCollection coll = fongoRule.newCollection();
+    fongoRule.insertJSON(coll, "[{ _id: 1, item: { sec: \"dessert\", category: \"pie\", type: \"apple\" } },\n" +
+        "{ _id: 2, item: { sec: \"dessert\", category: \"pie\", type: \"cherry\" } },\n" +
+        "{ _id: 3, item: { sec: \"main\", category: \"pie\", type: \"shepherd's\" } },\n" +
+        "{ _id: 4, item: { sec: \"main\", category: \"pie\", type: \"chicken pot\" } }]");
+
+    DBObject project = fongoRule.parseDEObject("{ $project: { food:\n" +
+        "                                       { $substr: [ \"$item.type\", 15, 18 ]" +
+        "                                       }\n" +
+        "                                }\n" +
+        "                   }");
+
+    AggregationOutput output = coll.aggregate(project);
+    assertTrue(output.getCommandResult().ok());
+
+    List<DBObject> result = (List<DBObject>) output.getCommandResult().get("result");
+    System.out.println(result);
+    assertNotNull(result);
+    assertEquals(fongoRule.parse("[{ \"_id\" : 1, \"food\" : \"\" },\n" +
+        "                    { \"_id\" : 2, \"food\" : \"\" },\n" +
+        "                    { \"_id\" : 3, \"food\" : \"\" },\n" +
+        "                    { \"_id\" : 4, \"food\" : \"\" }]\n"), result);
+  }
+
+  /**
+   * See http://docs.mongodb.org/manual/reference/aggregation/substr/
+   */
+  @Test
+  public void testSubstrWithFieldTooLong() {
+    DBCollection coll = fongoRule.newCollection();
+    fongoRule.insertJSON(coll, "[{ _id: 1, item: { sec: \"dessert\", category: \"pie\", type: \"apple\" } },\n" +
+        "{ _id: 2, item: { sec: \"dessert\", category: \"pie\", type: \"cherry\" } },\n" +
+        "{ _id: 3, item: { sec: \"main\", category: \"pie\", type: \"shepherd's\" } },\n" +
+        "{ _id: 4, item: { sec: \"main\", category: \"pie\", type: \"chicken pot\" } }]");
+
+    DBObject project = fongoRule.parseDEObject("{ $project: { food:\n" +
+        "                                       { $substr: [ \"$item.type\", 0, 18 ]" +
+        "                                       }\n" +
+        "                                }\n" +
+        "                   }");
+
+    AggregationOutput output = coll.aggregate(project);
+    assertTrue(output.getCommandResult().ok());
+
+    List<DBObject> result = (List<DBObject>) output.getCommandResult().get("result");
+    System.out.println(result);
+    assertNotNull(result);
+    assertEquals(fongoRule.parse("[{ \"_id\" : 1, \"food\" : \"apple\" },\n" +
+        "                    { \"_id\" : 2, \"food\" : \"cherry\" },\n" +
+        "                    { \"_id\" : 3, \"food\" : \"shepherd's\" },\n" +
+        "                    { \"_id\" : 4, \"food\" : \"chicken pot\" }]\n"), result);
+  }
+
+  /**
+   * See http://docs.mongodb.org/manual/reference/aggregation/substr/
+   */
+  @Test
+  public void testSubstrWithNull() {
+    DBCollection coll = fongoRule.newCollection();
+    fongoRule.insertJSON(coll, "[{ _id: 1, item: { sec: \"dessert\", category: \"pie\", type: \"apple\" } },\n" +
+        "{ _id: 2, item: { sec: \"dessert\", category: \"pie\", type: \"cherry\" } },\n" +
+        "{ _id: 3, item: { sec: \"main\", category: \"pie\", type: \"shepherd's\" } },\n" +
+        "{ _id: 4, item: { sec: \"main\" }}]");
+
+    DBObject project = fongoRule.parseDEObject("{ $project: { food:\n" +
+        "                                       { $substr: [ \"$item.type\", 0, 1 ]" +
+        "                                       }\n" +
+        "                                }\n" +
+        "                   }");
+
+    AggregationOutput output = coll.aggregate(project);
+    assertTrue(output.getCommandResult().ok());
+
+    List<DBObject> result = (List<DBObject>) output.getCommandResult().get("result");
+    System.out.println(result);
+    assertNotNull(result);
+    assertEquals(fongoRule.parse("[{ \"_id\" : 1, \"food\" : \"a\" },\n" +
+        "                    { \"_id\" : 2, \"food\" : \"c\" },\n" +
+        "                    { \"_id\" : 3, \"food\" : \"s\" },\n" +
+        "                    { \"_id\" : 4, \"food\" : \"\"}]\n"), result);
+  }
+
+  /**
+   * See http://docs.mongodb.org/manual/reference/aggregation/substr/
+   */
+  @Test
+  public void testSubstrWithErrorParams() {
+    ExpectedMongoException.expectCommandFailure(exception, 16020);
+    DBCollection coll = fongoRule.newCollection();
+    fongoRule.insertJSON(coll, "[{ _id: 1, item: { sec: \"dessert\", category: \"pie\", type: \"apple\" } },\n" +
+        "{ _id: 2, item: { sec: \"dessert\", category: \"pie\", type: \"cherry\" } },\n" +
+        "{ _id: 3, item: { sec: \"main\", category: \"pie\", type: \"shepherd's\" } },\n" +
+        "{ _id: 4, item: { sec: \"main\" }}]");
+
+    DBObject project = fongoRule.parseDEObject("{ $project: { food:\n" +
+        "                                       { $substr: [ \"$item.type\", 0 ]" +
+        "                                       }\n" +
+        "                                }\n" +
+        "                   }");
+
+    coll.aggregate(project);
+  }
+
+  /**
    * See http://docs.mongodb.org/manual/reference/aggregation/ifNull/
    */
   @Test
@@ -286,6 +452,7 @@ public class FongoAggregateProjectTest {
         "                    { \"_id\" : 3, \"food\" : \"shepherd's\" },\n" +
         "                    { \"_id\" : 4, \"food\" : \"pie\" }]\n"), result);
   }
+
   /**
    * See http://docs.mongodb.org/manual/reference/aggregation/ifNull/
    */

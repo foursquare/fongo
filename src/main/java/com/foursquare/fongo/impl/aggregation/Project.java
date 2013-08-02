@@ -101,7 +101,7 @@ public class Project extends PipelineKeyword {
     ALL(null) {
 
     },
-    IFNULL("$ifNull") {
+    IFNULL("$ifNull", true) {
       @Override
       void doWork(DBCollection coll, DBObject projectResult, Map<String, Projected> projectedFields, String key, Object value, String namespace) {
         if (!(value instanceof List) || ((List) value).size() != 2) {
@@ -118,9 +118,9 @@ public class Project extends PipelineKeyword {
 
       @Override
       public void unapply(DBObject result, DBObject object, Projected projected, String key) {
-        Object value = extracetValue(object, projected.infos.get(0));
+        Object value = extractValue(object, projected.infos.get(0));
         if (value == null) {
-          value = extracetValue(object, projected.infos.get(1));
+          value = extractValue(object, projected.infos.get(1));
         }
         result.put(projected.destName, value);
         projected.done();
@@ -150,7 +150,7 @@ public class Project extends PipelineKeyword {
       public void unapply(DBObject result, DBObject object, Projected projected, String key) {
         StringBuilder sb = new StringBuilder();
         for (String info : projected.infos) {
-          Object value = extracetValue(object, info);
+          Object value = extractValue(object, info);
           if (value == null) {
             result.put(projected.destName, null);
             return;
@@ -163,7 +163,41 @@ public class Project extends PipelineKeyword {
         projected.done();
       }
     },
-    SUBSTR("$substr"),
+    SUBSTR("$substr", true) {
+      @Override
+      void doWork(DBCollection coll, DBObject projectResult, Map<String, Projected> projectedFields, String key, Object value, String namespace) {
+        if (!(value instanceof List) || ((List) value).size() != 3) {
+          //com.mongodb.CommandFailureException: { "serverUsed" : "/127.0.0.1:27017" , "errmsg" : "exception: the $substr operator requires 3 operand(s)" , "code" : 16020 , "ok" : 0.0}
+          errorResult(coll, 16020, "the $substr operator requires an array of 3 operands");
+        }
+        List<Object> values = (List<Object>) value;
+        Projected projected = Projected.projection(this, key);
+        projected.addInfo(String.valueOf(((Number) values.get(1)).intValue()));
+        projected.addInfo(String.valueOf(((Number) values.get(2)).intValue()));
+        createMapping(coll, projectResult, projectedFields, (String) values.get(0), values.get(0), namespace, projected);
+      }
+
+      @Override
+      public void unapply(DBObject result, DBObject object, Projected projected, String key) {
+        int start = Integer.valueOf(projected.infos.get(0));
+        int end = Integer.valueOf(projected.infos.get(1));
+        Object exracted = extractValue(object, projected.infos.get(2));
+        String value = exracted == null ? null : String.valueOf(exracted);
+        if (value == null) {
+          value = "";
+        } else {
+          if (start >= value.length()) {
+            value = "";
+          } else {
+            value = value.substring(start, Math.min(end, value.length()));
+          }
+        }
+
+        result.put(projected.destName, value);
+        projected.done();
+      }
+
+    },
     STRCASECMP("$strcasecmp") {
       @Override
       void doWork(DBCollection coll, DBObject projectResult, Map<String, Projected> projectedFields, String key, Object value, String namespace) {
@@ -180,8 +214,8 @@ public class Project extends PipelineKeyword {
 
       @Override
       public void unapply(DBObject result, DBObject object, Projected projected, String key) {
-        String value = extracetValue(object, projected.infos.get(0)).toString().toLowerCase();
-        String secondValue = extracetValue(object, projected.infos.get(1)).toString().toLowerCase();
+        String value = extractValue(object, projected.infos.get(0)).toString().toLowerCase();
+        String secondValue = extractValue(object, projected.infos.get(1)).toString().toLowerCase();
         int strcmp = value.compareTo(secondValue);
         result.put(projected.destName, strcmp < 0 ? -1 : strcmp > 1 ? 1 : 0);
         projected.done();
@@ -193,8 +227,18 @@ public class Project extends PipelineKeyword {
 
     final String keyword;
 
+    /**
+     * Set to true = call the "Projected" if we can't find values (like ifNull, substr, etc)
+     */
+    final boolean recallIfNotFound;
+
     Keyword(String key) {
+      this(key, false);
+    }
+
+    Keyword(String key, boolean recallIfNotFound) {
       this.keyword = key;
+      this.recallIfNotFound = recallIfNotFound;
     }
 
     //@Nullable
@@ -209,6 +253,7 @@ public class Project extends PipelineKeyword {
       return ret;
     }
 
+    // TODO : must be abstract
     void doWork(DBCollection coll, DBObject projectResult, Map<String, Projected> projectedFields, String key, Object value, String namespace) {
 
     }
@@ -217,7 +262,7 @@ public class Project extends PipelineKeyword {
       doWork(coll, projectResult, projectedFields, key, value.get(this.keyword), namespace);
     }
 
-    private static <T> T extracetValue(DBObject object, Object fieldOrValue) {
+    private static <T> T extractValue(DBObject object, Object fieldOrValue) {
       if (fieldOrValue instanceof String && fieldOrValue.toString().startsWith("$")) {
         return Util.extractField(object, fieldOrValue.toString().substring(1));
       }
@@ -280,6 +325,7 @@ public class Project extends PipelineKeyword {
       ((FongoDB) coll.getDB()).notOkErrorResult(code, err).throwOnError();
     }
 
+    // TODO : must be abstract
     // Translate from result of find to user field.
     public void unapply(DBObject result, DBObject object, Projected projected, String key) {
       Object value = Util.extractField(object, key);
@@ -327,7 +373,7 @@ public class Project extends PipelineKeyword {
       // TODO REFACTOR
       // Handle special case like ifNull who can doesn't have field in list.
       for (Projected projected : projectedFields.values()) {
-        if (!projected.isDone() && projected.keyword == Keyword.IFNULL) {
+        if (!projected.isDone() && (projected.keyword.recallIfNotFound)) {
           projected.unapply(renamed, result, null);
         }
         projected.setDone(false);
