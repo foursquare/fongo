@@ -27,9 +27,9 @@ import java.util.Map;
  * // if you need an instance of com.mongodb.Mongo
  * com.mongodb.MongoClient mongo = fongo.getMongo();
  * }
- * </pre>  
- * @author jon
+ * </pre>
  *
+ * @author jon
  */
 public class Fongo {
 
@@ -39,7 +39,6 @@ public class Fongo {
   private final String name;
 
   /**
-   * 
    * @param name Used only for a nice toString in case you have multiple instances
    */
   public Fongo(String name) {
@@ -47,14 +46,15 @@ public class Fongo {
     this.serverAddress = new ServerAddress(new InetSocketAddress(ServerAddress.defaultPort()));
     this.mongo = createMongo();
   }
-  
+
   /**
    * equivalent to getDB in driver
    * multiple calls to this method return the same DB instance
+   *
    * @param dbname
    */
   public DB getDB(String dbname) {
-    synchronized(dbMap) {      
+    synchronized (dbMap) {
       FongoDB fongoDb = dbMap.get(dbname);
       if (fongoDb == null) {
         fongoDb = new FongoDB(this, dbname);
@@ -80,6 +80,7 @@ public class Fongo {
 
   /**
    * Drop db and all data from memory
+   *
    * @param dbName
    */
   public void dropDatabase(String dbName) {
@@ -88,30 +89,30 @@ public class Fongo {
       db.dropDatabase();
     }
   }
-  
+
   /**
    * This will always be localhost:27017
    */
   public ServerAddress getServerAddress() {
     return serverAddress;
   }
-  
+
   /**
    * A mocked out instance of com.mongodb.Mongo
-   * All methods calls are intercepted and execute associated Fongo method 
+   * All methods calls are intercepted and execute associated Fongo method
    */
   public MongoClient getMongo() {
     return this.mongo;
   }
-  
+
   public WriteConcern getWriteConcern() {
     return mongo.getWriteConcern();
   }
-  
+
   private MongoClient createMongo() {
     return MockMongoClient.create(this);
   }
-  
+
   @Override
   public String toString() {
     return "Fongo (" + this.name + ")";
