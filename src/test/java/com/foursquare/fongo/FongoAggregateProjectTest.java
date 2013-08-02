@@ -485,7 +485,6 @@ public class FongoAggregateProjectTest {
   }
 
 
-
   /**
    * See http://docs.mongodb.org/manual/reference/aggregation/cmp/
    */
@@ -561,6 +560,225 @@ public class FongoAggregateProjectTest {
         "                   }");
 
     coll.aggregate(project);
+  }
+
+
+  @Test
+  public void testToUpper() {
+    DBCollection coll = fongoRule.newCollection();
+    fongoRule.insertJSON(coll, "[{ _id: 1, item: { sec: \"dessert\", category: \"pie\", type: \"apple\" } },\n" +
+        "{ _id: 2, item: { sec: \"dessert\", category: \"pie\", type: \"cherry\" } },\n" +
+        "{ _id: 3, item: { sec: \"main\", category: \"pie\", type: \"shepherd's\" } },\n" +
+        "{ _id: 4, item: { sec: \"main\", category: \"pie\", type: \"chicken pot\" } }]");
+
+    DBObject project = fongoRule.parseDEObject("{ $project: { food:\n" +
+        "                                       { $toUpper: \"$item.type\"\n" +
+        "                                       }\n" +
+        "                                }\n" +
+        "                   }");
+
+    AggregationOutput output = coll.aggregate(project);
+    assertTrue(output.getCommandResult().ok());
+
+    List<DBObject> result = (List<DBObject>) output.getCommandResult().get("result");
+    assertNotNull(result);
+    assertEquals(fongoRule.parse("[ { \"_id\" : 1 , \"food\" : \"APPLE\"}," +
+        " { \"_id\" : 2 , \"food\" : \"CHERRY\"}," +
+        " { \"_id\" : 3 , \"food\" : \"SHEPHERD'S\"}," +
+        " { \"_id\" : 4 , \"food\" : \"CHICKEN POT\"}]"), result);
+  }
+
+  @Test
+  public void testToUpperWithNull() {
+    DBCollection coll = fongoRule.newCollection();
+    fongoRule.insertJSON(coll, "[{ _id: 1, item: { sec: \"dessert\", category: \"pie\", type: \"apple\" } },\n" +
+        "{ _id: 2, item: { sec: \"dessert\", category: \"pie\", type: \"cherry\" } },\n" +
+        "{ _id: 3, item: { sec: \"main\", category: \"pie\", type: \"shepherd's\" } },\n" +
+        "{ _id: 4, item: { sec: \"main\", category: \"pie\" } }]");
+
+    DBObject project = fongoRule.parseDEObject("{ $project: { food:\n" +
+        "                                       { $toUpper: \"$item.type\"\n" +
+        "                                       }\n" +
+        "                                }\n" +
+        "                   }");
+
+    AggregationOutput output = coll.aggregate(project);
+    assertTrue(output.getCommandResult().ok());
+
+    List<DBObject> result = (List<DBObject>) output.getCommandResult().get("result");
+    assertNotNull(result);
+    assertEquals(fongoRule.parse("[ { \"_id\" : 1 , \"food\" : \"APPLE\"}," +
+        " { \"_id\" : 2 , \"food\" : \"CHERRY\"}," +
+        " { \"_id\" : 3 , \"food\" : \"SHEPHERD'S\"}," +
+        " { \"_id\" : 4 , \"food\" : \"\"}]"), result);
+  }
+
+  @Test
+  public void testToUpperMustHandleArray() {
+    DBCollection coll = fongoRule.newCollection();
+    fongoRule.insertJSON(coll, "[{ _id: 1, item: { sec: \"dessert\", category: \"pie\", type: \"apple\" } },\n" +
+        "{ _id: 2, item: { sec: \"dessert\", category: \"pie\", type: \"cherry\" } },\n" +
+        "{ _id: 3, item: { sec: \"main\", category: \"pie\", type: \"shepherd's\" } },\n" +
+        "{ _id: 4, item: { sec: \"main\", category: \"pie\", type: \"chicken pot\" } }]");
+
+    DBObject project = fongoRule.parseDEObject("{ $project: { food:\n" +
+        "                                       { $toUpper: [ \"$item.type\" ]\n" +
+        "                                       }\n" +
+        "                                }\n" +
+        "                   }");
+
+    AggregationOutput output = coll.aggregate(project);
+    assertTrue(output.getCommandResult().ok());
+
+    List<DBObject> result = (List<DBObject>) output.getCommandResult().get("result");
+    assertNotNull(result);
+    assertEquals(fongoRule.parse("[ { \"_id\" : 1 , \"food\" : \"APPLE\"}," +
+        " { \"_id\" : 2 , \"food\" : \"CHERRY\"}," +
+        " { \"_id\" : 3 , \"food\" : \"SHEPHERD'S\"}," +
+        " { \"_id\" : 4 , \"food\" : \"CHICKEN POT\"}]"), result);
+  }
+
+  @Test
+  public void testToUpperWithValue() {
+    DBCollection coll = fongoRule.newCollection();
+    fongoRule.insertJSON(coll, "[{ _id: 1, item: { sec: \"dessert\", category: \"pie\", type: \"apple\" } },\n" +
+        "{ _id: 2, item: { sec: \"dessert\", category: \"pie\", type: \"cherry\" } },\n" +
+        "{ _id: 3, item: { sec: \"main\", category: \"pie\", type: \"shepherd's\" } },\n" +
+        "{ _id: 4, item: { sec: \"main\", category: \"pie\", type: \"chicken pot\" } }]");
+
+    DBObject project = fongoRule.parseDEObject("{ $project: { food:\n" +
+        "                                       { $toUpper: \"apple\" }\n" +
+        "                                }\n" +
+        "                   }");
+
+    AggregationOutput output = coll.aggregate(project);
+    assertTrue(output.getCommandResult().ok());
+
+    List<DBObject> result = (List<DBObject>) output.getCommandResult().get("result");
+    assertNotNull(result);
+    assertEquals(fongoRule.parse("[ { \"_id\" : 1 , \"food\" : \"APPLE\"}," +
+        " { \"_id\" : 2 , \"food\" : \"APPLE\"}," +
+        " { \"_id\" : 3 , \"food\" : \"APPLE\"}," +
+        " { \"_id\" : 4 , \"food\" : \"APPLE\"}]"), result);
+  }
+
+
+  @Test
+  public void testToLower() {
+    DBCollection coll = fongoRule.newCollection();
+    fongoRule.insertJSON(coll, "[{ _id: 1, item: { sec: \"dessert\", category: \"pie\", type: \"APPLE\" } },\n" +
+        "{ _id: 2, item: { sec: \"dessert\", category: \"pie\", type: \"CHERRY\" } },\n" +
+        "{ _id: 3, item: { sec: \"main\", category: \"pie\", type: \"shepherd's\" } },\n" +
+        "{ _id: 4, item: { sec: \"main\", category: \"pie\", type: \"chicken POT\" } }]");
+
+    DBObject project = fongoRule.parseDEObject("{ $project: { food:\n" +
+        "                                       { $toLower: \"$item.type\"\n" +
+        "                                       }\n" +
+        "                                }\n" +
+        "                   }");
+
+    AggregationOutput output = coll.aggregate(project);
+    assertTrue(output.getCommandResult().ok());
+
+    List<DBObject> result = (List<DBObject>) output.getCommandResult().get("result");
+    assertNotNull(result);
+    assertEquals(fongoRule.parse("[ { \"_id\" : 1 , \"food\" : \"apple\"}," +
+        " { \"_id\" : 2 , \"food\" : \"cherry\"}," +
+        " { \"_id\" : 3 , \"food\" : \"shepherd's\"}," +
+        " { \"_id\" : 4 , \"food\" : \"chicken pot\"}]"), result);
+  }
+
+  @Test
+  public void testToLowerWithNull() {
+    DBCollection coll = fongoRule.newCollection();
+    fongoRule.insertJSON(coll, "[{ _id: 1, item: { sec: \"dessert\", category: \"pie\", type: \"APPLE\" } },\n" +
+        "{ _id: 2, item: { sec: \"dessert\", category: \"pie\", type: \"CHERRY\" } },\n" +
+        "{ _id: 3, item: { sec: \"main\", category: \"pie\", type: \"shepherd's\" } },\n" +
+        "{ _id: 4, item: { sec: \"main\", category: \"pie\"} }]");
+
+    DBObject project = fongoRule.parseDEObject("{ $project: { food:\n" +
+        "                                       { $toLower: \"$item.type\"\n" +
+        "                                       }\n" +
+        "                                }\n" +
+        "                   }");
+
+    AggregationOutput output = coll.aggregate(project);
+    assertTrue(output.getCommandResult().ok());
+
+    List<DBObject> result = (List<DBObject>) output.getCommandResult().get("result");
+    assertNotNull(result);
+    assertEquals(fongoRule.parse("[ { \"_id\" : 1 , \"food\" : \"apple\"}," +
+        " { \"_id\" : 2 , \"food\" : \"cherry\"}," +
+        " { \"_id\" : 3 , \"food\" : \"shepherd's\"}," +
+        " { \"_id\" : 4 , \"food\" : \"\"}]"), result);
+  }
+
+  @Test
+  public void testToLowerMustHandleArray() {
+    DBCollection coll = fongoRule.newCollection();
+    fongoRule.insertJSON(coll, "[{ _id: 1, item: { sec: \"dessert\", category: \"pie\", type: \"APPLE\" } },\n" +
+        "{ _id: 2, item: { sec: \"dessert\", category: \"pie\", type: \"CHERRY\" } },\n" +
+        "{ _id: 3, item: { sec: \"main\", category: \"pie\", type: \"SHEPHERD'S\" } },\n" +
+        "{ _id: 4, item: { sec: \"main\", category: \"pie\", type: \"CHICKEN pot\" } }]");
+
+    DBObject project = fongoRule.parseDEObject("{ $project: { food:\n" +
+        "                                       { $toLower: [ \"$item.type\" ]\n" +
+        "                                       }\n" +
+        "                                }\n" +
+        "                   }");
+
+    AggregationOutput output = coll.aggregate(project);
+    assertTrue(output.getCommandResult().ok());
+
+    List<DBObject> result = (List<DBObject>) output.getCommandResult().get("result");
+    assertNotNull(result);
+    assertEquals(fongoRule.parse("[ { \"_id\" : 1 , \"food\" : \"apple\"}," +
+        " { \"_id\" : 2 , \"food\" : \"cherry\"}," +
+        " { \"_id\" : 3 , \"food\" : \"shepherd's\"}," +
+        " { \"_id\" : 4 , \"food\" : \"chicken pot\"}]"), result);
+  }
+
+  @Test
+  public void testToLowerMustNotHandleBigArray() {
+    //com.mongodb.CommandFailureException: { "serverUsed" : "/127.0.0.1:27017" , "errmsg" : "exception: the $toLower operator requires 1 operand(s)" , "code" : 16020 , "ok" : 0.0}
+    ExpectedMongoException.expectCommandFailure(exception, 16020);
+    DBCollection coll = fongoRule.newCollection();
+    fongoRule.insertJSON(coll, "[{ _id: 1, item: { sec: \"dessert\", category: \"pie\", type: \"APPLE\" } },\n" +
+        "{ _id: 2, item: { sec: \"dessert\", category: \"pie\", type: \"CHERRY\" } },\n" +
+        "{ _id: 3, item: { sec: \"main\", category: \"pie\", type: \"SHEPHERD'S\" } },\n" +
+        "{ _id: 4, item: { sec: \"main\", category: \"pie\", type: \"CHICKEN pot\" } }]");
+
+    DBObject project = fongoRule.parseDEObject("{ $project: { food:\n" +
+        "                                       { $toLower: [ \"$item.type\", \"$item.category\" ]\n" +
+        "                                       }\n" +
+        "                                }\n" +
+        "                   }");
+
+    coll.aggregate(project);
+  }
+
+  @Test
+  public void testToLowerWithValue() {
+    DBCollection coll = fongoRule.newCollection();
+    fongoRule.insertJSON(coll, "[{ _id: 1, item: { sec: \"dessert\", category: \"pie\", type: \"apple\" } },\n" +
+        "{ _id: 2, item: { sec: \"dessert\", category: \"pie\", type: \"cherry\" } },\n" +
+        "{ _id: 3, item: { sec: \"main\", category: \"pie\", type: \"shepherd's\" } },\n" +
+        "{ _id: 4, item: { sec: \"main\", category: \"pie\", type: \"chicken pot\" } }]");
+
+    DBObject project = fongoRule.parseDEObject("{ $project: { food:\n" +
+        "                                       { $toLower: \"APPLE\" }\n" +
+        "                                }\n" +
+        "                   }");
+
+    AggregationOutput output = coll.aggregate(project);
+    assertTrue(output.getCommandResult().ok());
+
+    List<DBObject> result = (List<DBObject>) output.getCommandResult().get("result");
+    assertNotNull(result);
+    assertEquals(fongoRule.parse("[ { \"_id\" : 1 , \"food\" : \"apple\"}," +
+        " { \"_id\" : 2 , \"food\" : \"apple\"}," +
+        " { \"_id\" : 3 , \"food\" : \"apple\"}," +
+        " { \"_id\" : 4 , \"food\" : \"apple\"}]"), result);
   }
 
   @Test

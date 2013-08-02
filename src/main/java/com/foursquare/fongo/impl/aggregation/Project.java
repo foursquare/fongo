@@ -90,6 +90,10 @@ public class Project extends PipelineKeyword {
 
   private enum Keyword {
     RENAME(null) {
+      @Override
+      void doWork(DBCollection coll, DBObject projectResult, Map<String, Projected> projectedFields, String key, Object value, String namespace) {
+      }
+
       // Only a renaming.
       @Override
       public void unapply(DBObject result, DBObject object, Projected projected, String key) {
@@ -99,7 +103,15 @@ public class Project extends PipelineKeyword {
       }
     },
     ALL(null) {
+      @Override
+      void doWork(DBCollection coll, DBObject projectResult, Map<String, Projected> projectedFields, String key, Object value, String namespace) {
+        throw new IllegalStateException();
+      }
 
+      @Override
+      public void unapply(DBObject result, DBObject object, Projected projected, String key) {
+        throw new IllegalStateException();
+      }
     },
     IFNULL("$ifNull", true) {
       @Override
@@ -244,10 +256,67 @@ public class Project extends PipelineKeyword {
             result.put(projected.destName, strcmp < 0 ? -1 : strcmp > 1 ? 1 : 0);
             projected.done();
           }
-
         },
-    TOLOWER("$toLower"),
-    TOUPPER("$toUpper");
+    TOLOWER("$toLower", true) {
+      @Override
+      void doWork(DBCollection coll, DBObject projectResult, Map<String, Projected> projectedFields, String key, Object value, String namespace) {
+        String operandValue = null;
+        if (value instanceof List) {
+          List values = (List) value;
+          if (values.size() != 1) {
+            //com.mongodb.CommandFailureException: { "serverUsed" : "/127.0.0.1:27017" , "errmsg" : "exception: the $toLower operator requires 1 operand(s)" , "code" : 16020 , "ok" : 0.0}
+            errorResult(coll, 16020, "the $toLower operator requires 1 operand(s)");
+          }
+          operandValue = (String) values.get(0);
+        } else {
+          operandValue = value.toString();
+        }
+        Projected projected = Projected.projection(this, key);
+        createMapping(coll, projectResult, projectedFields, operandValue, operandValue, namespace, projected);
+      }
+
+      @Override
+      public void unapply(DBObject result, DBObject object, Projected projected, String key) {
+        Object value = extractValue(object, projected.infos.get(0));
+        if (value == null) {
+          value = "";
+        } else {
+          value = value.toString().toLowerCase();
+        }
+        result.put(projected.destName, value);
+        projected.done();
+      }
+    },
+    TOUPPER("$toUpper", true) {
+      @Override
+      void doWork(DBCollection coll, DBObject projectResult, Map<String, Projected> projectedFields, String key, Object value, String namespace) {
+        String operandValue = null;
+        if (value instanceof List) {
+          List values = (List) value;
+          if (values.size() != 1) {
+            //com.mongodb.CommandFailureException: { "serverUsed" : "/127.0.0.1:27017" , "errmsg" : "exception: the $toLower operator requires 1 operand(s)" , "code" : 16020 , "ok" : 0.0}
+            errorResult(coll, 16020, "the $toUpper operator requires 1 operand(s)");
+          }
+          operandValue = (String) values.get(0);
+        } else {
+          operandValue = value.toString();
+        }
+        Projected projected = Projected.projection(this, key);
+        createMapping(coll, projectResult, projectedFields, operandValue, operandValue, namespace, projected);
+      }
+
+      @Override
+      public void unapply(DBObject result, DBObject object, Projected projected, String key) {
+        Object value = extractValue(object, projected.infos.get(0));
+        if (value == null) {
+          value = "";
+        } else {
+          value = value.toString().toUpperCase();
+        }
+        result.put(projected.destName, value);
+        projected.done();
+      }
+    };
 
     final String keyword;
 
@@ -277,10 +346,7 @@ public class Project extends PipelineKeyword {
       return ret;
     }
 
-    // TODO : must be abstract
-    void doWork(DBCollection coll, DBObject projectResult, Map<String, Projected> projectedFields, String key, Object value, String namespace) {
-
-    }
+    abstract void doWork(DBCollection coll, DBObject projectResult, Map<String, Projected> projectedFields, String key, Object value, String namespace);
 
     public final void apply(DBCollection coll, DBObject projectResult, Map<String, Projected> projectedFields, String key, DBObject value, String namespace) {
       doWork(coll, projectResult, projectedFields, key, value.get(this.keyword), namespace);
@@ -349,12 +415,8 @@ public class Project extends PipelineKeyword {
       ((FongoDB) coll.getDB()).notOkErrorResult(code, err).throwOnError();
     }
 
-    // TODO : must be abstract
     // Translate from result of find to user field.
-    public void unapply(DBObject result, DBObject object, Projected projected, String key) {
-      Object value = Util.extractField(object, key);
-      Util.putValue(result, projected.infos.get(0), value);
-    }
+    public abstract void unapply(DBObject result, DBObject object, Projected projected, String key);
   }
 
   /**
