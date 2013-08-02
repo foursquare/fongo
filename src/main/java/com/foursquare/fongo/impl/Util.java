@@ -120,6 +120,10 @@ public class Util {
   }
 
   public static <T extends DBObject> T clone(T source) {
+    if (source == null) {
+      return null;
+    }
+    
     if (source instanceof BasicDBObject) {
       @SuppressWarnings("unchecked")
       T clone = (T) ((BasicDBObject) source).copy();

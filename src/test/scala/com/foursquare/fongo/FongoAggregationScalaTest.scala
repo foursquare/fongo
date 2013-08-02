@@ -74,7 +74,7 @@ class FongoAggregationScalaTest extends FongoAbstractTest with ParallelTestExecu
     val sort = new BasicDBObject("$sort", new BasicDBObject("date", 1))
     val group = new BasicDBObject("$group", new BasicDBObject("_id", "0").append("date", new BasicDBObject("$last", "$date")))
     val output: AggregationOutput = collection.aggregate(`match`, sort, group)
-    var result = 0
+    var result = -1
     if (output.getCommandResult.ok && output.getCommandResult.containsField("result")) {
       val resultAggregate: DBObject = (output.getCommandResult.get("result").asInstanceOf[DBObject]).get("0").asInstanceOf[DBObject]
       if (resultAggregate != null && resultAggregate.containsField("date")) {
@@ -348,4 +348,25 @@ class FongoAggregationScalaTest extends FongoAbstractTest with ParallelTestExecu
     assert(result.size() === 1)
     assert(result.get(0).asInstanceOf[DBObject].get("a") === Util.list(1, 2, 3, 4))
   }
+
+  test("Fongo should handle sort") {
+    val `match`: DBObject = new BasicDBObject("$match", new BasicDBObject("myId", new BasicDBObject("$in", Util.list("p1", "p2", "p3"))))
+    val sort = new BasicDBObject("$sort", new BasicDBObject("date", 1))
+    val output: AggregationOutput = collection.aggregate(`match`, sort)
+    println(output)
+    var lastDate = -1
+    if (output.getCommandResult.ok && output.getCommandResult.containsField("result")) {
+      val resultAggregate: java.util.List[DBObject] = (output.getCommandResult.get("result").asInstanceOf[java.util.List[DBObject]])
+      val it = resultAggregate.iterator()
+      while (it.hasNext) {
+        val date = it.next().get("date").asInstanceOf[Number].intValue();
+        assert(lastDate < date)
+        lastDate = date
+      }
+    }
+
+
+    assert(7 === lastDate)
+  }
+
 }
