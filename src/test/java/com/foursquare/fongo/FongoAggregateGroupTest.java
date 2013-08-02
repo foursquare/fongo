@@ -8,6 +8,7 @@ import java.util.List;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -20,6 +21,7 @@ public class FongoAggregateGroupTest {
    * See http://docs.mongodb.org/manual/reference/aggregation/concat/
    */
   @Test
+  @Ignore("@twillouer")
   public void testConcat() {
     DBCollection coll = fongoRule.newCollection();
     fongoRule.insertJSON(coll, "[{ _id: 1, item: { sec: \"dessert\", category: \"pie\", type: \"apple\" } },\n" +
