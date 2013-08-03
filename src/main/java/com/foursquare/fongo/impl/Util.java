@@ -118,6 +118,16 @@ public class Util {
       return path;
     }
   }
+  
+  public static boolean isPositiveInt(String s){
+    for (int i = 0; i < s.length(); i++) {
+      char c = s.charAt(i);
+      if (c < '0' || c > '9') {
+        return false;
+      }
+    }
+    return true;
+  }
 
   public static <T extends DBObject> T clone(T source) {
     if (source == null) {
