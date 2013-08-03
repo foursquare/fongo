@@ -113,12 +113,16 @@ public class MapReduce {
       try {
         engine.eval(construct.toString());
         Object object1 = engine.get("$$$fongoOut1$$$");
-        Object object2 = engine.get("$$$fongoOut2$$$");
-        if (!mapKeyValue.containsKey(object1)) {            // TODO optim.
-          mapKeyValue.put(object1, new ArrayList<Object>());
+        if (object1 != null) {
+          Object object2 = engine.get("$$$fongoOut2$$$");
+          List<Object> emitList = mapKeyValue.get(object1);
+          if (emitList == null) {
+            emitList = new ArrayList<Object>();
+            mapKeyValue.put(object1, emitList);
+          }
+          emitList.add(object2);
+          LOG.debug("emit({},{})", object1, object2);
         }
-        mapKeyValue.get(object1).add(object2);
-        LOG.debug("emit({},{})", object1, object2);
       } catch (ScriptException e) {
         throw new RuntimeException(e); // TODO
       }
