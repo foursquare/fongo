@@ -128,7 +128,8 @@ public class Index {
    * @return
    */
   private synchronized DBObject getKeyFor(DBObject object) {
-    return FongoDBCollection.applyProjections(object, keys);
+    DBObject applyProjections = FongoDBCollection.applyProjections(object, keys);
+    return applyProjections;
   }
 
   /**

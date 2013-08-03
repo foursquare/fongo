@@ -323,10 +323,6 @@ public class ExpressionParser {
       }
   );
 
-  public boolean isInt(String s) {
-    return s.matches("[0-9]+");
-  }
-
   boolean objectMatchesPattern(Object obj, Pattern pattern) {
     if (obj instanceof CharSequence) {
       if (pattern.matcher((CharSequence) obj).find()) {
@@ -373,7 +369,7 @@ public class ExpressionParser {
       Object value = dbo.get(subKey);
       if (value instanceof DBObject && !(value instanceof List)) {
         dbo = (DBObject) value;
-      } else if (value instanceof List && isInt(path.get(i + 1))) {
+      } else if (value instanceof List && Util.isPositiveInt(path.get(i + 1))) {
         BasicDBList newList = Util.wrap((List) value);
         dbo = newList;
       } else if (value instanceof List) {

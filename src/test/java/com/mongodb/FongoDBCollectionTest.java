@@ -2,6 +2,9 @@ package com.mongodb;
 
 import static org.junit.Assert.assertEquals;
 
+import java.util.Arrays;
+import java.util.List;
+
 import org.junit.Before;
 import org.junit.Test;
 
@@ -55,5 +58,42 @@ public class FongoDBCollectionTest {
   public void applyProjectionsInclusionsAndExclusionsMixedThrowsException() {
     BasicDBObject obj = new BasicDBObject().append("_id", "_id").append("a", "a").append("b", "b");
     collection.applyProjections(obj, new BasicDBObject().append("a", 1).append("b", 0));
+  }
+
+
+  @Test
+  public void applyNestedArrayFieldProjection() {
+    BasicDBObject obj = new BasicDBObject("_id", 1).append("name","foo")
+      .append("seq", Arrays.asList(new BasicDBObject("a", "b"), new BasicDBObject("c", "b")));
+    collection.insert(obj);
+
+    List<DBObject> results = collection.find(new BasicDBObject("_id", 1), 
+        new BasicDBObject("_id", -1).append("seq.a", 1)).toArray();
+
+    BasicDBObject expectedResult = new BasicDBObject("seq", 
+      Arrays.asList(new BasicDBObject("a", "b"), new BasicDBObject()));
+
+    assertEquals("should have projected result", Arrays.asList(expectedResult), results);
+  }
+  
+  @Test
+  public void applyNestedFieldProjection() {
+    
+    collection.insert(new BasicDBObject("_id", 1)
+      .append("a",new BasicDBObject("b", new BasicDBObject("c", 1))));
+    
+    collection.insert(new BasicDBObject("_id", 2)
+      .append("a",new BasicDBObject("b", 1)));
+    
+    collection.insert(new BasicDBObject("_id", 3));
+
+    List<DBObject> results = collection.find(new BasicDBObject(), 
+        new BasicDBObject("_id", -1).append("a.b.c", 1)).toArray();
+
+    assertEquals("should have projected result", Arrays.asList(
+      new BasicDBObject("a",new BasicDBObject("b", new BasicDBObject("c", 1))),
+      new BasicDBObject("a",new BasicDBObject()),
+      new BasicDBObject()
+    ), results);
   }
 }

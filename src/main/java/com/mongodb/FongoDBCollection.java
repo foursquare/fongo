@@ -1,17 +1,30 @@
 package com.mongodb;
 
-import com.foursquare.fongo.FongoException;
-import com.foursquare.fongo.impl.ExpressionParser;
-import com.foursquare.fongo.impl.Filter;
-import com.foursquare.fongo.impl.Index;
-import com.foursquare.fongo.impl.UpdateEngine;
-import com.foursquare.fongo.impl.Util;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Iterator;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.ListIterator;
+import java.util.Map;
+import java.util.Set;
+
 import org.bson.BSON;
 import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
+import com.foursquare.fongo.FongoException;
+import com.foursquare.fongo.impl.ExpressionParser;
+import com.foursquare.fongo.impl.Filter;
+import com.foursquare.fongo.impl.Index;
+import com.foursquare.fongo.impl.Tuple2;
+import com.foursquare.fongo.impl.UpdateEngine;
+import com.foursquare.fongo.impl.Util;
 
 /**
  * fongo override of com.mongodb.DBCollection
@@ -459,68 +472,85 @@ public class FongoDBCollection extends DBCollection {
     return ret;
   }
 
-  /**
-   * Applies the requested <a href=
-   * "http://docs.mongodb.org/manual/core/read-operations/#result-projections"
-   * >projections</a> to the given object.
-   */
-  // TODO(twillouer) : remove static (can we take it into ExpressionFilter or somethings like this ?)
-  public static DBObject applyProjections(DBObject result, DBObject projection) {
-    Set<String> projectedFields = getProjectedFields(result, projection);
-    LOG.debug("fields after projection of {}: {}", projection, projectedFields);
 
-    BasicDBObject ret = new BasicDBObject();
+  private static void addValuesAtPath(BasicDBObject ret, DBObject dbo, List<String> path, int startIndex) {
+    String subKey = path.get(startIndex);
+    Object value = dbo.get(subKey);
 
-    for (String field : projectedFields) {
-      Object value = result.get(field);
-
-      if (value instanceof DBObject) {
-        value = Util.clone((DBObject) value);
+    if (path.size() > startIndex + 1) {
+      if (value instanceof DBObject && !(value instanceof List)){
+        BasicDBObject nb = new BasicDBObject();
+        ret.append(subKey, nb);
+        addValuesAtPath(nb, (DBObject) value, path, startIndex + 1);
+      } else if (value instanceof List) {
+        BasicDBList list = new BasicDBList();
+        ret.append(subKey, list);
+        for (Object v : (List) value) {
+          if (v instanceof DBObject) {
+            BasicDBObject nb = new BasicDBObject();
+            list.add(nb);
+            addValuesAtPath(nb, (DBObject) v, path, startIndex + 1);
+          }
+        }
       }
-
-      ret.append(field, value);
+    } else if (value != null) {
+      ret.append(subKey, value);
     }
-
-    return ret;
   }
 
-  // TODO(twillouer) : remove static
-  private static Set<String> getProjectedFields(DBObject result, DBObject projections) {
-    Set<String> includedFields = new HashSet<String>();
-    Set<String> excludedFields = new HashSet<String>();
+  /**
+   * Applies the requested <a href="http://docs.mongodb.org/manual/core/read-operations/#result-projections">projections</a> to the given object.
+   * TODO: Support for projection operators: http://docs.mongodb.org/manual/reference/operator/projection/
+   */
+  public static DBObject applyProjections(DBObject result, DBObject projectionObject) {
 
-    for (String field : projections.keySet()) {
-      boolean included = ((Number) projections.get(field)).intValue() > 0;
-
-      if (included) {
-        includedFields.add(field);
+    int inclusionCount = 0;
+    int exclusionCount = 0;
+    
+    boolean wasIdExcluded = false;
+    List<Tuple2<List<String>,Boolean>> projections = new ArrayList<Tuple2<List<String>, Boolean>>();
+    for (String projectionKey : projectionObject.keySet()) {
+      boolean included = ((Number) projectionObject.get(projectionKey)).intValue() > 0;
+      List<String> projectionPath = Util.split(projectionKey);
+      
+      if (!ID_KEY.equals(projectionKey)) {
+        if (included) {
+          inclusionCount++;
+        } else {
+          exclusionCount++;
+        }
       } else {
-        excludedFields.add(field);
+        wasIdExcluded = !included;
+      }
+      if (projectionPath.size() > 0) {
+        projections.add(new Tuple2<List<String>, Boolean>(projectionPath, included));
       }
     }
 
-    boolean including = !includedFields.isEmpty();
-    boolean excluding = excludedFields.size() > (excludedFields.contains(ID_KEY) ? 1 : 0);
-
-    if (including && excluding) {
+    if (inclusionCount > 0 && exclusionCount > 0) {
       throw new IllegalArgumentException(
           "You cannot combine inclusion and exclusion semantics in a single projection with the exception of the _id field: "
-              + projections);
+              + projectionObject);
     }
-
-    // the _id is always returned unless explicitly excluded
-    if (including && !excludedFields.contains(ID_KEY)) {
-      includedFields.add(ID_KEY);
-    }
-
-    Set<String> fieldsToRetain = new HashSet<String>(result.keySet());
-    if (including) {
-      fieldsToRetain.retainAll(includedFields);
+    
+    BasicDBObject ret;
+    if (exclusionCount > 0) {
+      ret = (BasicDBObject) Util.clone(result);
     } else {
-      fieldsToRetain.removeAll(excludedFields);
+      ret = new BasicDBObject();
+      if (!wasIdExcluded) {
+        ret.append(ID_KEY, result.get(ID_KEY));
+      }
     }
-
-    return fieldsToRetain;
+    
+    for (Tuple2<List<String>,Boolean> projection : projections) {
+      if (projection._1.size() == 1 && !projection._2) {
+        ret.removeField(projection._1.get(0));
+      } else {
+        addValuesAtPath(ret, result, projection._1, 0);
+      }
+    }
+    return ret;
   }
 
   public Iterable<DBObject> sortObjects(final DBObject orderby, final Collection<DBObject> objects) {
