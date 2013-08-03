@@ -102,6 +102,7 @@ public class MapReduce {
     // Mode replace.
     outmode.initCollection(coll);
 
+    // TODO use Compilable ? http://www.jmdoudoux.fr/java/dej/chap-scripting.htm
     ScriptEngineManager manager = new ScriptEngineManager();
     ScriptEngine engine = manager.getEngineByName("rhino");
     StringBuilder construct = new StringBuilder();
@@ -124,7 +125,7 @@ public class MapReduce {
           LOG.debug("emit({},{})", object1, object2);
         }
       } catch (ScriptException e) {
-        throw new RuntimeException(e); // TODO
+        fongoDB.notOkErrorResult(16722, "JavaScript execution failed: " + e.getMessage()).throwOnError();
       }
     }
 
@@ -138,7 +139,7 @@ public class MapReduce {
         toInsert.put("value", JSON.parse(String.valueOf(result)));
         outmode.newResult(coll, toInsert);
       } catch (ScriptException e) {
-        throw new RuntimeException(e); // TODO
+        fongoDB.notOkErrorResult(16722, "JavaScript execution failed: " + e.getMessage()).throwOnError();
       }
     }
 
@@ -183,5 +184,4 @@ public class MapReduce {
         "    return a;" +
         "};");
   }
-
 }
