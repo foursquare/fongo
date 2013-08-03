@@ -64,9 +64,9 @@ public class FongoDB extends DB {
     return aggregator.computeResult();
   }
 
-  private DBObject doMapReduce(String collection, String map, String reduce, DBObject out, DBObject query) {
+  private DBObject doMapReduce(String collection, String map, String reduce, DBObject out, DBObject query, DBObject sort, Number limit) {
     FongoDBCollection coll = doGetCollection(collection);
-    MapReduce mapReduce = new MapReduce(this, coll, map, reduce, out, query);
+    MapReduce mapReduce = new MapReduce(this, coll, map, reduce, out, query, sort, limit);
     return mapReduce.computeResult();
   }
 
@@ -167,7 +167,8 @@ public class FongoDB extends DB {
       return okResult;
     } else if (cmd.containsField("mapreduce")) {
       System.out.println(cmd);
-      DBObject result = doMapReduce((String) cmd.get("mapreduce"), (String) cmd.get("map"), (String) cmd.get("reduce"), (DBObject) cmd.get("out"), (DBObject) cmd.get("query"));
+      // TODO : sort/limit
+      DBObject result = doMapReduce((String) cmd.get("mapreduce"), (String) cmd.get("map"), (String) cmd.get("reduce"), (DBObject) cmd.get("out"), (DBObject) cmd.get("query"), (DBObject) cmd.get("sort"), (Number) cmd.get("limit"));
       if (result == null) {
         return notOkErrorResult("can't mapReduce");
       }

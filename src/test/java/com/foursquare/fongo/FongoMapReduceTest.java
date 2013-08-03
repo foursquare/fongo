@@ -13,11 +13,13 @@ import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
 import com.mongodb.DBRef;
 import com.mongodb.FongoDBCollection;
+import com.mongodb.MapReduceOutput;
 import com.mongodb.MongoException;
 import com.mongodb.QueryBuilder;
 import com.mongodb.WriteConcern;
 import com.mongodb.WriteResult;
 import com.mongodb.util.JSON;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -62,9 +64,37 @@ public class FongoMapReduceTest {
 
 
     List<DBObject> results = fongoRule.newCollection("result").find().toArray();
-    System.out.println(results);
-    assertEquals(fongoRule.parse("[{ \"_id\" : \"www.google.com\" , \"value\" : { \"count\" : 2.0}}, { \"_id\" : \"www.no-fucking-idea.com\" , \"value\" : { \"count\" : 3.0}}]\n"), results);
-//    coll.mapReduce()
+    assertEquals(fongoRule.parse("[{ \"_id\" : \"www.google.com\" , \"value\" : { \"count\" : 2.0}}, { \"_id\" : \"www.no-fucking-idea.com\" , \"value\" : { \"count\" : 3.0}}]"), results);
   }
 
+
+  @Test
+  public void testZipMapReduce() throws IOException {
+    DBCollection coll = fongoRule.newCollection();
+    fongoRule.insertFile(coll, "/zips.json");
+
+    String map = "function () {\n" +
+        "    var pitt = [-80.064879, 40.612044];\n" +
+        "    var phil = [-74.978052, 40.089738];\n" +
+        "\n" +
+        "    function distance(a, b) {\n" +
+        "        var dx = a[0] - b[0];\n" +
+        "        var dy = a[1] - b[1];\n" +
+        "        return Math.sqrt(dx * dx + dy * dy);\n" +
+        "    }\n" +
+        "\n" +
+        "    if (distance(this.loc, pitt) < distance(this.loc, phil)) {\n" +
+        "        emit(\"pitt\",1);\n" +
+        "    } else {\n" +
+        "        emit(\"phil\",1);\n" +
+        "    }\n" +
+        "}\n";
+    String reduce = "function(name, values) {                           return Array.sum(values);                       };";
+
+    MapReduceOutput output = coll.mapReduce(map, reduce, "result", new BasicDBObject("state", "MA"));
+
+    List<DBObject> results = fongoRule.newCollection("result").find().toArray();
+
+    assertEquals(fongoRule.parse("[{ \"_id\" : \"phil\" , \"value\" : 474.0}]"), results);
+  }
 }

@@ -7,6 +7,10 @@ import com.mongodb.Mongo;
 import com.mongodb.MongoClient;
 import com.mongodb.util.JSON;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import org.junit.rules.ExternalResource;
 
 import java.net.UnknownHostException;
@@ -67,6 +71,22 @@ public class FongoRule extends ExternalResource {
     List<DBObject> objects = parseList(json);
     for (DBObject object : objects) {
       coll.insert(object);
+    }
+  }
+
+  public void insertFile(DBCollection coll, String filename) throws IOException {
+    InputStream is = this.getClass().getResourceAsStream(filename);
+    try {
+      BufferedReader br = new BufferedReader(new InputStreamReader(is));
+      String line = br.readLine();
+      while (line != null) {
+        coll.insert(this.parseDEObject(line));
+        line = br.readLine();
+      }
+    } finally {
+      if (is != null) {
+        is.close();
+      }
     }
   }
 
