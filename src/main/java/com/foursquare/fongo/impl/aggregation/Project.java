@@ -6,6 +6,8 @@ import com.mongodb.DBCollection;
 import com.mongodb.DBObject;
 import com.mongodb.FongoDB;
 import com.mongodb.FongoDBCollection;
+import com.mongodb.MongoException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -26,41 +28,33 @@ public class Project extends PipelineKeyword {
   private Project() {
   }
 
-  private static class Projected {
-    final Keyword keyword;
+  static abstract class ProjectedAbstract<T extends ProjectedAbstract> {
+    protected static final Map<String, Class<? extends ProjectedAbstract>> projectedAbstractMap = new HashMap<String, Class<? extends ProjectedAbstract>>();
+
+    static {
+      projectedAbstractMap.put(ProjectedStrcasecmp.KEYWORD, ProjectedStrcasecmp.class);
+      projectedAbstractMap.put(ProjectedCmp.KEYWORD, ProjectedCmp.class);
+      projectedAbstractMap.put(ProjectedSubstr.KEYWORD, ProjectedSubstr.class);
+      projectedAbstractMap.put(ProjectedIfNull.KEYWORD, ProjectedIfNull.class);
+      projectedAbstractMap.put(ProjectedConcat.KEYWORD, ProjectedConcat.class);
+      projectedAbstractMap.put(ProjectedToLower.KEYWORD, ProjectedToLower.class);
+      projectedAbstractMap.put(ProjectedToUpper.KEYWORD, ProjectedToUpper.class);
+    }
+
+    final String keyword;
 
     final String destName;
 
     final List<String> infos = new ArrayList<String>();
 
-    final List<Object> results = new ArrayList<Object>();
-
-    /**
-     * Set to true when work is done (unapply successful).
-     */
-    boolean done = false;
-
-    private Projected(Keyword keyword, String destName) {
+    private ProjectedAbstract(String keyword, String destName, DBObject object) {
       this.keyword = keyword;
       this.destName = destName;
     }
 
-    public Projected addInfo(String info) {
+    public T addInfo(String info) {
       infos.add(info);
-      return this;
-    }
-
-    public Projected addResult(Object result) {
-      results.add(result);
-      return this;
-    }
-
-    public static Projected defaultProjection(String destName) {
-      return projection(Keyword.RENAME, destName);
-    }
-
-    public static Projected projection(Keyword keyword, String destName) {
-      return new Projected(keyword, destName);
+      return (T) this;
     }
 
     /**
@@ -70,292 +64,12 @@ public class Project extends PipelineKeyword {
      * @param object
      * @param key
      */
-    public void unapply(DBObject result, DBObject object, String key) {
-      this.keyword.unapply(result, object, this, key);
-    }
+    public abstract void unapply(DBObject result, DBObject object, String key);
 
-    public void done() {
-      done = true;
-    }
+    abstract void doWork(DBCollection coll, DBObject projectResult, Map<String, ProjectedAbstract> projectedFields, String key, Object value, String namespace);
 
-    public boolean isDone() {
-      return done;
-    }
-
-    public void setDone(boolean done) {
-      this.done = done;
-    }
-  }
-
-  private enum Keyword {
-    RENAME(null) {
-      @Override
-      void doWork(DBCollection coll, DBObject projectResult, Map<String, Projected> projectedFields, String key, Object value, String namespace) {
-      }
-
-      // Only a renaming.
-      @Override
-      public void unapply(DBObject result, DBObject object, Projected projected, String key) {
-        Object value = Util.extractField(object, key);
-        Util.putValue(result, projected.destName, value);
-        projected.done();
-      }
-    },
-    ALL(null) {
-      @Override
-      void doWork(DBCollection coll, DBObject projectResult, Map<String, Projected> projectedFields, String key, Object value, String namespace) {
-        throw new IllegalStateException();
-      }
-
-      @Override
-      public void unapply(DBObject result, DBObject object, Projected projected, String key) {
-        throw new IllegalStateException();
-      }
-    },
-    IFNULL("$ifNull", true) {
-      @Override
-      void doWork(DBCollection coll, DBObject projectResult, Map<String, Projected> projectedFields, String key, Object value, String namespace) {
-        if (!(value instanceof List) || ((List) value).size() != 2) {
-//	"errmsg" : "exception: the $strcasecmp operator requires an array of 2 operands",
-//        "code" : 16019,
-          errorResult(coll, 16020, "the $ifNull operator requires an array of 2 operands");
-        }
-        List<String> values = (List<String>) value;
-        Projected projected = Projected.projection(this, key);
-        createMapping(coll, projectResult, projectedFields, (String) values.get(0), values.get(0), namespace, projected);
-        createMapping(coll, projectResult, projectedFields, (String) values.get(1), values.get(1), namespace, projected);
-        projected.done();
-      }
-
-      @Override
-      public void unapply(DBObject result, DBObject object, Projected projected, String key) {
-        Object value = extractValue(object, projected.infos.get(0));
-        if (value == null) {
-          value = extractValue(object, projected.infos.get(1));
-        }
-        result.put(projected.destName, value);
-        projected.done();
-      }
-
-    },
-    CONCAT("$concat") {
-      @Override
-      void doWork(DBCollection coll, DBObject projectResult, Map<String, Projected> projectedFields, String key, Object value, String namespace) {
-        if (!(value instanceof List) || ((List) value).size() == 0) {
-//	"errmsg" : "exception: the $strcasecmp operator requires an array of 2 operands",
-//        "code" : 16019,
-          errorResult(coll, 16020, "the $concat operator requires an array of operands");
-        }
-        List<Object> fields = (List<Object>) value;
-        Projected projected = Projected.projection(this, key);
-        for (Object field : fields) {
-          if (field instanceof String) {
-            createMapping(coll, projectResult, projectedFields, (String) field, (String) field, namespace, projected);
-          } else if (field instanceof DBObject) {
-            // $concat : [ { $ifnull : [ "$item", "item is null" ] } ]
-          }
-        }
-      }
-
-      @Override
-      public void unapply(DBObject result, DBObject object, Projected projected, String key) {
-        StringBuilder sb = new StringBuilder();
-        for (String info : projected.infos) {
-          Object value = extractValue(object, info);
-          if (value == null) {
-            result.put(projected.destName, null);
-            return;
-          } else {
-            String str = value.toString();
-            sb.append(str);
-          }
-        }
-        result.put(projected.destName, sb.toString());
-        projected.done();
-      }
-    },
-    SUBSTR("$substr", true) {
-      @Override
-      void doWork(DBCollection coll, DBObject projectResult, Map<String, Projected> projectedFields, String key, Object value, String namespace) {
-        if (!(value instanceof List) || ((List) value).size() != 3) {
-          //com.mongodb.CommandFailureException: { "serverUsed" : "/127.0.0.1:27017" , "errmsg" : "exception: the $substr operator requires 3 operand(s)" , "code" : 16020 , "ok" : 0.0}
-          errorResult(coll, 16020, "the $substr operator requires an array of 3 operands");
-        }
-        List<Object> values = (List<Object>) value;
-        Projected projected = Projected.projection(this, key);
-        projected.addInfo(String.valueOf(((Number) values.get(1)).intValue()));
-        projected.addInfo(String.valueOf(((Number) values.get(2)).intValue()));
-        createMapping(coll, projectResult, projectedFields, (String) values.get(0), values.get(0), namespace, projected);
-      }
-
-      @Override
-      public void unapply(DBObject result, DBObject object, Projected projected, String key) {
-        int start = Integer.valueOf(projected.infos.get(0));
-        int end = Integer.valueOf(projected.infos.get(1));
-        Object exracted = extractValue(object, projected.infos.get(2));
-        String value = exracted == null ? null : String.valueOf(exracted);
-        if (value == null) {
-          value = "";
-        } else {
-          if (start >= value.length()) {
-            value = "";
-          } else {
-            value = value.substring(start, Math.min(end, value.length()));
-          }
-        }
-
-        result.put(projected.destName, value);
-        projected.done();
-      }
-
-    },
-    STRCASECMP("$strcasecmp") {
-      @Override
-      void doWork(DBCollection coll, DBObject projectResult, Map<String, Projected> projectedFields, String key, Object value, String namespace) {
-        if (!(value instanceof List) || ((List) value).size() != 2) {
-//	"errmsg" : "exception: the $strcasecmp operator requires an array of 2 operands",
-//        "code" : 16019,
-          errorResult(coll, 16020, "the $strcasecmp operator requires an array of 2 operands");
-        }
-        List<String> values = (List<String>) value;
-        Projected projected = Projected.projection(this, key);
-        createMapping(coll, projectResult, projectedFields, (String) values.get(0), values.get(0), namespace, projected);
-        createMapping(coll, projectResult, projectedFields, (String) values.get(1), values.get(1), namespace, projected);
-      }
-
-      @Override
-      public void unapply(DBObject result, DBObject object, Projected projected, String key) {
-        String value = extractValue(object, projected.infos.get(0)).toString().toLowerCase();
-        String secondValue = extractValue(object, projected.infos.get(1)).toString().toLowerCase();
-        int strcmp = value.compareTo(secondValue);
-        result.put(projected.destName, strcmp < 0 ? -1 : strcmp > 1 ? 1 : 0);
-        projected.done();
-      }
-    },
-    CMP("$cmp") // case sensitive
-        {
-          @Override
-          void doWork(DBCollection coll, DBObject projectResult, Map<String, Projected> projectedFields, String key, Object value, String namespace) {
-            if (!(value instanceof List) || ((List) value).size() != 2) {
-//	"errmsg" : "exception: the $cmp operator requires an array of 2 operands",
-//        "code" : 16019,
-              errorResult(coll, 16020, "the $cmp operator requires an array of 2 operands");
-            }
-            List<String> values = (List<String>) value;
-            Projected projected = Projected.projection(this, key);
-            createMapping(coll, projectResult, projectedFields, (String) values.get(0), values.get(0), namespace, projected);
-            createMapping(coll, projectResult, projectedFields, (String) values.get(1), values.get(1), namespace, projected);
-          }
-
-          @Override
-          public void unapply(DBObject result, DBObject object, Projected projected, String key) {
-            String value = extractValue(object, projected.infos.get(0)).toString();
-            String secondValue = extractValue(object, projected.infos.get(1)).toString();
-            int strcmp = value.compareTo(secondValue);
-            result.put(projected.destName, strcmp < 0 ? -1 : strcmp > 1 ? 1 : 0);
-            projected.done();
-          }
-        },
-    TOLOWER("$toLower", true) {
-      @Override
-      void doWork(DBCollection coll, DBObject projectResult, Map<String, Projected> projectedFields, String key, Object value, String namespace) {
-        String operandValue = null;
-        if (value instanceof List) {
-          List values = (List) value;
-          if (values.size() != 1) {
-            //com.mongodb.CommandFailureException: { "serverUsed" : "/127.0.0.1:27017" , "errmsg" : "exception: the $toLower operator requires 1 operand(s)" , "code" : 16020 , "ok" : 0.0}
-            errorResult(coll, 16020, "the $toLower operator requires 1 operand(s)");
-          }
-          operandValue = (String) values.get(0);
-        } else {
-          operandValue = value.toString();
-        }
-        Projected projected = Projected.projection(this, key);
-        createMapping(coll, projectResult, projectedFields, operandValue, operandValue, namespace, projected);
-      }
-
-      @Override
-      public void unapply(DBObject result, DBObject object, Projected projected, String key) {
-        Object value = extractValue(object, projected.infos.get(0));
-        if (value == null) {
-          value = "";
-        } else {
-          value = value.toString().toLowerCase();
-        }
-        result.put(projected.destName, value);
-        projected.done();
-      }
-    },
-    TOUPPER("$toUpper", true) {
-      @Override
-      void doWork(DBCollection coll, DBObject projectResult, Map<String, Projected> projectedFields, String key, Object value, String namespace) {
-        String operandValue = null;
-        if (value instanceof List) {
-          List values = (List) value;
-          if (values.size() != 1) {
-            //com.mongodb.CommandFailureException: { "serverUsed" : "/127.0.0.1:27017" , "errmsg" : "exception: the $toLower operator requires 1 operand(s)" , "code" : 16020 , "ok" : 0.0}
-            errorResult(coll, 16020, "the $toUpper operator requires 1 operand(s)");
-          }
-          operandValue = (String) values.get(0);
-        } else {
-          operandValue = value.toString();
-        }
-        Projected projected = Projected.projection(this, key);
-        createMapping(coll, projectResult, projectedFields, operandValue, operandValue, namespace, projected);
-      }
-
-      @Override
-      public void unapply(DBObject result, DBObject object, Projected projected, String key) {
-        Object value = extractValue(object, projected.infos.get(0));
-        if (value == null) {
-          value = "";
-        } else {
-          value = value.toString().toUpperCase();
-        }
-        result.put(projected.destName, value);
-        projected.done();
-      }
-    };
-
-    final String keyword;
-
-    /**
-     * Set to true = call the "Projected" if we can't find values (like ifNull, substr, etc)
-     */
-    final boolean recallIfNotFound;
-
-    Keyword(String key) {
-      this(key, false);
-    }
-
-    Keyword(String key, boolean recallIfNotFound) {
-      this.keyword = key;
-      this.recallIfNotFound = recallIfNotFound;
-    }
-
-    //@Nullable
-    public static Keyword getKeyword(DBObject object) {
-      Keyword ret = null;
-      for (Keyword keyword : values()) {
-        if (keyword.keyword != null && object.containsField(keyword.keyword)) {
-          ret = keyword;
-          break;
-        }
-      }
-      return ret;
-    }
-
-    abstract void doWork(DBCollection coll, DBObject projectResult, Map<String, Projected> projectedFields, String key, Object value, String namespace);
-
-    public final void apply(DBCollection coll, DBObject projectResult, Map<String, Projected> projectedFields, String key, DBObject value, String namespace) {
+    public final void apply(DBCollection coll, DBObject projectResult, Map<String, ProjectedAbstract> projectedFields, String key, DBObject value, String namespace) {
       doWork(coll, projectResult, projectedFields, key, value.get(this.keyword), namespace);
-    }
-
-    private static <T> T extractValue(DBObject object, Object fieldOrValue) {
-      if (fieldOrValue instanceof String && fieldOrValue.toString().startsWith("$")) {
-        return Util.extractField(object, fieldOrValue.toString().substring(1));
-      }
-      return (T) fieldOrValue;
     }
 
     /**
@@ -368,7 +82,7 @@ public class Project extends PipelineKeyword {
      * @param namespace       "" if empty, "fieldname." elsewhere.
      * @param projected       use for unapplying.
      */
-    void createMapping(DBCollection coll, DBObject projectResult, Map<String, Projected> projectedFields, String key, Object kvalue, String namespace, Projected projected) {
+    public static void createMapping(DBCollection coll, DBObject projectResult, Map<String, ProjectedAbstract> projectedFields, String key, Object kvalue, String namespace, ProjectedAbstract projected) {
       // Simple case : nb : "$pop"
       if (kvalue instanceof String) {
         String value = kvalue.toString();
@@ -392,16 +106,16 @@ public class Project extends PipelineKeyword {
         }
       } else if (kvalue instanceof DBObject) {
         DBObject value = (DBObject) kvalue;
-        Keyword keyword = Keyword.getKeyword(value);
-        if (keyword != null) {
+        ProjectedAbstract projectedAbstract = ProjectedAbstract.getProjected(value, coll, key);
+        if (projectedAbstract != null) {
           // case : {cmp : {$cmp:[$firstname, $lastname]}}
-          keyword.apply(coll, projectResult, projectedFields, key, value, namespace);
+          projectedAbstract.apply(coll, projectResult, projectedFields, key, value, namespace);
           projectResult.removeField(key);
         } else {
           // case : {biggestCity:  { name: "$biggestCity",  pop: "$biggestPop" }}
           projectResult.removeField(key);
           for (Map.Entry<String, Object> subentry : (Set<Map.Entry<String, Object>>) value.toMap().entrySet()) {
-            createMapping(coll, projectResult, projectedFields, subentry.getKey(), subentry.getValue(), namespace + key + ".", Projected.defaultProjection(namespace + key + "." + subentry.getKey()));
+            createMapping(coll, projectResult, projectedFields, subentry.getKey(), subentry.getValue(), namespace + key + ".", ProjectedRename.newInstance(namespace + key + "." + subentry.getKey(), coll, null));
           }
         }
       } else {
@@ -410,12 +124,305 @@ public class Project extends PipelineKeyword {
       }
     }
 
-    private static void errorResult(DBCollection coll, int code, String err) {
+    /**
+     * Search the projected field if any.
+     *
+     * @param value    the DbObject being worked.
+     * @param coll     collection used.
+     * @param destName destination name for the field.
+     * @return null if it's not a keyword.
+     */
+    private static ProjectedAbstract getProjected(DBObject value, DBCollection coll, String destName) {
+      for (Map.Entry<String, Class<? extends ProjectedAbstract>> entry : projectedAbstractMap.entrySet()) {
+        if (value.containsField(entry.getKey())) {
+          try {
+            return entry.getValue().getConstructor(String.class, DBCollection.class, DBObject.class).newInstance(destName, coll, value);
+          } catch (InstantiationException e) {
+            throw new RuntimeException(e);
+          } catch (IllegalAccessException e) {
+            throw new RuntimeException(e);
+          } catch (InvocationTargetException e) {
+            if (e.getTargetException() instanceof MongoException) {
+              throw (MongoException) e.getTargetException();
+            }
+            throw new RuntimeException(e);
+          } catch (NoSuchMethodException e) {
+            throw new RuntimeException(e);
+          }
+        }
+      }
+
+      return null;
+    }
+
+    protected static void errorResult(DBCollection coll, int code, String err) {
       ((FongoDB) coll.getDB()).notOkErrorResult(code, err).throwOnError();
     }
 
-    // Translate from result of find to user field.
-    public abstract void unapply(DBObject result, DBObject object, Projected projected, String key);
+    /**
+     * Extract a value from a field name or value.
+     *
+     * @param object
+     * @param fieldOrValue
+     * @param <T>
+     * @return
+     */
+    protected static <T> T extractValue(DBObject object, Object fieldOrValue) {
+      if (fieldOrValue instanceof String && fieldOrValue.toString().startsWith("$")) {
+        return Util.extractField(object, fieldOrValue.toString().substring(1));
+      }
+      return (T) fieldOrValue;
+    }
+  }
+
+  static class ProjectedRename extends ProjectedAbstract<ProjectedRename> {
+    public static final String KEYWORD = "$___fongo$internal$";
+
+    private ProjectedRename(String destName, DBCollection coll, DBObject object) {
+      super(KEYWORD, destName, object);
+    }
+
+    public static ProjectedRename newInstance(String destName, DBCollection coll, DBObject object) {
+      return new ProjectedRename(destName, coll, object);
+    }
+
+    @Override
+    public void unapply(DBObject result, DBObject object, String key) {
+      if (key != null) {
+        Object value = Util.extractField(object, key);
+        Util.putValue(result, destName, value);
+      }
+    }
+
+    @Override
+    void doWork(DBCollection coll, DBObject projectResult, Map<String, ProjectedAbstract> projectedFields, String key, Object value, String namespace) {
+    }
+  }
+
+  static class ProjectedIfNull extends ProjectedAbstract<ProjectedIfNull> {
+    public static final String KEYWORD = "$ifNull";
+
+    private final String field;
+    private final String valueIfNull;
+
+    public ProjectedIfNull(String destName, DBCollection coll, DBObject object) {
+      super(KEYWORD, destName, object);
+      Object value = object.get(keyword);
+      if (!(value instanceof List) || ((List) value).size() != 2) {
+        errorResult(coll, 16020, "the $ifNull operator requires an array of 2 operands");
+      }
+      List<String> values = (List<String>) value;
+      this.field = values.get(0);
+      this.valueIfNull = values.get(1);
+    }
+
+    @Override
+    void doWork(DBCollection coll, DBObject projectResult, Map<String, ProjectedAbstract> projectedFields, String key, Object value, String namespace) {
+      createMapping(coll, projectResult, projectedFields, field, field, namespace, this);
+      createMapping(coll, projectResult, projectedFields, valueIfNull, valueIfNull, namespace, this);
+    }
+
+    @Override
+    public void unapply(DBObject result, DBObject object, String key) {
+      Object value = extractValue(object, field);
+      if (value == null) {
+        value = extractValue(object, valueIfNull);
+      }
+      result.put(destName, value);
+    }
+  }
+
+  static class ProjectedConcat extends ProjectedAbstract<ProjectedConcat> {
+    public static final String KEYWORD = "$concat";
+
+    private List<Object> toConcat = null;
+
+    public ProjectedConcat(String destName, DBCollection coll, DBObject object) {
+      super(KEYWORD, destName, object);
+      Object value = object.get(keyword);
+      if (!(value instanceof List) || ((List) value).size() == 0) {
+        errorResult(coll, 16020, "the $concat operator requires an array of operands");
+      }
+      toConcat = (List<Object>) value;
+    }
+
+    @Override
+    void doWork(DBCollection coll, DBObject projectResult, Map<String, ProjectedAbstract> projectedFields, String key, Object value, String namespace) {
+      for (Object field : toConcat) {
+        if (field instanceof String) {
+          createMapping(coll, projectResult, projectedFields, (String) field, (String) field, namespace, this);
+        } else if (field instanceof DBObject) {
+          // $concat : [ { $ifnull : [ "$item", "item is null" ] } ]
+        }
+      }
+    }
+
+    @Override
+    public void unapply(DBObject result, DBObject object, String key) {
+      StringBuilder sb = new StringBuilder();
+      for (Object info : toConcat) {
+        Object value = extractValue(object, info);
+        if (value == null) {
+          result.put(destName, null);
+          return;
+        } else {
+          String str = value.toString();
+          sb.append(str);
+        }
+      }
+      result.put(destName, sb.toString());
+    }
+  }
+
+  static class ProjectedSubstr extends ProjectedAbstract<ProjectedSubstr> {
+    public static final String KEYWORD = "$substr";
+
+    private final String field;
+    private final int start, end;
+
+    public ProjectedSubstr(String destName, DBCollection coll, DBObject object) {
+      super(KEYWORD, destName, object);
+      Object value = object.get(keyword);
+      if (!(value instanceof List) || ((List) value).size() != 3) {
+        errorResult(coll, 16020, "the $substr operator requires an array of 3 operands");
+      }
+      List<Object> values = (List<Object>) value;
+      field = (String) values.get(0);
+      start = ((Number) values.get(1)).intValue();
+      end = ((Number) values.get(2)).intValue();
+    }
+
+    @Override
+    void doWork(DBCollection coll, DBObject projectResult, Map<String, ProjectedAbstract> projectedFields, String key, Object value, String namespace) {
+      createMapping(coll, projectResult, projectedFields, destName, destName, namespace, this);
+    }
+
+    @Override
+    public void unapply(DBObject result, DBObject object, String key) {
+      Object exracted = extractValue(object, field);
+      String value = exracted == null ? null : String.valueOf(exracted);
+      if (value == null) {
+        value = "";
+      } else {
+        if (start >= value.length()) {
+          value = "";
+        } else {
+          value = value.substring(start, Math.min(end, value.length()));
+        }
+      }
+
+      result.put(destName, value);
+    }
+  }
+
+  static class ProjectedCmp extends ProjectedAbstract<ProjectedCmp> {
+    public static final String KEYWORD = "$cmp";
+
+    private final String field1;
+    private final String field2;
+
+    public ProjectedCmp(String destName, DBCollection coll, DBObject object) {
+      this(KEYWORD, destName, coll, object);
+    }
+
+    public ProjectedCmp(String keyword, String destName, DBCollection coll, DBObject object) {
+      super(keyword, destName, object);
+      Object value = object.get(keyword);
+      if (!(value instanceof List) || ((List) value).size() != 2) {
+        errorResult(coll, 16020, "the " + keyword + "operator requires an array of 2 operands");
+      }
+      List<String> values = (List<String>) value;
+      field1 = values.get(0);
+      field2 = values.get(1);
+    }
+
+    @Override
+    void doWork(DBCollection coll, DBObject projectResult, Map<String, ProjectedAbstract> projectedFields, String key, Object value, String namespace) {
+      createMapping(coll, projectResult, projectedFields, field1, field1, namespace, this);
+      createMapping(coll, projectResult, projectedFields, field2, field2, namespace, this);
+    }
+
+    @Override
+    public void unapply(DBObject result, DBObject object, String key) {
+      String value = extractValue(object, field1).toString();
+      String secondValue = extractValue(object, field2).toString();
+      int strcmp = compare(value, secondValue);
+      result.put(destName, strcmp < 0 ? -1 : strcmp > 1 ? 1 : 0);
+    }
+
+    protected int compare(String value1, String value2) {
+      return value1.compareTo(value2);
+    }
+  }
+
+  static class ProjectedStrcasecmp extends ProjectedCmp {
+    public static final String KEYWORD = "$strcasecmp";
+
+    public ProjectedStrcasecmp(String destName, DBCollection coll, DBObject object) {
+      super(KEYWORD, destName, coll, object);
+    }
+
+    @Override
+    protected int compare(String value1, String value2) {
+      return value1.compareToIgnoreCase(value2);
+    }
+  }
+
+  static class ProjectedToLower extends ProjectedAbstract<ProjectedToLower> {
+    public static final String KEYWORD = "$toLower";
+
+    private final String field;
+
+    public ProjectedToLower(String destName, DBCollection coll, DBObject object) {
+      this(KEYWORD, destName, coll, object);
+    }
+
+    protected ProjectedToLower(String keyword, String destName, DBCollection coll, DBObject object) {
+      super(KEYWORD, destName, object);
+      Object value = object.get(keyword);
+      if (value instanceof List) {
+        List values = (List) value;
+        if (values.size() != 1) {
+          errorResult(coll, 16020, "the " + keyword + " operator requires 1 operand(s)");
+        }
+        field = (String) values.get(0);
+      } else {
+        field = value.toString();
+      }
+    }
+
+    @Override
+    void doWork(DBCollection coll, DBObject projectResult, Map<String, ProjectedAbstract> projectedFields, String key, Object value, String namespace) {
+      createMapping(coll, projectResult, projectedFields, field, field, namespace, this);
+    }
+
+    @Override
+    public void unapply(DBObject result, DBObject object, String key) {
+      Object value = extractValue(object, field);
+      if (value == null) {
+        value = "";
+      } else {
+        value = transformValue(value.toString());
+      }
+      result.put(destName, value);
+    }
+
+    protected String transformValue(String value) {
+      return value.toLowerCase();
+    }
+  }
+
+  static class ProjectedToUpper extends ProjectedToLower {
+    public static final String KEYWORD = "$toUpper";
+
+    public ProjectedToUpper(String destName, DBCollection coll, DBObject object) {
+      super(KEYWORD, destName, coll, object);
+    }
+
+    @Override
+    protected String transformValue(String value) {
+      return value.toUpperCase();
+    }
   }
 
   /**
@@ -433,10 +440,10 @@ public class Project extends PipelineKeyword {
     DBObject projectResult = Util.clone(project);
 
     // Extract fields who will be renamed.
-    Map<String, Projected> projectedFields = new HashMap<String, Projected>();
+    Map<String, ProjectedAbstract> projectedFields = new HashMap<String, ProjectedAbstract>();
     for (Map.Entry<String, Object> entry : (Set<Map.Entry<String, Object>>) project.toMap().entrySet()) {
       if (entry.getValue() != null) {
-        Keyword.ALL.createMapping(coll, projectResult, projectedFields, entry.getKey(), entry.getValue(), "", Projected.defaultProjection(entry.getKey()));
+        ProjectedAbstract.createMapping(coll, projectResult, projectedFields, entry.getKey(), entry.getValue(), "", ProjectedRename.newInstance(entry.getKey(), coll, null));
       }
     }
 
@@ -447,7 +454,7 @@ public class Project extends PipelineKeyword {
     List<DBObject> objectsResults = new ArrayList<DBObject>(objects.size());
     for (DBObject result : objects) {
       DBObject renamed = new BasicDBObject(FongoDBCollection.ID_KEY, result.get(FongoDBCollection.ID_KEY));
-      for (Map.Entry<String, Projected> entry : projectedFields.entrySet()) {
+      for (Map.Entry<String, ProjectedAbstract> entry : projectedFields.entrySet()) {
         if (Util.containsField(result, entry.getKey())) {
           entry.getValue().unapply(renamed, result, entry.getKey());
         }
@@ -455,11 +462,11 @@ public class Project extends PipelineKeyword {
 
       // TODO REFACTOR
       // Handle special case like ifNull who can doesn't have field in list.
-      for (Projected projected : projectedFields.values()) {
-        if (!projected.isDone() && (projected.keyword.recallIfNotFound)) {
-          projected.unapply(renamed, result, null);
-        }
-        projected.setDone(false);
+      for (ProjectedAbstract projected : projectedFields.values()) {
+//        if (!projected.isDone() && (projected.keyword.recallIfNotFound)) {
+        projected.unapply(renamed, result, null);
+//        }
+//        projected.setDone(false);
       }
 
       objectsResults.add(renamed);
