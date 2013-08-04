@@ -15,6 +15,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
+import org.gavaghan.geodesy.Ellipsoid;
+import org.gavaghan.geodesy.GeodeticCalculator;
+import org.gavaghan.geodesy.GeodeticCurve;
+import org.gavaghan.geodesy.GlobalCoordinates;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,6 +41,7 @@ public class ExpressionParser {
   public final static String AND = "$and";
   public final static String REGEX = "$regex";
   public final static String REGEX_OPTIONS = "$options";
+  public final static String NEARSPHERE = "$nearSphere";
 
   public class ObjectComparator implements Comparator {
     private final int asc;
@@ -319,6 +324,28 @@ public class ExpressionParser {
           final Pattern pattern = Pattern.compile(refExpression.get(this.command).toString(), flags);
 
           return createPatternFilter(path, pattern);
+        }
+      },
+      new BasicFilterFactory(NEARSPHERE) {
+        // http://docs.mongodb.org/manual/reference/operator/near/#op._S_near
+        @Override
+        boolean compare(Object queryValue, Object storedValue) {
+          List coordinates = typecast(NEARSPHERE, ((DBObject) queryValue).get(NEARSPHERE), List.class);
+          LOG.info("q:{}, s:{}, coordinates:{}", queryValue, storedValue, coordinates);
+          Number distance = typecast("$maxDistance", ((DBObject) queryValue).get("$maxDistance"), Number.class);
+          if (distance != null) {
+            double longitude = ((Number) coordinates.get(0)).doubleValue();
+            double latitude = ((Number) coordinates.get(1)).doubleValue();
+
+            List<Number> numberValue = (List<Number>) storedValue;
+            GlobalCoordinates coordinate = new GlobalCoordinates(latitude, longitude);
+            GlobalCoordinates point = new GlobalCoordinates(numberValue.get(1).doubleValue(), numberValue.get(0).doubleValue());
+            GeodeticCurve measurement = new GeodeticCalculator().calculateGeodeticCurve(Ellipsoid.WGS84, coordinate, point);
+
+            LOG.info("distance : {}", measurement.getEllipsoidalDistance());
+            return measurement.getEllipsoidalDistance() < distance.doubleValue();
+          }
+          return true;
         }
       }
   );

@@ -5,6 +5,8 @@ import _root_.com.mongodb._
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.ParallelTestExecution
+import org.junit.Assert._
+import java.util.Arrays
 
 // TODO : sum of double value ($sum : 1.3)
 // sum of "1" (String) must return 0.
@@ -13,7 +15,7 @@ import org.scalatest.ParallelTestExecution
 @RunWith(classOf[JUnitRunner])
 class FongoAggregationScalaTest extends FongoAbstractTest with ParallelTestExecution {
   // If you want to test against real world (a real mongodb client).
-  val realWorld = !true
+  val realWorld = true
 
   override def init = {
     collection.insert(new BasicDBObject("myId", "p0").append("date", 1))
@@ -26,6 +28,17 @@ class FongoAggregationScalaTest extends FongoAbstractTest with ParallelTestExecu
     collection.insert(new BasicDBObject("myId", "p3").append("date", 0))
     collection.insert(new BasicDBObject("myId", "p0"))
     collection.insert(new BasicDBObject("myId", "p4"))
+  }
+
+
+  test("$near") {
+    collection.remove(new BasicDBObject())
+    collection.insert(new BasicDBObject("_id", 1).append("loc", Util.list(2.265D, 48.791D)))
+    collection.insert(new BasicDBObject("_id", 2).append("loc", Util.list(-73.97D, 40.72D)))
+    collection.ensureIndex(new BasicDBObject("loc", "2d"))
+
+    val objects: java.util.List[DBObject] = collection.find(new BasicDBObject("loc", new BasicDBObject("$nearSphere", Util.list(2.297, 48.809)).append("$maxDistance", 10))).toArray()
+    assertEquals(Arrays.asList(new BasicDBObject("_id", 1).append("loc", Util.list(2.265D, 48.791D))), objects)
   }
 
   test("Fongo should handle unknown pipeline") {

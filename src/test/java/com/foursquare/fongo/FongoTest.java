@@ -667,7 +667,7 @@ public class FongoTest {
     DBCollection coll = newCollection();
     assertNull("should return null if nothing was found", coll.findAndRemove(new BasicDBObject()));
   }
-  
+
   @Test
   public void testFindAndModifyRemove() {
     DBCollection collection = newCollection();
@@ -699,7 +699,6 @@ public class FongoTest {
     collection.insert(new BasicDBObject("_id", 1).append("n", Arrays.asList(1, 2)));
     DBObject result = collection.findOne();
     assertTrue("not a DBList", result.get("n") instanceof BasicDBList);
-
   }
 
   @Test
@@ -708,7 +707,6 @@ public class FongoTest {
     collection.insert(new BasicDBObject("_id", 1).append("n", Collections.singletonMap("a", 1)));
     DBObject result = collection.findOne();
     assertTrue("not a DBObject", result.get("n") instanceof BasicDBObject);
-
   }
 
   @Test
@@ -822,6 +820,26 @@ public class FongoTest {
     DBObject update = new BasicDBObject("$set", new BasicDBObject("a", 1));
     WriteResult result = collection.update(query, update, false, false);
     assertEquals(1, result.getN());
+  }
+
+  @Test
+  public void testFindByNearSphere() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1).append("loc", Util.list(2.265D, 48.791D)));
+    collection.insert(new BasicDBObject("_id", 2).append("loc", Util.list(-73.97D, 40.72D)));
+
+    List<DBObject> objects = collection.find(new BasicDBObject("loc", new BasicDBObject("$nearSphere", Util.list(2.297, 48.809)).append("$maxDistance", 10))).toArray();
+    assertEquals(Arrays.asList(new BasicDBObject("_id", 1).append("loc", Util.list(2.265D, 48.791D))), objects);
+  }
+
+  @Test
+  public void testFindByNearSphereNoMaxDistance() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1).append("loc", Util.list(2.265D, 48.791D)));
+    collection.insert(new BasicDBObject("_id", 2).append("loc", Util.list(-73.97D, 40.72D)));
+
+    List<DBObject> objects = collection.find(new BasicDBObject("loc", new BasicDBObject("$nearSphere", new BasicDBObject("$geometry", new BasicDBObject("type", "Point").append("coordinates", Util.list(2.297, 48.809)))))).toArray();
+    assertEquals(Arrays.asList(new BasicDBObject("_id", 1).append("loc", Util.list(2.265D, 48.791D)), new BasicDBObject("_id", 2).append("loc", Util.list(-73.97D, 40.72D))), objects);
   }
 
   /**
@@ -1115,7 +1133,6 @@ public class FongoTest {
     fongo.getMongo().setWriteConcern(WriteConcern.FSYNC_SAFE);
     assertEquals(WriteConcern.FSYNC_SAFE, fongo.getWriteConcern());
   }
-
 
   static class Seq {
     Object[] data;

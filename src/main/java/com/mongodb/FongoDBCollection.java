@@ -478,7 +478,7 @@ public class FongoDBCollection extends DBCollection {
     Object value = dbo.get(subKey);
 
     if (path.size() > startIndex + 1) {
-      if (value instanceof DBObject && !(value instanceof List)){
+      if (value instanceof DBObject && !(value instanceof List)) {
         BasicDBObject nb = new BasicDBObject();
         ret.append(subKey, nb);
         addValuesAtPath(nb, (DBObject) value, path, startIndex + 1);
@@ -506,13 +506,13 @@ public class FongoDBCollection extends DBCollection {
 
     int inclusionCount = 0;
     int exclusionCount = 0;
-    
+
     boolean wasIdExcluded = false;
-    List<Tuple2<List<String>,Boolean>> projections = new ArrayList<Tuple2<List<String>, Boolean>>();
+    List<Tuple2<List<String>, Boolean>> projections = new ArrayList<Tuple2<List<String>, Boolean>>();
     for (String projectionKey : projectionObject.keySet()) {
       boolean included = ((Number) projectionObject.get(projectionKey)).intValue() > 0;
       List<String> projectionPath = Util.split(projectionKey);
-      
+
       if (!ID_KEY.equals(projectionKey)) {
         if (included) {
           inclusionCount++;
@@ -532,7 +532,7 @@ public class FongoDBCollection extends DBCollection {
           "You cannot combine inclusion and exclusion semantics in a single projection with the exception of the _id field: "
               + projectionObject);
     }
-    
+
     BasicDBObject ret;
     if (exclusionCount > 0) {
       ret = (BasicDBObject) Util.clone(result);
@@ -542,8 +542,8 @@ public class FongoDBCollection extends DBCollection {
         ret.append(ID_KEY, result.get(ID_KEY));
       }
     }
-    
-    for (Tuple2<List<String>,Boolean> projection : projections) {
+
+    for (Tuple2<List<String>, Boolean> projection : projections) {
       if (projection._1.size() == 1 && !projection._2) {
         ret.removeField(projection._1.get(0));
       } else {
