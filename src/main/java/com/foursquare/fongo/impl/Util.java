@@ -7,6 +7,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 public class Util {
 
@@ -147,5 +149,9 @@ public class Util {
     }
 
     throw new IllegalArgumentException("Don't know how to clone: " + source);
+  }
+
+  public static Set<Map.Entry<String, Object>> entrySet(DBObject object) {
+    return (Set<Map.Entry<String, Object>>) object.toMap().entrySet();
   }
 }
