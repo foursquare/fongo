@@ -56,17 +56,6 @@ public class FongoDBCollection extends DBCollection {
     this.indexes.add(_idIndex);
   }
 
-  private static class KeyIndex {
-    private final Set<String> fields;
-
-    private final DBObject keys;
-
-    private KeyIndex(DBObject keys) {
-      this.keys = Util.clone(keys);
-      this.fields = this.keys.keySet();
-    }
-  }
-
   private CommandResult insertResult(int updateCount) {
     CommandResult result = fongoDb.okResult();
     result.put("n", updateCount);
@@ -335,16 +324,20 @@ public class FongoDBCollection extends DBCollection {
     }
     rec.putAll(options);
 
-    Index index = new Index((String) rec.get("name"), keys, unique, false);
-    List<List<Object>> notUnique = index.addAll(_idIndex.values());
-    if (!notUnique.isEmpty()) {
-      // Duplicate key.
-      if (enforceDuplicates(getWriteConcern())) {
-        fongoDb.errorResult(11000, "E11000 duplicate key error index: " + getFullName() + "." + rec.get("name") + "  dup key: { : " + notUnique + " }").throwOnError();
+    try {
+      Index index = new Index((String) rec.get("name"), keys, unique, false);
+      List<List<Object>> notUnique = index.addAll(_idIndex.values());
+      if (!notUnique.isEmpty()) {
+        // Duplicate key.
+        if (enforceDuplicates(getWriteConcern())) {
+          fongoDb.errorResult(11000, "E11000 duplicate key error index: " + getFullName() + "." + rec.get("name") + "  dup key: { : " + notUnique + " }").throwOnError();
+        }
+        return;
       }
-      return;
+      indexes.add(index);
+    } catch (MongoException me) {
+      fongoDb.errorResult(me.getCode(), me.getMessage()).throwOnError();
     }
-    indexes.add(index);
 
     // Add index if all fine.
     indexColl.insert(rec);
