@@ -825,11 +825,14 @@ public class FongoTest {
   @Test
   public void testFindByNearSphere() {
     DBCollection collection = newCollection();
-    collection.insert(new BasicDBObject("_id", 1).append("loc", Util.list(2.265D, 48.791D)));
-    collection.insert(new BasicDBObject("_id", 2).append("loc", Util.list(-73.97D, 40.72D)));
+    collection.insert(new BasicDBObject("_id", 1).append("loc", Util.list(-73.97D, 40.72D)));
+    collection.insert(new BasicDBObject("_id", 2).append("loc", Util.list(2.265D, 48.791D)));
+    collection.ensureIndex(new BasicDBObject("loc", "2d"));
 
-    List<DBObject> objects = collection.find(new BasicDBObject("loc", new BasicDBObject("$nearSphere", Util.list(2.297, 48.809)).append("$maxDistance", 10))).toArray();
-    assertEquals(Arrays.asList(new BasicDBObject("_id", 1).append("loc", Util.list(2.265D, 48.791D))), objects);
+    List<DBObject> objects = collection.find(new BasicDBObject("loc", new BasicDBObject("$nearSphere", Util.list(2.297, 48.809)).append("$maxDistance", 3100))).toArray();
+    assertEquals(Arrays.asList(
+        new BasicDBObject("_id", 2).append("loc", Util.list(2.265D, 48.791D)),
+        new BasicDBObject("_id", 1).append("loc", Util.list(-73.97D, 40.72D))), objects);
   }
 
   @Test
@@ -837,6 +840,7 @@ public class FongoTest {
     DBCollection collection = newCollection();
     collection.insert(new BasicDBObject("_id", 1).append("loc", Util.list(2.265D, 48.791D)));
     collection.insert(new BasicDBObject("_id", 2).append("loc", Util.list(-73.97D, 40.72D)));
+    collection.ensureIndex(new BasicDBObject("loc", "2d"));
 
     List<DBObject> objects = collection.find(new BasicDBObject("loc", new BasicDBObject("$nearSphere", new BasicDBObject("$geometry", new BasicDBObject("type", "Point").append("coordinates", Util.list(2.297, 48.809)))))).toArray();
     assertEquals(Arrays.asList(new BasicDBObject("_id", 1).append("loc", Util.list(2.265D, 48.791D)), new BasicDBObject("_id", 2).append("loc", Util.list(-73.97D, 40.72D))), objects);

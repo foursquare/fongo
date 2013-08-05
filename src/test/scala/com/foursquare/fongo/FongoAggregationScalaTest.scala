@@ -30,17 +30,6 @@ class FongoAggregationScalaTest extends FongoAbstractTest with ParallelTestExecu
     collection.insert(new BasicDBObject("myId", "p4"))
   }
 
-
-  test("$near") {
-    collection.remove(new BasicDBObject())
-    collection.insert(new BasicDBObject("_id", 1).append("loc", Util.list(2.265D, 48.791D)))
-    collection.insert(new BasicDBObject("_id", 2).append("loc", Util.list(-73.97D, 40.72D)))
-    collection.ensureIndex(new BasicDBObject("loc", "2d"))
-
-    val objects: java.util.List[DBObject] = collection.find(new BasicDBObject("loc", new BasicDBObject("$nearSphere", Util.list(2.297, 48.809)).append("$maxDistance", 10))).toArray()
-    assertEquals(Arrays.asList(new BasicDBObject("_id", 1).append("loc", Util.list(2.265D, 48.791D))), objects)
-  }
-
   test("Fongo should handle unknown pipeline") {
     val badsort = new BasicDBObject("_id", 1)
 

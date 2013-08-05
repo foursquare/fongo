@@ -56,12 +56,18 @@ public class FongoDB extends DB {
     }
   }
 
-  private List<DBObject> doAggregateCollection(String aggregate, List<DBObject> pipeline) {
-    FongoDBCollection coll = doGetCollection(aggregate);
+  private List<DBObject> doAggregateCollection(String collection, List<DBObject> pipeline) {
+    FongoDBCollection coll = doGetCollection(collection);
     Aggregator aggregator = new Aggregator(this, coll, pipeline);
 
     return aggregator.computeResult();
   }
+
+  private List<DBObject> doGeoNearCollection(String collection, DBObject near, DBObject query, Number limit, Number maxDistance, boolean spherical) {
+    FongoDBCollection coll = doGetCollection(collection);
+    return coll.geoNear(near, query, limit, maxDistance, spherical);
+  }
+
 
   @Override
   public Set<String> getCollectionNames() throws MongoException {
@@ -157,6 +163,28 @@ public class FongoDB extends DB {
       list.addAll(result);
       okResult.put("result", list);
       return okResult;
+    } else if (cmd.containsField("geoNear")) {
+      // http://docs.mongodb.org/manual/reference/command/geoNear/
+      // TODO : handle "num" (override limit)
+      try {
+        List<DBObject> result = doGeoNearCollection((String) cmd.get("geoNear"),
+            (DBObject) cmd.get("near"),
+            (DBObject) cmd.get("query"),
+            (Number) cmd.get("limit"),
+            (Number) cmd.get("maxDistance"),
+            Boolean.TRUE.equals(cmd.get("spherical")));
+        if (result == null) {
+          return notOkErrorResult("can't geoNear");
+        }
+        CommandResult okResult = okResult();
+        BasicDBList list = new BasicDBList();
+        list.addAll(result);
+        okResult.put("results", list);
+        return okResult;
+      } catch (MongoException me) {
+        CommandResult result = errorResult(me.getCode(), me.getMessage());
+        return result;
+      }
     }
     return notOkErrorResult("undefined command: " + cmd);
   }

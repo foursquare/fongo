@@ -42,6 +42,7 @@ public class ExpressionParser {
   public final static String REGEX = "$regex";
   public final static String REGEX_OPTIONS = "$options";
   public final static String NEARSPHERE = "$nearSphere";
+  public final static String MAXDISTANCE = "$maxDistance";
 
   public class ObjectComparator implements Comparator {
     private final int asc;
@@ -326,26 +327,14 @@ public class ExpressionParser {
           return createPatternFilter(path, pattern);
         }
       },
-      new BasicFilterFactory(NEARSPHERE) {
+      new BasicCommandFilterFactory(NEARSPHERE) {
         // http://docs.mongodb.org/manual/reference/operator/near/#op._S_near
         @Override
-        boolean compare(Object queryValue, Object storedValue) {
-          List coordinates = typecast(NEARSPHERE, ((DBObject) queryValue).get(NEARSPHERE), List.class);
-          LOG.info("q:{}, s:{}, coordinates:{}", queryValue, storedValue, coordinates);
-          Number distance = typecast("$maxDistance", ((DBObject) queryValue).get("$maxDistance"), Number.class);
-          if (distance != null) {
-            double longitude = ((Number) coordinates.get(0)).doubleValue();
-            double latitude = ((Number) coordinates.get(1)).doubleValue();
-
-            List<Number> numberValue = (List<Number>) storedValue;
-            GlobalCoordinates coordinate = new GlobalCoordinates(latitude, longitude);
-            GlobalCoordinates point = new GlobalCoordinates(numberValue.get(1).doubleValue(), numberValue.get(0).doubleValue());
-            GeodeticCurve measurement = new GeodeticCalculator().calculateGeodeticCurve(Ellipsoid.WGS84, coordinate, point);
-
-            LOG.info("distance : {}", measurement.getEllipsoidalDistance());
-            return measurement.getEllipsoidalDistance() < distance.doubleValue();
-          }
-          return true;
+        public Filter createFilter(final List<String> path, DBObject refExpression) {
+          LOG.info("path:{}, refExp:{}", path, refExpression);
+          Number maxDistance = typecast(MAXDISTANCE, refExpression.get(MAXDISTANCE), Number.class);
+          final List coordinates = typecast(NEARSPHERE, (refExpression).get(NEARSPHERE), List.class);
+          return createNearFilter(path, coordinates, maxDistance, true);
         }
       }
   );
@@ -570,6 +559,45 @@ public class ExpressionParser {
           }
           return false;
         }
+      }
+    };
+  }
+
+  // Take care of : https://groups.google.com/forum/?fromgroups=#!topic/mongomapper/MfRDh2vtCFg
+  // I think this "filter" must be in the index.
+  public Filter createNearFilter(final List<String> path, final List<Number> coordinates, final Number maxDistance, final boolean sphere) {
+    return new Filter() {
+      final GlobalCoordinates coordinate = new GlobalCoordinates(coordinates.get(1).doubleValue(), coordinates.get(0).doubleValue());
+      int limit = 100;
+
+      public boolean apply(DBObject o) {
+        if (limit <= 0) {
+          return false;
+        }
+        boolean result = false;
+        List<Object> storedOption = getEmbeddedValues(path, o);
+        if (!storedOption.isEmpty()) {
+          if (maxDistance == null) {
+            result = true;
+          } else {
+            LOG.info("{}", storedOption);
+            for (Object storedValue : storedOption) {
+              List<Number> numberValue = (List<Number>) storedValue;
+              GlobalCoordinates point = new GlobalCoordinates(numberValue.get(1).doubleValue(), numberValue.get(0).doubleValue());
+              GeodeticCurve measurement = new GeodeticCalculator().calculateGeodeticCurve(Ellipsoid.WGS84, coordinate, point);
+
+              LOG.info("distance : {}", measurement.getEllipsoidalDistance());
+              result = measurement.getEllipsoidalDistance() < maxDistance.doubleValue();
+              if (result) {
+                break;
+              }
+            }
+          }
+        }
+        if (result) {
+          limit--;
+        }
+        return result;
       }
     };
   }
