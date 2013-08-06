@@ -86,7 +86,7 @@ public class Index {
       if (mapValues.containsKey(key)) {
         return extractFields(object, key.keySet());
       }
-      mapValues.put(key, Collections.singletonList(object));
+      mapValues.put(key, Collections.singletonList(object)); // DO NOT CLONE !
     } else {
       // Extract previous values
       List<DBObject> values = mapValues.get(key);
@@ -97,7 +97,7 @@ public class Index {
       }
 
       // Add to values.
-      values.add(object);
+      values.add(object); // DO NOT CLONE ! Indexes must share the same object.
     }
     return Collections.emptyList();
   }
@@ -186,7 +186,7 @@ public class Index {
       if (filterKey.apply(entry.getKey())) {
         for (DBObject object : entry.getValue()) {
           if (filter.apply(object)) {
-            result.add(object);
+            result.add(object); // DO NOT CLONE ! need for update.
           }
         }
       }

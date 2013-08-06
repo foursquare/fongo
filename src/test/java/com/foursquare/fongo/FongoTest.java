@@ -667,7 +667,7 @@ public class FongoTest {
     DBCollection coll = newCollection();
     assertNull("should return null if nothing was found", coll.findAndRemove(new BasicDBObject()));
   }
-  
+
   @Test
   public void testFindAndModifyRemove() {
     DBCollection collection = newCollection();
@@ -1116,6 +1116,21 @@ public class FongoTest {
     assertEquals(WriteConcern.FSYNC_SAFE, fongo.getWriteConcern());
   }
 
+  // Id is always the first field.
+  @Test
+  public void shouldInsertIdFirst() throws Exception {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("date", 1).append("_id", new ObjectId()));
+    collection.insert(new BasicDBObject("date", 2).append("_id", new ObjectId()));
+    collection.insert(new BasicDBObject("date", 3).append("_id", new ObjectId()));
+
+    //
+    List<DBObject> result = collection.find().toArray();
+    for (DBObject object : result) {
+      // The _id field is always the first.
+      assertEquals("_id", object.toMap().keySet().iterator().next());
+    }
+  }
 
   static class Seq {
     Object[] data;

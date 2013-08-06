@@ -56,17 +56,6 @@ public class FongoDBCollection extends DBCollection {
     this.indexes.add(_idIndex);
   }
 
-  private static class KeyIndex {
-    private final Set<String> fields;
-
-    private final DBObject keys;
-
-    private KeyIndex(DBObject keys) {
-      this.keys = Util.clone(keys);
-      this.fields = this.keys.keySet();
-    }
-  }
-
   private CommandResult insertResult(int updateCount) {
     CommandResult result = fongoDb.okResult();
     result.put("n", updateCount);
@@ -747,10 +736,11 @@ public class FongoDBCollection extends DBCollection {
       }
     }
 
+    DBObject idFirst = Util.cloneIdFirst(object);
     Set<String> oldQueryFields = oldObject == null ? Collections.<String>emptySet() : oldObject.keySet();
     for (Index index : indexes) {
       if (index.canHandle(queryFields)) {
-        index.addOrUpdate(object, oldObject);
+        index.addOrUpdate(idFirst, oldObject);
       } else if (index.canHandle(oldQueryFields))
         // In case of update and removing a field, we must remove from the index.
         index.remove(oldObject);
