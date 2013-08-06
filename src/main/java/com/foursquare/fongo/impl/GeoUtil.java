@@ -6,6 +6,7 @@ import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBObject;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
@@ -121,19 +122,26 @@ public class GeoUtil {
   }
 
   public static List<LatLong> latLon(List<String> path, DBObject object) {
-    List<LatLong> result = new ArrayList<LatLong>();
     ExpressionParser expressionParser = new ExpressionParser();
-    for (Object value : expressionParser.getEmbeddedValues(path, object)) {
+    List<LatLong> result = new ArrayList<LatLong>();
+
+    List objects;
+    if (path.isEmpty()) {
+      objects = Collections.singletonList(object);
+    } else {
+      objects = expressionParser.getEmbeddedValues(path, object);
+    }
+    for (Object value : objects) {
       LatLong latLong = null;
-      if (value instanceof DBObject) {
-        DBObject dbObject = (DBObject) value;
-        if (dbObject.containsField("lon") && dbObject.containsField("lat")) {
-          latLong = new LatLong(((Number) dbObject.get("lat")).doubleValue(), ((Number) dbObject.get("lon")).doubleValue());
-        }
-      } else if (value instanceof BasicDBList) {
+      if (value instanceof BasicDBList) {
         BasicDBList list = (BasicDBList) value;
         if (list.size() == 2) {
           latLong = new LatLong(((Number) list.get(1)).doubleValue(), ((Number) list.get(0)).doubleValue());
+        }
+      } else if (value instanceof DBObject) {
+        DBObject dbObject = (DBObject) value;
+        if (dbObject.containsField("lon") && dbObject.containsField("lat")) {
+          latLong = new LatLong(((Number) dbObject.get("lat")).doubleValue(), ((Number) dbObject.get("lon")).doubleValue());
         }
       }
       if (latLong != null) {

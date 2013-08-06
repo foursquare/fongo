@@ -7,10 +7,12 @@ import com.github.davidmoten.geo.LatLong;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBObject;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +24,8 @@ import org.slf4j.LoggerFactory;
 
 /**
  * An index for the MongoDB.
+ * <p/>
+ * TODO : more $geometry.
  */
 public class GeoIndex extends IndexAbstract<GeoUtil.GeoDBObject> {
   static final Logger LOG = LoggerFactory.getLogger(GeoIndex.class);
@@ -30,7 +34,8 @@ public class GeoIndex extends IndexAbstract<GeoUtil.GeoDBObject> {
   static final boolean BRUTE_FORCE = true;
 
   GeoIndex(String name, DBObject keys, boolean unique, String geoIndex) {
-    super(name, keys, unique, new TreeMap<GeoUtil.GeoDBObject, List<GeoUtil.GeoDBObject>>(new GeoUtil.GeoComparator(geoIndex)), geoIndex);
+    super(name, keys, unique, new LinkedHashMap<GeoUtil.GeoDBObject, List<GeoUtil.GeoDBObject>>(), geoIndex);
+    //TreeMap<GeoUtil.GeoDBObject, List<GeoUtil.GeoDBObject>>(new GeoUtil.GeoComparator(geoIndex)), geoIndex);
   }
 
   /**
@@ -49,22 +54,27 @@ public class GeoIndex extends IndexAbstract<GeoUtil.GeoDBObject> {
     return new GeoUtil.GeoDBObject(object, geoIndex); // Important : do not clone, indexes share objects between them.
   }
 
-  public synchronized List<DBObject> geoNear(DBObject query, LatLong coordinate, int limit, boolean spherical) {
+  public synchronized List<DBObject> geoNear(DBObject query, List<LatLong> coordinates, int limit, boolean spherical) {
     lookupCount++;
 
-    LOG.info("geoNear() query:{}, coordinate:{}, limit:{}, spherical:{}", query, coordinate, limit, spherical);
+    LOG.info("geoNear() query:{}, coordinate:{}, limit:{}, spherical:{}", query, coordinates, limit, spherical);
     Queue<String> hashs = new LinkedList<String>();
-    hashs.add(GeoUtil.encodeGeoHash(coordinate));
+    for (LatLong coordinate : coordinates) {
+      hashs.add(GeoUtil.encodeGeoHash(coordinate));
+    }
 
     // Filter values
     Filter filterValue = expressionParser.buildFilter(query);
 
-    List<DBObject> result = new ArrayList<DBObject>();
+    // Preserve order and remove duplicates.
+    LinkedHashSet<DBObject> resultSet = new LinkedHashSet<DBObject>();
 
     if (BRUTE_FORCE) {
       // Bruteforce : try all.
       for (Map.Entry<GeoUtil.GeoDBObject, List<GeoUtil.GeoDBObject>> entry : mapValues.entrySet()) {
-        geoNearResults(entry.getValue(), filterValue, coordinate, result, spherical);
+        for (LatLong coordinate : coordinates) {
+          geoNearResults(entry.getValue(), filterValue, coordinate, resultSet, spherical);
+        }
       }
     } else {
 
@@ -84,7 +94,9 @@ public class GeoIndex extends IndexAbstract<GeoUtil.GeoDBObject> {
               // Can we apply other filter ?
               List<GeoUtil.GeoDBObject> values = entry.getValue();
               // Now transform to {dis:<distance>, obj:<result>}
-              geoNearResults(values, filterValue, coordinate, result, spherical);
+              for (LatLong coordinate : coordinates) {
+                geoNearResults(values, filterValue, coordinate, resultSet, spherical);
+              }
               copyMap.remove(entry.getKey());
               break;
             }
@@ -92,7 +104,7 @@ public class GeoIndex extends IndexAbstract<GeoUtil.GeoDBObject> {
           // Add more hash if limit is not reached.
           // If limit is out of scope, stop adding hash but continue to poll them from stack.
           // The order and sublist will be doing later.
-          if (result.size() < limit * 10) {
+          if (resultSet.size() < limit * 10) {
             if (hash.length() >= 1) {
               try {
                 hashs.addAll(GeoUtil.neightbours(hash));
@@ -105,6 +117,15 @@ public class GeoIndex extends IndexAbstract<GeoUtil.GeoDBObject> {
         }
       }
     }
+
+    return sortAndLimit(resultSet, limit);
+  }
+
+  /**
+   * Sort the results and limit them.
+   */
+  private List<DBObject> sortAndLimit(Collection<DBObject> resultSet, int limit) {
+    List<DBObject> result = new ArrayList<DBObject>(resultSet);
     // Sort values by distance.
     Collections.sort(result, new Comparator<DBObject>() {
       @Override
@@ -118,7 +139,7 @@ public class GeoIndex extends IndexAbstract<GeoUtil.GeoDBObject> {
 
 
   // Now transform to {dis:<distance>, obj:<result>}
-  private void geoNearResults(List<GeoUtil.GeoDBObject> values, Filter filterValue, LatLong point, List<DBObject> result, boolean spherical) {
+  private void geoNearResults(List<GeoUtil.GeoDBObject> values, Filter filterValue, LatLong point, Collection<DBObject> result, boolean spherical) {
     for (DBObject v : values) {
       GeoUtil.GeoDBObject geoDBObject = (GeoUtil.GeoDBObject) v;
       // Test against the query filter.

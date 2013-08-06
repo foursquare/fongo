@@ -10,6 +10,7 @@ import com.mongodb.DBObject;
 import java.util.Arrays;
 import java.util.List;
 import static org.junit.Assert.assertEquals;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -38,8 +39,6 @@ public class FongoGeoTest {
     assertEquals(roundDis(Util.list(
         new BasicDBObject("dis", 0.0).append("obj", new BasicDBObject("_id", 2).append("loc", Util.list(2.265D, 48.791D))),
         new BasicDBObject("dis", 0.9152566098183758).append("obj", new BasicDBObject("_id", 1).append("loc", Util.list(-73.97D, 40.72D))))), roundDis(results));
-//    [ { "dis" : 0.0 , "obj" : { "_id" : 2 , "loc" : [ 2.265 , 48.791]}} , { "dis" : 76.6610479056998 , "obj" : { "_id" : 1 , "loc" : [ -73.97 , 40.72]}}]
-
   }
 
   @Test
@@ -73,7 +72,6 @@ public class FongoGeoTest {
     System.out.println(commandResult);
 
     DBObject results = (DBObject) commandResult.get("results");
-    System.out.println(results);
     assertEquals(roundDis(Util.list(
         new BasicDBObject("dis", 34.21306681664185).append("obj", new BasicDBObject("_id", 1).append("loc", Util.list(73.97D, 40.72D))),
         new BasicDBObject("dis", 37.94641254453445).append("obj", new BasicDBObject("_id", 2).append("loc", Util.list(2.265D, 48.791D))))), roundDis(results));
@@ -93,7 +91,6 @@ public class FongoGeoTest {
     System.out.println(commandResult);
 
     DBObject results = (DBObject) commandResult.get("results");
-    System.out.println(results);
     assertEquals((Util.list(
         new BasicDBObject("dis", 33.24154027718932).append("obj", new BasicDBObject("_id", 1).append("loc", Util.list(73D, 40D))),
         new BasicDBObject("dis", 38.2099463490856).append("obj", new BasicDBObject("_id", 2).append("loc", Util.list(2D, 48D))),
@@ -159,7 +156,7 @@ public class FongoGeoTest {
     DBObject results = (DBObject) commandResult.get("results");
     assertEquals(10, ((BasicDBList) results).size());
 
-    assertEquals(fongoRule.parseDEObject("[ { \"dis\" : 0.24663504266786612 , \"obj\" : { \"_id\" : \"04631\" , \"city\" : \"EASTPORT\" , \"loc\" : [ -67.00739 , 44.919966] , \"pop\" : 2514 , \"state\" : \"ME\"}} ," +
+    assertEquals(roundDis(fongoRule.parseDEObject("[ { \"dis\" : 0.24663504266786612 , \"obj\" : { \"_id\" : \"04631\" , \"city\" : \"EASTPORT\" , \"loc\" : [ -67.00739 , 44.919966] , \"pop\" : 2514 , \"state\" : \"ME\"}} ," +
         " { \"dis\" : 0.24729709096503652 , \"obj\" : { \"_id\" : \"04652\" , \"city\" : \"LUBEC\" , \"loc\" : [ -67.046016 , 44.834772] , \"pop\" : 2349 , \"state\" : \"ME\"}} ," +
         " { \"dis\" : 0.24753718895971535 , \"obj\" : { \"_id\" : \"04667\" , \"city\" : \"PERRY\" , \"loc\" : [ -67.092882 , 44.988824] , \"pop\" : 781 , \"state\" : \"ME\"}} ," +
         " { \"dis\" : 0.24799536619283583 , \"obj\" : { \"_id\" : \"04671\" , \"city\" : \"ROBBINSTON\" , \"loc\" : [ -67.143301 , 45.067007] , \"pop\" : 495 , \"state\" : \"ME\"}} ," +
@@ -168,7 +165,7 @@ public class FongoGeoTest {
         " { \"dis\" : 0.24934892984487747 , \"obj\" : { \"_id\" : \"04628\" , \"city\" : \"DENNYSVILLE\" , \"loc\" : [ -67.224431 , 44.896105] , \"pop\" : 684 , \"state\" : \"ME\"}} ," +
         " { \"dis\" : 0.2501775456106909 , \"obj\" : { \"_id\" : \"04626\" , \"city\" : \"CUTLER\" , \"loc\" : [ -67.249869 , 44.67531] , \"pop\" : 779 , \"state\" : \"ME\"}} ," +
         " { \"dis\" : 0.25102654021421605 , \"obj\" : { \"_id\" : \"04657\" , \"city\" : \"MEDDYBEMPS\" , \"loc\" : [ -67.382852 , 45.019306] , \"pop\" : 242 , \"state\" : \"ME\"}} ," +
-        " { \"dis\" : 0.25105641737336887 , \"obj\" : { \"_id\" : \"04491\" , \"city\" : \"VANCEBORO\" , \"loc\" : [ -67.463419 , 45.558761] , \"pop\" : 217 , \"state\" : \"ME\"}}]"), results);
+        " { \"dis\" : 0.25105641737336887 , \"obj\" : { \"_id\" : \"04491\" , \"city\" : \"VANCEBORO\" , \"loc\" : [ -67.463419 , 45.558761] , \"pop\" : 217 , \"state\" : \"ME\"}}]")), roundDis(results));
   }
 
   @Test
@@ -185,6 +182,37 @@ public class FongoGeoTest {
 
   @Test
   public void testFindByNearSphereNoMaxDistance() {
+    DBCollection collection = fongoRule.newCollection();
+    collection.ensureIndex(new BasicDBObject("loc", "2d"));
+    collection.insert(new BasicDBObject("_id", 1).append("loc", Util.list(84.265D, 40.791D)));
+    collection.insert(new BasicDBObject("_id", 2).append("loc", Util.list(85.97D, 40.72D)));
+
+    List<DBObject> objects = collection.find(new BasicDBObject("loc", new BasicDBObject("$nearSphere",
+        new BasicDBObject("$geometry", new BasicDBObject("type", "Point").append("coordinates", Util.list(-2.297, 48.809)))))).toArray();
+
+    assertEquals(Arrays.asList(
+        new BasicDBObject("_id", 1).append("loc", Util.list(84.265D, 40.791D)),
+        new BasicDBObject("_id", 2).append("loc", Util.list(85.97D, 40.72D))), objects);
+  }
+
+  @Test
+  @Ignore // TODO(twillouer) order by distance mvnwhen a $near or $nearSphere.
+  public void testFindByNearSphereOrderedByDist() {
+    DBCollection collection = fongoRule.newCollection();
+    collection.insert(new BasicDBObject("_id", 1).append("loc", Util.list(84.265D, 48.791D)));
+    collection.insert(new BasicDBObject("_id", 2).append("loc", Util.list(-73.97D, 40.72D)));
+    collection.ensureIndex(new BasicDBObject("loc", "2d"));
+
+    List<DBObject> objects = collection.find(new BasicDBObject("loc", new BasicDBObject("$nearSphere",
+        new BasicDBObject("$geometry", new BasicDBObject("type", "Point").append("coordinates", Util.list(2.297, 48.809)))))).toArray();
+
+    assertEquals(Arrays.asList(
+        new BasicDBObject("_id", 2).append("loc", Util.list(-73.97D, 40.72D)),
+        new BasicDBObject("_id", 1).append("loc", Util.list(84.265D, 48.791D))), objects);
+  }
+
+  @Test
+  public void testFindByNearSphereReturnOrderedByDist() {
     DBCollection collection = fongoRule.newCollection();
     collection.insert(new BasicDBObject("_id", 1).append("loc", Util.list(2.265D, 48.791D)));
     collection.insert(new BasicDBObject("_id", 2).append("loc", Util.list(-73.97D, 40.72D)));

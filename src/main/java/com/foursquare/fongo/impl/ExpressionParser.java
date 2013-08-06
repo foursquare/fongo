@@ -42,6 +42,10 @@ public class ExpressionParser {
   public final static String NEARSPHERE = "$nearSphere";
   public final static String MAXDISTANCE = "$maxDistance";
 
+  // TODO : http://docs.mongodb.org/manual/reference/operator/query-geospatial/
+  // TODO : http://docs.mongodb.org/manual/reference/operator/geoWithin/#op._S_geoWithin
+  // TODO : http://docs.mongodb.org/manual/reference/operator/geoIntersects/
+
   public class ObjectComparator implements Comparator {
     private final int asc;
 
@@ -190,17 +194,16 @@ public class ExpressionParser {
     public Filter createFilter(final List<String> path, DBObject refExpression) {
       LOG.info("path:{}, refExp:{}", path, refExpression);
       Number maxDistance = typecast(MAXDISTANCE, refExpression.get(MAXDISTANCE), Number.class);
-      final List coordinates;
+      final List<LatLong> coordinates;
       if (refExpression.get(command) instanceof BasicDBList) {
-        coordinates = typecast(command, refExpression.get(command), List.class);
+        coordinates = GeoUtil.latLon(Collections.singletonList(command), refExpression);// typecast(command, refExpression.get(command), List.class);
       } else {
         DBObject dbObject = typecast(command, refExpression.get(command), DBObject.class);
-        coordinates = Util.extractField(dbObject, "$geometry.coordinates");
+        coordinates = GeoUtil.latLon(Arrays.asList("$geometry", "coordinates"), dbObject);
       }
       return createNearFilter(path, coordinates, maxDistance, spherical);
     }
   }
-
 
   public <T> T typecast(String fieldName, Object obj, Class<T> clazz) {
     try {
@@ -580,10 +583,9 @@ public class ExpressionParser {
   }
 
   // Take care of : https://groups.google.com/forum/?fromgroups=#!topic/mongomapper/MfRDh2vtCFg
-  // I think this "filter" must be in the index.
-  public Filter createNearFilter(final List<String> path, final List<Number> coordinates, final Number maxDistance, final boolean sphere) {
+  public Filter createNearFilter(final List<String> path, final List<LatLong> coordinates, final Number maxDistance, final boolean sphere) {
     return new Filter() {
-      final LatLong coordinate = new LatLong(coordinates.get(1).doubleValue(), coordinates.get(0).doubleValue());
+      final LatLong coordinate = coordinates.get(0); // TODO(twillouer) try to get all coordinate.
       int limit = 100;
 
       public boolean apply(DBObject o) {

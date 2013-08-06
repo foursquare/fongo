@@ -15,7 +15,7 @@ import java.util.Arrays
 @RunWith(classOf[JUnitRunner])
 class FongoAggregationScalaTest extends FongoAbstractTest with ParallelTestExecution {
   // If you want to test against real world (a real mongodb client).
-  val realWorld = true
+  val realWorld = !true
 
   override def init = {
     collection.insert(new BasicDBObject("myId", "p0").append("date", 1))

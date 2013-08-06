@@ -805,9 +805,7 @@ public class FongoDBCollection extends DBCollection {
     }
     LOG.info("geoNear() near:{}, query:{}, limit:{}, maxDistance:{}, spherical:{}, use index:{}", near, query, limit, maxDistance, spherical, matchingIndex.getName());
 
-    // TODO(twillouer) remove cast.
-    BasicDBList n = (BasicDBList) near;
-    List<LatLong> latLongs = GeoUtil.latLon(Arrays.asList(""), near);
-    return ((GeoIndex) matchingIndex).geoNear(query == null ? new BasicDBObject() : query, new LatLong(((Number) n.get(1)).doubleValue(), ((Number) n.get(0)).doubleValue()), limit == null ? 100 : limit.intValue(), spherical);
+    List<LatLong> latLongs = GeoUtil.latLon(Collections.<String>emptyList(), near);
+    return ((GeoIndex) matchingIndex).geoNear(query == null ? new BasicDBObject() : query, latLongs, limit == null ? 100 : limit.intValue(), spherical);
   }
 }
