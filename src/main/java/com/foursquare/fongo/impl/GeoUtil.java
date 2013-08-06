@@ -11,7 +11,7 @@ import java.util.List;
 
 public class GeoUtil {
 
-  public static final double EARTH_RADIUS = 6378100D;
+  public static final double EARTH_RADIUS = 6374892.5; // common way : 6378100D;
 
   private GeoUtil() {
   }
@@ -79,12 +79,12 @@ public class GeoUtil {
     }
   }
 
-  public static double distanceInRadians(LatLong point, LatLong point2, boolean spherical) {
+  public static double distanceInRadians(LatLong p1, LatLong p2, boolean spherical) {
     double distance;
     if (spherical) {
-      distance = distanceSpherical(point, point2);
+      distance = distanceSpherical(p1, p2);
     } else {
-      distance = distance2d(point, point2);
+      distance = distance2d(p1, p2);
     }
     return distance;
   }
@@ -101,28 +101,23 @@ public class GeoUtil {
     return Math.sqrt((a * a) + (b * b));
   }
 
-  // this uses the n-vector formula: http://en.wikipedia.org/wiki/N-vector
   public static double distanceSpherical(LatLong p1, LatLong p2) {
-    double p1Lat = Math.toRadians(p1.getLat());
-    double p1long = Math.toRadians(p1.getLon());
-    double p2lat = Math.toRadians(p2.getLat());
-    double p2long = Math.toRadians(p2.getLon());
+    double p1lat = Math.toRadians(p1.getLat()); // e
+    double p1long = Math.toRadians(p1.getLon());    // f
+    double p2lat = Math.toRadians(p2.getLat());         // g
+    double p2long = Math.toRadians(p2.getLon());             // h
 
-    double sinx1 = Math.sin(p1Lat), cosx1 = Math.cos(p1Lat);
-    double siny1 = (Math.sin(p1long)), cosy1 = (Math.cos(p1long));
-    double sinx2 = (Math.sin(p2lat)), cosx2 = (Math.cos(p2lat));
-    double siny2 = (Math.sin(p2long)), cosy2 = (Math.cos(p2long));
+    double sinx1 = Math.sin(p1lat), cosx1 = Math.cos(p1lat);
+    double siny1 = Math.sin(p1long), cosy1 = Math.cos(p1long);
+    double sinx2 = Math.sin(p2lat), cosx2 = Math.cos(p2lat);
+    double siny2 = Math.sin(p2long), cosy2 = Math.cos(p2long);
 
-    double cross_prod =
-        (cosy1 * cosx1 * cosy2 * cosx2) +
-            (cosy1 * sinx1 * cosy2 * sinx2) +
-            (siny1 * siny2);
-
-    if (cross_prod >= 1 || cross_prod <= -1) {
-      return cross_prod > 0 ? 0 : Math.PI;
+    double crossProduct = cosx1 * cosx2 * cosy1 * cosy2 + cosx1 * siny1 * cosx2 * siny2 + sinx1 * sinx2;
+    if (crossProduct >= 1D || crossProduct <= -1D) {
+      return crossProduct > 0 ? 0 : Math.PI;
     }
 
-    return Math.acos(cross_prod);
+    return Math.acos(crossProduct);
   }
 
   public static List<LatLong> latLon(List<String> path, DBObject object) {

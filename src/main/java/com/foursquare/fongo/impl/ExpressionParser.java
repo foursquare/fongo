@@ -1,6 +1,7 @@
 package com.foursquare.fongo.impl;
 
 import com.foursquare.fongo.FongoException;
+import com.github.davidmoten.geo.LatLong;
 import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBObject;
@@ -15,10 +16,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
-import org.gavaghan.geodesy.Ellipsoid;
-import org.gavaghan.geodesy.GeodeticCalculator;
-import org.gavaghan.geodesy.GeodeticCurve;
-import org.gavaghan.geodesy.GlobalCoordinates;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,6 +38,7 @@ public class ExpressionParser {
   public final static String AND = "$and";
   public final static String REGEX = "$regex";
   public final static String REGEX_OPTIONS = "$options";
+  public final static String NEAR = "$near";
   public final static String NEARSPHERE = "$nearSphere";
   public final static String MAXDISTANCE = "$maxDistance";
 
@@ -177,6 +175,32 @@ public class ExpressionParser {
       }
     }
   }
+
+  private final class NearCommandFilterFactory extends BasicCommandFilterFactory {
+
+    final boolean spherical;
+
+    public NearCommandFilterFactory(final String command, boolean spherical) {
+      super(command);
+      this.spherical = spherical;
+    }
+
+    // http://docs.mongodb.org/manual/reference/operator/near/#op._S_near
+    @Override
+    public Filter createFilter(final List<String> path, DBObject refExpression) {
+      LOG.info("path:{}, refExp:{}", path, refExpression);
+      Number maxDistance = typecast(MAXDISTANCE, refExpression.get(MAXDISTANCE), Number.class);
+      final List coordinates;
+      if (refExpression.get(command) instanceof BasicDBList) {
+        coordinates = typecast(command, refExpression.get(command), List.class);
+      } else {
+        DBObject dbObject = typecast(command, refExpression.get(command), DBObject.class);
+        coordinates = Util.extractField(dbObject, "$geometry.coordinates");
+      }
+      return createNearFilter(path, coordinates, maxDistance, spherical);
+    }
+  }
+
 
   public <T> T typecast(String fieldName, Object obj, Class<T> clazz) {
     try {
@@ -327,16 +351,8 @@ public class ExpressionParser {
           return createPatternFilter(path, pattern);
         }
       },
-      new BasicCommandFilterFactory(NEARSPHERE) {
-        // http://docs.mongodb.org/manual/reference/operator/near/#op._S_near
-        @Override
-        public Filter createFilter(final List<String> path, DBObject refExpression) {
-          LOG.info("path:{}, refExp:{}", path, refExpression);
-          Number maxDistance = typecast(MAXDISTANCE, refExpression.get(MAXDISTANCE), Number.class);
-          final List coordinates = typecast(NEARSPHERE, (refExpression).get(NEARSPHERE), List.class);
-          return createNearFilter(path, coordinates, maxDistance, true);
-        }
-      }
+      new NearCommandFilterFactory(NEARSPHERE, true),
+      new NearCommandFilterFactory(NEAR, false)
   );
 
   boolean objectMatchesPattern(Object obj, Pattern pattern) {
@@ -567,7 +583,7 @@ public class ExpressionParser {
   // I think this "filter" must be in the index.
   public Filter createNearFilter(final List<String> path, final List<Number> coordinates, final Number maxDistance, final boolean sphere) {
     return new Filter() {
-      final GlobalCoordinates coordinate = new GlobalCoordinates(coordinates.get(1).doubleValue(), coordinates.get(0).doubleValue());
+      final LatLong coordinate = new LatLong(coordinates.get(1).doubleValue(), coordinates.get(0).doubleValue());
       int limit = 100;
 
       public boolean apply(DBObject o) {
@@ -583,11 +599,11 @@ public class ExpressionParser {
             LOG.info("{}", storedOption);
             for (Object storedValue : storedOption) {
               List<Number> numberValue = (List<Number>) storedValue;
-              GlobalCoordinates point = new GlobalCoordinates(numberValue.get(1).doubleValue(), numberValue.get(0).doubleValue());
-              GeodeticCurve measurement = new GeodeticCalculator().calculateGeodeticCurve(Ellipsoid.WGS84, coordinate, point);
+              LatLong point = new LatLong(numberValue.get(1).doubleValue(), numberValue.get(0).doubleValue());
 
-              LOG.info("distance : {}", measurement.getEllipsoidalDistance());
-              result = measurement.getEllipsoidalDistance() < maxDistance.doubleValue();
+              double distance = GeoUtil.distanceInRadians(point, coordinate, sphere);
+              LOG.info("distance : {}", distance);
+              result = distance < maxDistance.doubleValue();
               if (result) {
                 break;
               }

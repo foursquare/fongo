@@ -1,11 +1,13 @@
 package com.foursquare.fongo;
 
+import com.foursquare.fongo.impl.GeoUtil;
 import com.foursquare.fongo.impl.Util;
 import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
 import com.mongodb.CommandResult;
 import com.mongodb.DBCollection;
 import com.mongodb.DBObject;
+import java.util.Arrays;
 import java.util.List;
 import static org.junit.Assert.assertEquals;
 import org.junit.Rule;
@@ -99,6 +101,29 @@ public class FongoGeoTest {
   }
 
   @Test
+  public void testDistChangeAtLatSpherical() throws Exception {
+    DBCollection collection = fongoRule.newCollection();
+    collection.insert(new BasicDBObject("_id", 1).append("loc", Util.list(73D, 40D)));
+    collection.insert(new BasicDBObject("_id", 2).append("loc", Util.list(2D, 48D)));
+    collection.insert(new BasicDBObject("_id", 3).append("loc", Util.list(0D, 0D)));
+    collection.insert(new BasicDBObject("_id", 4).append("loc", Util.list(-73D, -40D)));
+    collection.ensureIndex(new BasicDBObject("loc", "2d"));
+
+    // geoNear
+    CommandResult commandResult = collection.getDB().command(new BasicDBObject("geoNear", collection.getName()).append("near", Util.list(40.0, 44D)).append("spherical", true));
+    commandResult.throwOnError();
+    System.out.println(commandResult);
+
+    DBObject results = (DBObject) commandResult.get("results");
+    System.out.println(results);
+    assertEquals(Util.list(
+        new BasicDBObject("dis", 0.43072310518886536).append("obj", new BasicDBObject("_id", 1).append("loc", Util.list(73D, 40D))),
+        new BasicDBObject("dis", 0.46118276717032347).append("obj", new BasicDBObject("_id", 2).append("loc", Util.list(2D, 48D))),
+        new BasicDBObject("dis", 0.9871788163259546).append("obj", new BasicDBObject("_id", 3).append("loc", Util.list(0D, 0D))),
+        new BasicDBObject("dis", 2.2940518831146437).append("obj", new BasicDBObject("_id", 4).append("loc", Util.list(-73D, -40D)))), (results));
+  }
+
+  @Test
   public void testZip() throws Exception {
     DBCollection collection = fongoRule.insertFile(fongoRule.newCollection(), "/zips.json");
     collection.ensureIndex(new BasicDBObject("loc", "2d"));
@@ -131,10 +156,8 @@ public class FongoGeoTest {
     // geoNear
     CommandResult commandResult = collection.getDB().command(new BasicDBObject("geoNear", collection.getName()).append("near", Util.list(-47.00, 44.919D)).append("limit", 10).append("spherical", true));
     commandResult.throwOnError();
-    System.out.println(commandResult);
     DBObject results = (DBObject) commandResult.get("results");
     assertEquals(10, ((BasicDBList) results).size());
-    System.out.println(results);
 
     assertEquals(fongoRule.parseDEObject("[ { \"dis\" : 0.24663504266786612 , \"obj\" : { \"_id\" : \"04631\" , \"city\" : \"EASTPORT\" , \"loc\" : [ -67.00739 , 44.919966] , \"pop\" : 2514 , \"state\" : \"ME\"}} ," +
         " { \"dis\" : 0.24729709096503652 , \"obj\" : { \"_id\" : \"04652\" , \"city\" : \"LUBEC\" , \"loc\" : [ -67.046016 , 44.834772] , \"pop\" : 2349 , \"state\" : \"ME\"}} ," +
@@ -148,6 +171,58 @@ public class FongoGeoTest {
         " { \"dis\" : 0.25105641737336887 , \"obj\" : { \"_id\" : \"04491\" , \"city\" : \"VANCEBORO\" , \"loc\" : [ -67.463419 , 45.558761] , \"pop\" : 217 , \"state\" : \"ME\"}}]"), results);
   }
 
+  @Test
+  public void testFindByNearSphere() {
+    DBCollection collection = fongoRule.newCollection();
+    collection.insert(new BasicDBObject("_id", 1).append("loc", Util.list(-73.97D, 40.72D)));
+    collection.insert(new BasicDBObject("_id", 2).append("loc", Util.list(2.265D, 48.791D)));
+    collection.ensureIndex(new BasicDBObject("loc", "2d"));
+
+    List<DBObject> objects = collection.find(new BasicDBObject("loc", new BasicDBObject("$nearSphere", Util.list(2.297, 48.809)).append("$maxDistance", 3100D / GeoUtil.EARTH_RADIUS))).toArray();
+    assertEquals(Arrays.asList(
+        new BasicDBObject("_id", 2).append("loc", Util.list(2.265D, 48.791D))), objects);
+  }
+
+  @Test
+  public void testFindByNearSphereNoMaxDistance() {
+    DBCollection collection = fongoRule.newCollection();
+    collection.insert(new BasicDBObject("_id", 1).append("loc", Util.list(2.265D, 48.791D)));
+    collection.insert(new BasicDBObject("_id", 2).append("loc", Util.list(-73.97D, 40.72D)));
+    collection.ensureIndex(new BasicDBObject("loc", "2d"));
+
+    List<DBObject> objects = collection.find(new BasicDBObject("loc", new BasicDBObject("$nearSphere",
+        new BasicDBObject("$geometry", new BasicDBObject("type", "Point").append("coordinates", Util.list(2.297, 48.809)))))).toArray();
+    assertEquals(Arrays.asList(
+        new BasicDBObject("_id", 1).append("loc", Util.list(2.265D, 48.791D)),
+        new BasicDBObject("_id", 2).append("loc", Util.list(-73.97D, 40.72D))), objects);
+  }
+
+  @Test
+  public void testFindByNear() {
+    DBCollection collection = fongoRule.newCollection();
+    collection.insert(new BasicDBObject("_id", 1).append("loc", Util.list(-73.97D, 40.72D)));
+    collection.insert(new BasicDBObject("_id", 2).append("loc", Util.list(2.265D, 48.791D)));
+    collection.ensureIndex(new BasicDBObject("loc", "2d"));
+
+    List<DBObject> objects = collection.find(new BasicDBObject("loc", new BasicDBObject("$near", Util.list(2.297, 48.809)).append("$maxDistance", 50D))).toArray();
+    assertEquals(Arrays.asList(
+        new BasicDBObject("_id", 2).append("loc", Util.list(2.265D, 48.791D))), objects);
+  }
+
+  @Test
+  public void testFindByNearNoMaxDistance() {
+    DBCollection collection = fongoRule.newCollection();
+    collection.insert(new BasicDBObject("_id", 1).append("loc", Util.list(2.265D, 48.791D)));
+    collection.insert(new BasicDBObject("_id", 2).append("loc", Util.list(-73.97D, 40.72D)));
+    collection.ensureIndex(new BasicDBObject("loc", "2d"));
+
+    List<DBObject> objects = collection.find(new BasicDBObject("loc", new BasicDBObject("$near",
+        new BasicDBObject("$geometry", new BasicDBObject("type", "Point").append("coordinates", Util.list(2.297, 48.809)))))).toArray();
+    assertEquals(Arrays.asList(
+        new BasicDBObject("_id", 1).append("loc", Util.list(2.265D, 48.791D)),
+        new BasicDBObject("_id", 2).append("loc", Util.list(-73.97D, 40.72D))), objects);
+  }
+
   private static DBObject roundDis(DBObject objectList) {
     for (DBObject o : (List<DBObject>) objectList) {
       o.put("dis", round((Double) o.get("dis")));
@@ -156,9 +231,8 @@ public class FongoGeoTest {
   }
 
   private static Double round(Double dis) {
-    return dis;
-//    double mul = 1000D;
-//    return Math.round(dis * mul) / mul;
+    double mul = 1000000D;
+    return Math.round(dis * mul) / mul;
   }
 
   //https://groups.google.com/forum/#!topic/mongodb-user/T4L3L7m0Cho
