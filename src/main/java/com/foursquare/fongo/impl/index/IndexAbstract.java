@@ -99,7 +99,7 @@ public abstract class IndexAbstract<T extends DBObject> {
       if (mapValues.containsKey(key)) {
         return extractFields(object, key.keySet());
       }
-      mapValues.put(key, Collections.singletonList(clone(object)));
+      mapValues.put(key, Collections.singletonList(embedded(object))); // DO NOT CLONE !
     } else {
       // Extract previous values
       List<T> values = mapValues.get(key);
@@ -110,13 +110,13 @@ public abstract class IndexAbstract<T extends DBObject> {
       }
 
       // Add to values.
-      T toAdd = clone(object);
+      T toAdd = embedded(object); // DO NOT CLONE ! Indexes must share the same object.
       values.add(toAdd);
     }
     return Collections.emptyList();
   }
 
-  public abstract T clone(DBObject object);
+  public abstract T embedded(DBObject object);
 
   /**
    * Check, in case of unique index, if we can add it.
@@ -191,7 +191,7 @@ public abstract class IndexAbstract<T extends DBObject> {
       if (filterKey.apply(entry.getKey())) {
         for (DBObject object : entry.getValue()) {
           if (filter.apply(object)) {
-            result.add(object);
+            result.add(object); // DO NOT CLONE ! need for update.
           }
         }
       }

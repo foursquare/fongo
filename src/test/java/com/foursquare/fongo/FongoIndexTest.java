@@ -22,7 +22,7 @@ import org.junit.rules.RuleChain;
 
 public class FongoIndexTest {
 
-  public final FongoRule fongoRule = new FongoRule(!true);
+  public final FongoRule fongoRule = new FongoRule("db", !true);
 
   public final ExpectedException exception = ExpectedException.none();
 
@@ -31,7 +31,7 @@ public class FongoIndexTest {
 
   @Test
   public void testCreateIndexes() {
-    DBCollection collection = fongoRule.newCollection();
+    DBCollection collection = fongoRule.newCollection("coll");
     collection.ensureIndex("n");
     collection.ensureIndex("b");
     List<DBObject> indexes = collection.getIndexInfo();
@@ -47,7 +47,7 @@ public class FongoIndexTest {
    */
   @Test
   public void testCreateSameIndex() {
-    DBCollection collection = fongoRule.newCollection();
+    DBCollection collection = fongoRule.newCollection("coll");
     collection.ensureIndex("n");
     collection.ensureIndex("n");
     List<DBObject> indexes = collection.getIndexInfo();
@@ -62,7 +62,7 @@ public class FongoIndexTest {
    */
   @Test
   public void testCreateSameIndexButUnique() {
-    DBCollection collection = FongoTest.newCollection();
+    DBCollection collection = fongoRule.newCollection("coll");
     collection.ensureIndex(new BasicDBObject("n", 1), "n_1");
     collection.ensureIndex(new BasicDBObject("n", 1), "n_1", true);
     List<DBObject> indexes = collection.getIndexInfo();
@@ -74,7 +74,7 @@ public class FongoIndexTest {
 
   @Test
   public void testCreateIndexOnSameFieldInversedOrder() {
-    DBCollection collection = FongoTest.newCollection();
+    DBCollection collection = fongoRule.newCollection("coll");
     collection.ensureIndex(new BasicDBObject("n", 1));
     collection.ensureIndex(new BasicDBObject("n", -1));
     List<DBObject> indexes = collection.getIndexInfo();
@@ -87,7 +87,7 @@ public class FongoIndexTest {
 
   @Test
   public void testDropIndexOnSameFieldInversedOrder() {
-    DBCollection collection = FongoTest.newCollection();
+    DBCollection collection = fongoRule.newCollection("coll");
     collection.ensureIndex(new BasicDBObject("n", 1));
     collection.ensureIndex(new BasicDBObject("n", -1));
     List<DBObject> indexes = collection.getIndexInfo();
@@ -102,7 +102,7 @@ public class FongoIndexTest {
 
   @Test
   public void testDropIndex() {
-    DBCollection collection = FongoTest.newCollection();
+    DBCollection collection = fongoRule.newCollection("coll");
     collection.ensureIndex("n");
     collection.ensureIndex("b");
 
@@ -123,7 +123,7 @@ public class FongoIndexTest {
 
   @Test
   public void testDropIndexes() {
-    DBCollection collection = FongoTest.newCollection();
+    DBCollection collection = fongoRule.newCollection("coll");
     collection.ensureIndex("n");
     collection.ensureIndex("b");
 
@@ -142,7 +142,7 @@ public class FongoIndexTest {
   // Data are already here, but duplicated.
   @Test
   public void testCreateIndexOnDuplicatedData() {
-    DBCollection collection = FongoTest.newCollection();
+    DBCollection collection = fongoRule.newCollection();
 
     collection.insert(new BasicDBObject("n", 1));
     collection.insert(new BasicDBObject("n", 1));
@@ -161,7 +161,7 @@ public class FongoIndexTest {
    */
   @Test
   public void testUpdateObjectOnUniqueIndexSameValue() {
-    DBCollection collection = FongoTest.newCollection();
+    DBCollection collection = fongoRule.newCollection();
     collection.ensureIndex(new BasicDBObject("n", 1), "n_1", true);
 
     collection.insert(new BasicDBObject("n", 1));
@@ -178,7 +178,7 @@ public class FongoIndexTest {
    */
   @Test
   public void testUpdateObjectOnUniqueIndexDifferentValue() {
-    DBCollection collection = FongoTest.newCollection();
+    DBCollection collection = fongoRule.newCollection();
     collection.ensureIndex(new BasicDBObject("n", 1), "n_1", true);
 
     collection.insert(new BasicDBObject("n", 1));
@@ -196,7 +196,7 @@ public class FongoIndexTest {
    */
   @Test
   public void testUpdateObjectOnUniqueIndex() {
-    DBCollection collection = FongoTest.newCollection();
+    DBCollection collection = fongoRule.newCollection();
     collection.ensureIndex(new BasicDBObject("n", 1), "n_1", true);
 
     collection.insert(new BasicDBObject("n", 1));
@@ -216,7 +216,7 @@ public class FongoIndexTest {
 
   @Test
   public void uniqueIndexesShouldNotPermitCreateOfDuplicatedEntries() {
-    DBCollection collection = FongoTest.newCollection();
+    DBCollection collection = fongoRule.newCollection();
 
     collection.ensureIndex(new BasicDBObject("date", 1), "uniqueDate", true);
 
@@ -232,7 +232,7 @@ public class FongoIndexTest {
 
   @Test
   public void indexesShouldBeRemoved() {
-    DBCollection collection = FongoTest.newCollection();
+    DBCollection collection = fongoRule.newCollection();
 
     collection.ensureIndex(new BasicDBObject("date", 1));
     collection.ensureIndex(new BasicDBObject("field", 1), "fieldIndex");
@@ -253,7 +253,7 @@ public class FongoIndexTest {
 
   @Test
   public void indexesMustBeUsedForFind() {
-    FongoDBCollection collection = (FongoDBCollection) FongoTest.newCollection();
+    DBCollection collection = fongoRule.newCollection();
 
     collection.ensureIndex(new BasicDBObject("firstname", 1).append("lastname", 1));
     collection.ensureIndex(new BasicDBObject("date", 1));
@@ -299,7 +299,7 @@ public class FongoIndexTest {
   // Check if index is correctly cleaned.
   @Test
   public void afterRemoveObjectMustNotBeRetrieved() {
-    FongoDBCollection collection = (FongoDBCollection) FongoTest.newCollection();
+    DBCollection collection = fongoRule.newCollection();
 
     collection.ensureIndex(new BasicDBObject("date", 1));
 
@@ -314,7 +314,7 @@ public class FongoIndexTest {
 
   @Test
   public void uniqueIndexesShouldNotPermitUpdateOfDuplicatedEntriesWhenUpdatedById() {
-    DBCollection collection = FongoTest.newCollection();
+    DBCollection collection = fongoRule.newCollection();
 
     collection.ensureIndex(new BasicDBObject("date", 1), "uniqueDate", true);
 
@@ -336,7 +336,7 @@ public class FongoIndexTest {
 
   @Test
   public void uniqueIndexesShouldNotPermitCreateOfDuplicatedEntriesWhenUpdatedByField() {
-    DBCollection collection = FongoTest.newCollection();
+    DBCollection collection = fongoRule.newCollection();
 
     collection.ensureIndex(new BasicDBObject("date", 1), "uniqueDate", true);
 
@@ -358,7 +358,7 @@ public class FongoIndexTest {
 
   @Test
   public void uniqueIndexesCanPermitUpdateOfDuplicatedEntriesWhenUpdatedByIdTheSameObject() {
-    DBCollection collection = FongoTest.newCollection();
+    DBCollection collection = fongoRule.newCollection();
 
     collection.ensureIndex(new BasicDBObject("date", 1), "uniqueDate", true);
 
@@ -375,7 +375,7 @@ public class FongoIndexTest {
 
   @Test
   public void uniqueIndexesCanPermitCreateOfDuplicatedEntriesWhenUpdatedByFieldTheSameObject() {
-    DBCollection collection = FongoTest.newCollection();
+    DBCollection collection = fongoRule.newCollection();
 
     collection.ensureIndex(new BasicDBObject("date", 1), "uniqueDate", true);
 
@@ -390,7 +390,7 @@ public class FongoIndexTest {
 
   @Test
   public void uniqueIndexesShouldPermitCreateOfDuplicatedEntriesWhenIndexIsRemoved() {
-    DBCollection collection = FongoTest.newCollection();
+    DBCollection collection = fongoRule.newCollection();
 
     collection.ensureIndex(new BasicDBObject("date", 1), "uniqueDate", true);
 
@@ -406,7 +406,7 @@ public class FongoIndexTest {
 
   @Test
   public void uniqueIndexesShouldPermitCreateOfDuplicatedEntriesWhenAllIndexesAreRemoved() {
-    DBCollection collection = FongoTest.newCollection();
+    DBCollection collection = fongoRule.newCollection();
 
     collection.ensureIndex(new BasicDBObject("date", 1), "uniqueDate", true);
 
@@ -423,7 +423,7 @@ public class FongoIndexTest {
   // Add or remove a field in an object must populate the index.
   @Test
   public void updateAndAddFieldMustAddIntoIndex() {
-    FongoDBCollection collection = (FongoDBCollection) FongoTest.newCollection();
+    DBCollection collection = fongoRule.newCollection();
 
     collection.ensureIndex(new BasicDBObject("date", 1));
 
@@ -440,7 +440,7 @@ public class FongoIndexTest {
   // Add or remove a field in an object must populate the index.
   @Test
   public void updateAndRemoveFieldMustAddIntoIndex() {
-    FongoDBCollection collection = (FongoDBCollection) FongoTest.newCollection();
+    DBCollection collection = fongoRule.newCollection();
 
     collection.ensureIndex(new BasicDBObject("date", 1));
 
@@ -456,7 +456,7 @@ public class FongoIndexTest {
 
   @Test
   public void indexesMustBeUsedForFindWithInFilter() {
-    FongoDBCollection collection = (FongoDBCollection) FongoTest.newCollection();
+    DBCollection collection = fongoRule.newCollection();
 
     collection.ensureIndex(new BasicDBObject("date", 1));
 
@@ -476,7 +476,7 @@ public class FongoIndexTest {
 
   @Test
   public void testFindOneOrData() {
-    DBCollection collection = FongoTest.newCollection();
+    DBCollection collection = fongoRule.newCollection();
     collection.ensureIndex(new BasicDBObject("date", 1));
     collection.insert(new BasicDBObject("date", 1));
     DBObject result = collection.findOne(new BasicDBObject("$or", Util.list(new BasicDBObject("date", 1), new BasicDBObject("date", 2))));
@@ -485,7 +485,7 @@ public class FongoIndexTest {
 
   @Test
   public void testIdInQueryResultsInIndexOnFieldOrder() {
-    DBCollection collection = FongoTest.newCollection();
+    DBCollection collection = fongoRule.newCollection();
     collection.insert(new BasicDBObject("date", 4));
     collection.insert(new BasicDBObject("date", 3));
     collection.insert(new BasicDBObject("date", 1));
@@ -503,7 +503,7 @@ public class FongoIndexTest {
 
   @Test
   public void test2dIndex() {
-    DBCollection collection = FongoTest.newCollection();
+    DBCollection collection = fongoRule.newCollection();
     collection.insert(new BasicDBObject("_id", 1).append("loc", Util.list(-73.97D, 40.72D)));
     collection.insert(new BasicDBObject("_id", 2).append("loc", Util.list(2.265D, 48.791D)));
     collection.ensureIndex(new BasicDBObject("loc", "2d"));
@@ -514,12 +514,39 @@ public class FongoIndexTest {
 
   @Test(expected = WriteConcernException.class)
   public void test2dIndexNotFirst() {
-    DBCollection collection = FongoTest.newCollection();
+    DBCollection collection = fongoRule.newCollection();
 // com.mongodb.WriteConcernException: { "serverUsed" : "localhost/127.0.0.1:27017" , "err" : "2d has to be first in index" , "code" : 13023 , "n" : 0 , "connectionId" : 272 , "ok" : 1.0}
 
     collection.insert(new BasicDBObject("_id", 1).append("loc", Util.list(-73.97D, 40.72D)));
     collection.insert(new BasicDBObject("_id", 2).append("loc", Util.list(2.265D, 48.791D)));
     collection.ensureIndex(new BasicDBObject("name", 1).append("loc", "2d"));
+  }
+
+  @Test
+  public void testUpdateMustModifyAllIndexes() throws Exception {
+    DBCollection collection = fongoRule.newCollection();
+    collection.insert(new BasicDBObject("date", 1).append("name", "jon").append("_id", 1));
+    collection.ensureIndex(new BasicDBObject("date", 1));
+    collection.ensureIndex(new BasicDBObject("name", 1));
+
+    IndexAbstract indexDate = getIndex(collection, "date_1");
+    IndexAbstract indexName = getIndex(collection, "name_1");
+
+    // Now, modify an object.
+    collection.update(new BasicDBObject("_id", 1), new BasicDBObject("$set", new BasicDBObject("name", "will")));
+    assertEquals(0, indexDate.getLookupCount());
+    assertEquals(0, indexName.getLookupCount());
+
+    // Find in with index "name"
+    assertEquals(new BasicDBObject("date", 1).append("name", "will").append("_id", 1), collection.findOne(new BasicDBObject("name", "will")));
+    assertEquals(1, indexName.getLookupCount());
+    assertEquals(0, indexDate.getLookupCount());
+    assertEquals(new BasicDBObject("date", 1).append("name", "will").append("_id", 1), collection.findOne(new BasicDBObject("date", 1)));
+    assertEquals(1, indexName.getLookupCount());
+    assertEquals(1, indexDate.getLookupCount());
+    assertEquals(new BasicDBObject("date", 1).append("name", "will").append("_id", 1), collection.findOne(new BasicDBObject("_id", 1)));
+    assertEquals(1, indexDate.getLookupCount());
+    assertEquals(1, indexName.getLookupCount());
   }
 
   static IndexAbstract getIndex(DBCollection collection, String name) {

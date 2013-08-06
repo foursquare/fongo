@@ -30,8 +30,8 @@ public class Index extends IndexAbstract<DBObject> {
     }
   }
 
-  public DBObject clone(DBObject object) {
-    return Util.clone(object);
+  public DBObject embedded(DBObject object) {
+    return object; // Important : do not clone, indexes share objects between them.
   }
 
 }

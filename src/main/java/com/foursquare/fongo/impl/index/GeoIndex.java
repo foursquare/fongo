@@ -45,8 +45,8 @@ public class GeoIndex extends IndexAbstract<GeoUtil.GeoDBObject> {
   }
 
   @Override
-  public GeoUtil.GeoDBObject clone(DBObject object) {
-    return new GeoUtil.GeoDBObject(Util.clone(object), geoIndex);
+  public GeoUtil.GeoDBObject embedded(DBObject object) {
+    return new GeoUtil.GeoDBObject(object, geoIndex); // Important : do not clone, indexes share objects between them.
   }
 
   public synchronized List<DBObject> geoNear(DBObject query, LatLong coordinate, int limit, boolean spherical) {
