@@ -18,7 +18,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
-import java.util.TreeMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,7 +30,7 @@ public class GeoIndex extends IndexAbstract<GeoUtil.GeoDBObject> {
   static final Logger LOG = LoggerFactory.getLogger(GeoIndex.class);
 
   // EXPERIMENTAL SET TO FALSE : did not work well...
-  static final boolean BRUTE_FORCE = true;
+  static final boolean BRUTE_FORCE = false;
 
   GeoIndex(String name, DBObject keys, boolean unique, String geoIndex) {
     super(name, keys, unique, new LinkedHashMap<GeoUtil.GeoDBObject, List<GeoUtil.GeoDBObject>>(), geoIndex);
@@ -61,6 +60,7 @@ public class GeoIndex extends IndexAbstract<GeoUtil.GeoDBObject> {
     Queue<String> hashs = new LinkedList<String>();
     for (LatLong coordinate : coordinates) {
       hashs.add(GeoUtil.encodeGeoHash(coordinate));
+      hashs.addAll(GeoUtil.neightbours(GeoUtil.encodeGeoHash(coordinate)));
     }
 
     // Filter values
@@ -71,16 +71,12 @@ public class GeoIndex extends IndexAbstract<GeoUtil.GeoDBObject> {
 
     if (BRUTE_FORCE) {
       // Bruteforce : try all.
-      for (Map.Entry<GeoUtil.GeoDBObject, List<GeoUtil.GeoDBObject>> entry : mapValues.entrySet()) {
-        for (LatLong coordinate : coordinates) {
-          geoNearResults(entry.getValue(), filterValue, coordinate, resultSet, spherical);
-        }
-      }
+      geoNearCoverAll(mapValues, filterValue, coordinates, spherical, resultSet);
     } else {
-
       Map<GeoUtil.GeoDBObject, List<GeoUtil.GeoDBObject>> copyMap = new LinkedHashMap<GeoUtil.GeoDBObject, List<GeoUtil.GeoDBObject>>(mapValues);
       Set<String> visited = new HashSet<String>();
 
+      int sizeHash = GeoUtil.SIZE_GEOHASH - 2;
       // Do not break if limit is reached, because of neighbours.
       while (!hashs.isEmpty() && copyMap.size() != 0) {
         String hash = hashs.poll(); // get head
@@ -91,6 +87,7 @@ public class GeoIndex extends IndexAbstract<GeoUtil.GeoDBObject> {
             GeoUtil.GeoDBObject geoObject = entry.getKey();
             // Hash is found
             if (geoObject.getGeoHash().startsWith(hash)) {
+              LOG.info("gotcha : {}", geoObject);
               // Can we apply other filter ?
               List<GeoUtil.GeoDBObject> values = entry.getValue();
               // Now transform to {dis:<distance>, obj:<result>}
@@ -104,14 +101,12 @@ public class GeoIndex extends IndexAbstract<GeoUtil.GeoDBObject> {
           // Add more hash if limit is not reached.
           // If limit is out of scope, stop adding hash but continue to poll them from stack.
           // The order and sublist will be doing later.
-          if (resultSet.size() < limit * 10) {
+          if (resultSet.size() < limit && sizeHash > 1) {
             if (hash.length() >= 1) {
-              try {
-                hashs.addAll(GeoUtil.neightbours(hash));
-              } catch (Exception e) {
-
-              }
-              hashs.add(hash.substring(0, hash.length() - 1)); // Look for larger size.
+              hashs.addAll(GeoUtil.neightbours(hash));
+              LatLong reversed = GeoUtil.decodeGeoHash(hash);
+              LOG.info("reversed:{}, hash:{}", reversed, hash);
+              hashs.add(GeoUtil.encodeGeoHash(reversed, sizeHash)); // Look for larger size.
             }
           }
         }
@@ -119,6 +114,17 @@ public class GeoIndex extends IndexAbstract<GeoUtil.GeoDBObject> {
     }
 
     return sortAndLimit(resultSet, limit);
+  }
+
+  /**
+   * Try all the map, without trying to filter by geohash.
+   */
+  private void geoNearCoverAll(Map<GeoUtil.GeoDBObject, List<GeoUtil.GeoDBObject>> values, Filter filterValue, List<LatLong> coordinates, boolean spherical, LinkedHashSet<DBObject> resultSet) {
+    for (Map.Entry<GeoUtil.GeoDBObject, List<GeoUtil.GeoDBObject>> entry : values.entrySet()) {
+      for (LatLong coordinate : coordinates) {
+        geoNearResults(entry.getValue(), filterValue, coordinate, resultSet, spherical);
+      }
+    }
   }
 
   /**

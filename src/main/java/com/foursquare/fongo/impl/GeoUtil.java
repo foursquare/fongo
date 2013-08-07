@@ -10,9 +10,22 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
-public class GeoUtil {
+public final class GeoUtil {
 
   public static final double EARTH_RADIUS = 6374892.5; // common way : 6378100D;
+
+  //  Precision, Distance of Adjacent Cell in Meters
+  //      1,     5003530
+  //      2,     625441
+  //      3,     123264
+  //      4,     19545
+  //      5,     3803
+  //      6,     610
+  //      7,     118
+  //      8,     19
+  //      9,     3.71
+  //      10,    0.6
+  public static int SIZE_GEOHASH = 5; // Size of the geohash. 12 = more accurate.
 
   private GeoUtil() {
   }
@@ -152,7 +165,11 @@ public class GeoUtil {
   }
 
   public static String encodeGeoHash(LatLong latLong) {
-    return GeoHash.encodeHash(latLong, 5); // The more, the merrier.
+    return encodeGeoHash(latLong, SIZE_GEOHASH);
+  }
+
+  public static String encodeGeoHash(LatLong latLong, int sizeHash) {
+    return GeoHash.encodeHash(latLong, sizeHash); // The more, the merrier.
   }
 
   public static LatLong decodeGeoHash(String geoHash) {
@@ -160,7 +177,24 @@ public class GeoUtil {
   }
 
   public static List<String> neightbours(String geoHash) {
-    return GeoHash.neighbours(geoHash);
+    List<String> results = new ArrayList<String>();
+    try {
+      results.add(GeoHash.left(geoHash));
+    } catch (Exception e) {
+    }
+    try {
+      results.add(GeoHash.right(geoHash));
+    } catch (Exception e) {
+    }
+    try {
+      results.add(GeoHash.top(geoHash));
+    } catch (Exception e) {
+    }
+    try {
+      results.add(GeoHash.bottom(geoHash));
+    } catch (Exception e) {
+    }
+    return results;
   }
 
 }

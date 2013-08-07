@@ -11,24 +11,26 @@ import org.slf4j.LoggerFactory;
 public class PerfTest {
   public static void main(String[] args) {
     // Desactivate logback
-    ch.qos.logback.classic.Logger LOG = (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(FongoDBCollection.class);
-    LOG.setLevel(Level.ERROR);
-    LOG = (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(ExpressionParser.class);
-    LOG.setLevel(Level.ERROR);
+    ch.qos.logback.classic.Logger log = (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(FongoDBCollection.class);
+    log.setLevel(Level.ERROR);
+    log = (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(ExpressionParser.class);
+    log.setLevel(Level.ERROR);
 
-    // Microbenchmark
-    for (int i = 0; i < 20000; i++) {
+    System.out.println("Warming jvm");
+    // Microbenchmark warm
+    for (int i = 0; i < 10000; i++) {
       doit(100);
       doitFindN(100);
       doitIndexes(100);
       doitFindNWithIndex(100);
     }
+    System.out.println("Warming jvm done.");
     long startTime = System.currentTimeMillis();
-    doit(100000);
+    doit(10000);
     System.out.println("Took " + (System.currentTimeMillis() - startTime) + " ms");
 
     startTime = System.currentTimeMillis();
-    doitIndexes(100000);
+    doitIndexes(10000);
     System.out.println("Took " + (System.currentTimeMillis() - startTime) + " ms with one useless index.");
 
     startTime = System.currentTimeMillis();
