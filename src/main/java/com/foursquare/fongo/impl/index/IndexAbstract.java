@@ -17,6 +17,8 @@ import org.slf4j.LoggerFactory;
 
 /**
  * An index for the MongoDB.
+ *
+ * NOT Thread Safe. The ThreadSafety must be done by the caller.
  */
 public abstract class IndexAbstract<T extends DBObject> {
   static final Logger LOG = LoggerFactory.getLogger(IndexAbstract.class);
@@ -95,7 +97,7 @@ public abstract class IndexAbstract<T extends DBObject> {
    * @param oldObject in update, old objet to remove from index.
    * @return keys in error if uniqueness is not respected, empty collection otherwise.
    */
-  public synchronized List<List<Object>> addOrUpdate(DBObject object, DBObject oldObject) {
+  public List<List<Object>> addOrUpdate(DBObject object, DBObject oldObject) {
     if (oldObject != null) {
       this.remove(oldObject); // TODO : optim ?
     }
@@ -133,7 +135,7 @@ public abstract class IndexAbstract<T extends DBObject> {
    * @param oldObject old object if update, null elsewhere.
    * @return keys in error if uniqueness is not respected, empty collection otherwise.
    */
-  public synchronized List<List<Object>> checkAddOrUpdate(DBObject object, DBObject oldObject) {
+  public List<List<Object>> checkAddOrUpdate(DBObject object, DBObject oldObject) {
     if (unique) {
       DBObject key = getKeyFor(object);
       List<T> objects = mapValues.get(key);
@@ -150,7 +152,7 @@ public abstract class IndexAbstract<T extends DBObject> {
    *
    * @param object to remove from the index.
    */
-  public synchronized void remove(DBObject object) {
+  public void remove(DBObject object) {
     DBObject key = getKeyFor(object);
     // Extract previous values
     List<T> values = mapValues.get(key);
@@ -170,7 +172,7 @@ public abstract class IndexAbstract<T extends DBObject> {
    * @param objects to add.
    * @return keys in error if uniqueness is not respected, empty collection otherwise.
    */
-  public synchronized List<List<Object>> addAll(Iterable<DBObject> objects) {
+  public List<List<Object>> addAll(Iterable<DBObject> objects) {
     for (DBObject object : objects) {
       if (canHandle(object.keySet())) {
         List<List<Object>> nonUnique = addOrUpdate(object, null);
@@ -184,12 +186,12 @@ public abstract class IndexAbstract<T extends DBObject> {
   }
 
   // Only for unique index.
-  public synchronized List<T> get(DBObject query) {
+  public List<T> get(DBObject query) {
     DBObject key = getKeyFor(query);
     return mapValues.get(key);
   }
 
-  public synchronized Collection<DBObject> retrieveObjects(DBObject query) {
+  public Collection<DBObject> retrieveObjects(DBObject query) {
     lookupCount++;
 
     // Filter for the key.
@@ -213,7 +215,7 @@ public abstract class IndexAbstract<T extends DBObject> {
     return lookupCount;
   }
 
-  public synchronized int size() {
+  public int size() {
     int size = 0;
     if (unique) {
       size = mapValues.size();
@@ -225,7 +227,7 @@ public abstract class IndexAbstract<T extends DBObject> {
     return size;
   }
 
-  public synchronized List<DBObject> values() {
+  public List<DBObject> values() {
     List<DBObject> values = new ArrayList<DBObject>(mapValues.size() * 10);
     for (List<T> objects : mapValues.values()) {
       values.addAll(objects);
@@ -233,7 +235,7 @@ public abstract class IndexAbstract<T extends DBObject> {
     return values;
   }
 
-  public synchronized void clear() {
+  public void clear() {
     mapValues.clear();
   }
 
@@ -260,7 +262,7 @@ public abstract class IndexAbstract<T extends DBObject> {
    * @param object
    * @return
    */
-  protected synchronized T getKeyFor(DBObject object) {
+  protected T getKeyFor(DBObject object) {
     DBObject applyProjections = FongoDBCollection.applyProjections(object, keys);
     return (T) applyProjections;
   }

@@ -44,7 +44,7 @@ public class GeoIndex extends IndexAbstract<GeoUtil.GeoDBObject> {
    * @return
    */
   @Override
-  protected synchronized GeoUtil.GeoDBObject getKeyFor(DBObject object) {
+  protected GeoUtil.GeoDBObject getKeyFor(DBObject object) {
     return new GeoUtil.GeoDBObject(super.getKeyFor(object), geoIndex);
   }
 
@@ -53,7 +53,7 @@ public class GeoIndex extends IndexAbstract<GeoUtil.GeoDBObject> {
     return new GeoUtil.GeoDBObject(object, geoIndex); // Important : do not clone, indexes share objects between them.
   }
 
-  public synchronized List<DBObject> geoNear(DBObject query, List<LatLong> coordinates, int limit, boolean spherical) {
+  public List<DBObject> geoNear(DBObject query, List<LatLong> coordinates, int limit, boolean spherical) {
     lookupCount++;
 
     LOG.info("geoNear() query:{}, coordinate:{}, limit:{}, spherical:{}", query, coordinates, limit, spherical);
