@@ -603,6 +603,21 @@ public class FongoIndexTest {
     assertEquals(1, index.size());
   }
 
+  @Test
+  public void testRemoveMulti() throws Exception {
+    DBCollection collection = FongoTest.newCollection();
+    collection.ensureIndex(new BasicDBObject("a", 1));
+    collection.insert(new BasicDBObject("_id", 1).append("a", 1));
+    collection.insert(new BasicDBObject("_id", 2));
+    collection.insert(new BasicDBObject("_id", 3).append("a", 1));
+
+    IndexAbstract index = getIndex(collection, "a_1");
+    assertEquals(2, index.size());
+
+    collection.remove(new BasicDBObject("a", 1));
+    assertEquals(0, index.size());
+  }
+
   static IndexAbstract getIndex(DBCollection collection, String name) {
     FongoDBCollection fongoDBCollection = (FongoDBCollection) collection;
 
