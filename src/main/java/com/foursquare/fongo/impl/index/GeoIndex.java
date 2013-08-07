@@ -1,9 +1,9 @@
 package com.foursquare.fongo.impl.index;
 
 import com.foursquare.fongo.impl.Filter;
-import com.foursquare.fongo.impl.GeoUtil;
+import com.foursquare.fongo.impl.geo.GeoUtil;
 import com.foursquare.fongo.impl.Util;
-import com.github.davidmoten.geo.LatLong;
+import com.foursquare.fongo.impl.geo.LatLong;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBObject;
 import java.util.ArrayList;
@@ -30,7 +30,7 @@ public class GeoIndex extends IndexAbstract<GeoUtil.GeoDBObject> {
   static final Logger LOG = LoggerFactory.getLogger(GeoIndex.class);
 
   // EXPERIMENTAL SET TO FALSE : did not work well...
-  static final boolean BRUTE_FORCE = false;
+  static final boolean BRUTE_FORCE = true;
 
   GeoIndex(String name, DBObject keys, boolean unique, String geoIndex) {
     super(name, keys, unique, new LinkedHashMap<GeoUtil.GeoDBObject, List<GeoUtil.GeoDBObject>>(), geoIndex);

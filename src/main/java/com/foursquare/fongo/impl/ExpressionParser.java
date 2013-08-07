@@ -1,7 +1,8 @@
 package com.foursquare.fongo.impl;
 
 import com.foursquare.fongo.FongoException;
-import com.github.davidmoten.geo.LatLong;
+import com.foursquare.fongo.impl.geo.GeoUtil;
+import com.foursquare.fongo.impl.geo.LatLong;
 import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBObject;

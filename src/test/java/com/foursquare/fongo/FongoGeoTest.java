@@ -1,6 +1,6 @@
 package com.foursquare.fongo;
 
-import com.foursquare.fongo.impl.GeoUtil;
+import com.foursquare.fongo.impl.geo.GeoUtil;
 import com.foursquare.fongo.impl.Util;
 import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;

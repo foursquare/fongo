@@ -1,11 +1,11 @@
 package com.mongodb;
 
 
-import com.foursquare.fongo.impl.GeoUtil;
+import com.foursquare.fongo.impl.geo.GeoUtil;
 import com.foursquare.fongo.impl.index.GeoIndex;
 import com.foursquare.fongo.impl.index.IndexAbstract;
 import com.foursquare.fongo.impl.index.IndexFactory;
-import com.github.davidmoten.geo.LatLong;
+import com.foursquare.fongo.impl.geo.LatLong;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;

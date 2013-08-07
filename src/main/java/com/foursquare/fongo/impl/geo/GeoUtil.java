@@ -1,7 +1,8 @@
-package com.foursquare.fongo.impl;
+package com.foursquare.fongo.impl.geo;
 
+import com.foursquare.fongo.impl.ExpressionParser;
+import com.foursquare.fongo.impl.Util;
 import com.github.davidmoten.geo.GeoHash;
-import com.github.davidmoten.geo.LatLong;
 import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBObject;
@@ -173,7 +174,7 @@ public final class GeoUtil {
   }
 
   public static LatLong decodeGeoHash(String geoHash) {
-    return GeoHash.decodeHash(geoHash);
+    return new LatLong(GeoHash.decodeHash(geoHash));
   }
 
   public static List<String> neightbours(String geoHash) {
