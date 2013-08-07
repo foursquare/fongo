@@ -159,10 +159,12 @@ public class Index {
    */
   public synchronized List<List<Object>> addAll(Iterable<DBObject> objects) {
     for (DBObject object : objects) {
-      List<List<Object>> nonUnique = addOrUpdate(object, null);
-      // TODO(twillouer) : must handle writeConcern.
-      if (!nonUnique.isEmpty()) {
-        return nonUnique;
+      if (canHandle(object.keySet())) {
+        List<List<Object>> nonUnique = addOrUpdate(object, null);
+        // TODO(twillouer) : must handle writeConcern.
+        if (!nonUnique.isEmpty()) {
+          return nonUnique;
+        }
       }
     }
     return Collections.emptyList();
