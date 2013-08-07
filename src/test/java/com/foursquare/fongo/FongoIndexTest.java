@@ -22,11 +22,11 @@ import org.junit.rules.ExpectedException;
 public class FongoIndexTest {
 
   @Rule
-  public ExpectedException exception = ExpectedException.none();
+  public FongoRule fongoRule = new FongoRule("db");
 
   @Test
   public void testCreateIndexes() {
-    DBCollection collection = FongoTest.newCollection();
+    DBCollection collection = fongoRule.newCollection("coll");
     collection.ensureIndex("n");
     collection.ensureIndex("b");
     List<DBObject> indexes = collection.getIndexInfo();
@@ -42,7 +42,7 @@ public class FongoIndexTest {
    */
   @Test
   public void testCreateSameIndex() {
-    DBCollection collection = FongoTest.newCollection();
+    DBCollection collection = fongoRule.newCollection("coll");
     collection.ensureIndex("n");
     collection.ensureIndex("n");
     List<DBObject> indexes = collection.getIndexInfo();
@@ -57,7 +57,7 @@ public class FongoIndexTest {
    */
   @Test
   public void testCreateSameIndexButUnique() {
-    DBCollection collection = FongoTest.newCollection();
+    DBCollection collection = fongoRule.newCollection("coll");
     collection.ensureIndex(new BasicDBObject("n", 1), "n_1");
     collection.ensureIndex(new BasicDBObject("n", 1), "n_1", true);
     List<DBObject> indexes = collection.getIndexInfo();
@@ -97,7 +97,7 @@ public class FongoIndexTest {
 
   @Test
   public void testDropIndex() {
-    DBCollection collection = FongoTest.newCollection();
+    DBCollection collection = fongoRule.newCollection("coll");
     collection.ensureIndex("n");
     collection.ensureIndex("b");
 
@@ -118,7 +118,7 @@ public class FongoIndexTest {
 
   @Test
   public void testDropIndexes() {
-    DBCollection collection = FongoTest.newCollection();
+    DBCollection collection = fongoRule.newCollection("coll");
     collection.ensureIndex("n");
     collection.ensureIndex("b");
 

@@ -288,54 +288,6 @@ class FongoAggregationScalaTest extends FongoAbstractTest with ParallelTestExecu
     assert(result.get(0).asInstanceOf[DBObject].containsField("_id"))
   }
 
-  test("Fongo should handle project with rename") {
-    val project = new BasicDBObject("$project", new BasicDBObject("renamedDate", "$date"))
-    val output = collection.aggregate(project)
-
-    assert(output.getCommandResult.ok)
-    assert(output.getCommandResult.containsField("result"))
-
-    val result: BasicDBList = output.getCommandResult.get("result").asInstanceOf[BasicDBList]
-    assert(10 === result.size())
-    assert(result.get(0).asInstanceOf[DBObject].containsField("renamedDate"))
-    assert(result.get(0).asInstanceOf[DBObject].containsField("_id"))
-  }
-
-  test("Fongo should handle project with sublist") {
-    collection.insert(new BasicDBObject("myId", "sublist").append("sub", new BasicDBObject("obj", new BasicDBObject("ect", 1))))
-
-    val matching = new BasicDBObject("$match", new BasicDBObject("myId", "sublist"))
-    val project = new BasicDBObject("$project", new BasicDBObject("bar", "$sub.obj.ect"))
-    val output = collection.aggregate(matching, project)
-
-    assert(output.getCommandResult.ok)
-    assert(output.getCommandResult.containsField("result"))
-
-    val result: BasicDBList = output.getCommandResult.get("result").asInstanceOf[BasicDBList]
-    assert(1 === result.size())
-    assert(result.get(0).asInstanceOf[DBObject].containsField("bar"))
-    assert(1 === result.get(0).asInstanceOf[DBObject].get("bar"))
-  }
-
-  test("Fongo should handle project with two sublist") {
-    collection.insert(new BasicDBObject("myId", "sublist").append("sub", new BasicDBObject("obj", new BasicDBObject("ect", 1).append("ect2", 2))))
-
-    val matching = new BasicDBObject("$match", new BasicDBObject("myId", "sublist"))
-    val project = new BasicDBObject("$project", new BasicDBObject("bar", "$sub.obj.ect").append("foo", "$sub.obj.ect2"))
-    val output = collection.aggregate(matching, project)
-
-    assert(output.getCommandResult.ok)
-    assert(output.getCommandResult.containsField("result"))
-
-    val result: BasicDBList = output.getCommandResult.get("result").asInstanceOf[BasicDBList]
-    assert(1 === result.size())
-    assert(result.get(0).asInstanceOf[DBObject].containsField("bar"))
-    assert(1 === result.get(0).asInstanceOf[DBObject].get("bar"))
-    assert(result.get(0).asInstanceOf[DBObject].containsField("foo"))
-    assert(2 === result.get(0).asInstanceOf[DBObject].get("foo"))
-    assert(!result.get(0).asInstanceOf[DBObject].containsField("sub"))
-  }
-
   test("Fongo should unwind list") {
     collection.insert(new BasicDBObject("author", "william").append("tags", Util.list("scala", "java", "mongo")))
     val matching = new BasicDBObject("$match", new BasicDBObject("author", "william"))

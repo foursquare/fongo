@@ -9,7 +9,7 @@ import scala.collection.JavaConversions._
 import org.scalatest.ParallelTestExecution
 
 @RunWith(classOf[JUnitRunner])
-class FongoAggregationGroupScalaTest extends FongoAbstractTest with ParallelTestExecution {
+class FongoAggregationZipScalaTest extends FongoAbstractTest with ParallelTestExecution {
   // If you want to test against real world (a real mongodb client).
   val realWorld = !true
 
