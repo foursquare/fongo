@@ -23,7 +23,7 @@ public final class ExpectedMongoException {
     return expectedExcpetion;
   }
 
-  public ExpectedException expectCode(ExpectedException expectedExcpetion, int code) {
+  public static ExpectedException expectCode(ExpectedException expectedExcpetion, int code) {
     expectedExcpetion.expect(equalCode(code));
     return expectedExcpetion;
   }

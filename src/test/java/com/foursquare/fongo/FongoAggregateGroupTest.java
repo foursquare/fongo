@@ -50,4 +50,6 @@ public class FongoAggregateGroupTest {
         "               { \"_id\" : \"dessert: pie\", \"count\" : 2 }\n" +
         "             ]"), result);
   }
+
+
 }

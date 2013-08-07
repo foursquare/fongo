@@ -768,6 +768,39 @@ public class FongoAggregateProjectTest {
   }
 
   @Test
+  public void shouldHandleProject() {
+    DBCollection coll = createTestCollection();
+    DBObject project = new BasicDBObject("$project", new BasicDBObject("date", 1));
+
+    // Test
+    AggregationOutput output = coll.aggregate(project);
+    assertTrue(output.getCommandResult().ok());
+    assertTrue(output.getCommandResult().containsField("result"));
+
+    BasicDBList result = Util.extractField(output.getCommandResult(), "result");
+    assertEquals(10, result.size());
+    assertTrue(((DBObject) result.get(0)).containsField("date"));
+    assertTrue(((DBObject) result.get(0)).containsField("_id"));
+  }
+
+  @Test
+  public void shouldProjectArrayIntoArray() {
+    DBCollection collection = fongoRule.newCollection();
+    collection.insert(new BasicDBObject("a", Util.list(1, 2, 3, 4)));
+    BasicDBObject project = new BasicDBObject("$project", new BasicDBObject("a", "$a"));
+
+    // Test
+    AggregationOutput output = collection.aggregate(project);
+    assertTrue(output.getCommandResult().ok());
+    assertTrue(output.getCommandResult().containsField("result"));
+
+    BasicDBList result = Util.extractField(output.getCommandResult(), "result");
+    assertEquals(1, result.size());
+    assertEquals(Util.list(1, 2, 3, 4), Util.extractField((DBObject) result.get(0), "a"));
+  }
+
+
+  @Test
   public void shouldHandleProjectWithRename() {
     DBObject project = new BasicDBObject("$project", new BasicDBObject("renamedDate", "$date"));
     AggregationOutput output = createTestCollection().aggregate(project);
