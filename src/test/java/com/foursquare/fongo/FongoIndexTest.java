@@ -7,7 +7,6 @@ import com.mongodb.DBCollection;
 import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
 import com.mongodb.FongoDBCollection;
-import com.mongodb.MongoClient;
 import com.mongodb.MongoException;
 import java.util.Arrays;
 import java.util.List;
@@ -17,7 +16,6 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 public class FongoIndexTest {
 

@@ -18,6 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * TODO : { project : { _id : 0} } must remove the _id field. If a $sort exist after...
  */
 @ThreadSafe
 public class Project extends PipelineKeyword {
