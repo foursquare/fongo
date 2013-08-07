@@ -3,6 +3,7 @@ package com.foursquare.fongo.impl;
 import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBObject;
+import com.mongodb.FongoDBCollection;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -120,8 +121,8 @@ public class Util {
       return path;
     }
   }
-  
-  public static boolean isPositiveInt(String s){
+
+  public static boolean isPositiveInt(String s) {
     for (int i = 0; i < s.length(); i++) {
       char c = s.charAt(i);
       if (c < '0' || c > '9') {
@@ -135,7 +136,7 @@ public class Util {
     if (source == null) {
       return null;
     }
-    
+
     if (source instanceof BasicDBObject) {
       @SuppressWarnings("unchecked")
       T clone = (T) ((BasicDBObject) source).copy();
@@ -153,5 +154,31 @@ public class Util {
 
   public static Set<Map.Entry<String, Object>> entrySet(DBObject object) {
     return (Set<Map.Entry<String, Object>>) object.toMap().entrySet();
+  }
+
+  // When inserting, MongoDB set _id in first place.
+  public static DBObject cloneIdFirst(DBObject source) {
+    if (source == null) {
+      return null;
+    }
+
+    // copy field values into new object
+    DBObject newobj = new BasicDBObject();
+    if (source.containsField(FongoDBCollection.ID_KEY)) {
+      newobj.put(FongoDBCollection.ID_KEY, source.get(FongoDBCollection.ID_KEY));
+    }
+    // need to clone the sub obj
+    for (Map.Entry<String, Object> entry : Util.entrySet(source)) {
+      String field = entry.getKey();
+      Object val = entry.getValue();
+      if (val instanceof BasicDBObject) {
+        newobj.put(field, ((BasicDBObject) val).copy());
+      } else if (val instanceof BasicDBList) {
+        newobj.put(field, ((BasicDBList) val).copy());
+      } else {
+        newobj.put(field, val);
+      }
+    }
+    return newobj;
   }
 }

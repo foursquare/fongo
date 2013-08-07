@@ -519,6 +519,33 @@ public class FongoIndexTest {
     collection.ensureIndex(new BasicDBObject("name", 1).append("loc", "2d"));
   }
 
+  @Test
+  public void testUpdateMustModifyAllIndexes() throws Exception {
+    DBCollection collection = FongoTest.newCollection();
+    collection.insert(new BasicDBObject("date", 1).append("name", "jon").append("_id", 1));
+    collection.ensureIndex(new BasicDBObject("date", 1));
+    collection.ensureIndex(new BasicDBObject("name", 1));
+
+    Index indexDate = getIndex(collection, "date_1");
+    Index indexName = getIndex(collection, "name_1");
+
+    // Now, modify an object.
+    collection.update(new BasicDBObject("_id", 1), new BasicDBObject("$set", new BasicDBObject("name", "will")));
+    assertEquals(0, indexDate.getLookupCount());
+    assertEquals(0, indexName.getLookupCount());
+
+    // Find in with index "name"
+    assertEquals(new BasicDBObject("date", 1).append("name", "will").append("_id", 1), collection.findOne(new BasicDBObject("name", "will")));
+    assertEquals(1, indexName.getLookupCount());
+    assertEquals(0, indexDate.getLookupCount());
+    assertEquals(new BasicDBObject("date", 1).append("name", "will").append("_id", 1), collection.findOne(new BasicDBObject("date", 1)));
+    assertEquals(1, indexName.getLookupCount());
+    assertEquals(1, indexDate.getLookupCount());
+    assertEquals(new BasicDBObject("date", 1).append("name", "will").append("_id", 1), collection.findOne(new BasicDBObject("_id", 1)));
+    assertEquals(1, indexDate.getLookupCount());
+    assertEquals(1, indexName.getLookupCount());
+  }
+
   private Index getIndex(DBCollection collection, String name) {
     FongoDBCollection fongoDBCollection = (FongoDBCollection) collection;
 
