@@ -168,13 +168,23 @@ public class Index {
     return Collections.emptyList();
   }
 
-  // Only for unique index.
+  // Only for unique index and for query with values. ($in doens't work by example.)
   public synchronized List<DBObject> get(DBObject query) {
+    if(!unique) {
+      throw new IllegalStateException("get is only for unique index");
+    }
+    lookupCount++;
+
     DBObject key = getKeyFor(query);
     return mapValues.get(key);
   }
 
   public synchronized Collection<DBObject> retrieveObjects(DBObject query) {
+    // Optimization
+    if(unique && query.keySet().size() == 1 && !(query.toMap().values().iterator().next() instanceof DBObject)) {
+      return get(query);
+    }
+
     lookupCount++;
 
     // Filter for the key.
