@@ -459,6 +459,11 @@ public class ExpressionParser {
         } else {
           for (Object storedValue : storedOption) {
             if (storedValue instanceof List) {
+              if (((List) storedValue).isEmpty()) {
+                  if(expression instanceof List){
+                      return ((List) expression).isEmpty();
+                  }
+              }
               if (((List) storedValue).contains(expression)) {
                 return true;
               }
