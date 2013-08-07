@@ -5,6 +5,7 @@ import com.foursquare.fongo.impl.Filter;
 import com.foursquare.fongo.impl.Util;
 import com.mongodb.DBObject;
 import com.mongodb.FongoDBCollection;
+import com.mongodb.MongoException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -30,13 +31,20 @@ public abstract class IndexAbstract<T extends DBObject> {
   final Map<T, List<T>> mapValues;
   int lookupCount = 0;
 
-  public IndexAbstract(String name, DBObject keys, boolean unique, Map<T, List<T>> mapValues, String geoIndex) {
+  public IndexAbstract(String name, DBObject keys, boolean unique, Map<T, List<T>> mapValues, String geoIndex) throws MongoException {
     this.name = name;
     this.fields = Collections.unmodifiableSet(keys.keySet()); // Setup BEFORE keys.
     this.keys = prepareKeys(keys);
     this.unique = unique;
     this.mapValues = mapValues;
     this.geoIndex = geoIndex;
+
+    for(Object value : keys.toMap().values()) {
+      if(!(value instanceof String) && !(value instanceof Number)) {
+        //com.mongodb.WriteConcernException: { "serverUsed" : "/127.0.0.1:27017" , "err" : "bad index key pattern { a: { n: 1 } }" , "code" : 10098 , "n" : 0 , "connectionId" : 543 , "ok" : 1.0}
+        throw new MongoException(10098, "bad index key pattern : " + keys);
+      }
+    }
   }
 
   private DBObject prepareKeys(DBObject keys) {
@@ -164,10 +172,12 @@ public abstract class IndexAbstract<T extends DBObject> {
    */
   public synchronized List<List<Object>> addAll(Iterable<DBObject> objects) {
     for (DBObject object : objects) {
-      List<List<Object>> nonUnique = addOrUpdate(object, null);
-      // TODO(twillouer) : must handle writeConcern.
-      if (!nonUnique.isEmpty()) {
-        return nonUnique;
+      if (canHandle(object.keySet())) {
+        List<List<Object>> nonUnique = addOrUpdate(object, null);
+        // TODO(twillouer) : must handle writeConcern.
+        if (!nonUnique.isEmpty()) {
+          return nonUnique;
+        }
       }
     }
     return Collections.emptyList();
