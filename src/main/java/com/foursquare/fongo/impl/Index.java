@@ -2,6 +2,7 @@ package com.foursquare.fongo.impl;
 
 import com.mongodb.DBObject;
 import com.mongodb.FongoDBCollection;
+import com.mongodb.MongoException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -26,12 +27,18 @@ public class Index {
   private final Map<DBObject, List<DBObject>> mapValues;
   private int lookupCount = 0;
 
-  public Index(String name, DBObject keys, boolean unique, boolean insertOrder) {
+  public Index(String name, DBObject keys, boolean unique, boolean insertOrder) throws MongoException {
     this.name = name;
     this.fields = Collections.unmodifiableSet(keys.keySet()); // Setup BEFORE keys.
     this.keys = exludeIdIfNecessary(keys);
     this.unique = unique;
 
+    for(Object value : keys.toMap().values()) {
+      if(!(value instanceof String) && !(value instanceof Number)) {
+        //com.mongodb.WriteConcernException: { "serverUsed" : "/127.0.0.1:27017" , "err" : "bad index key pattern { a: { n: 1 } }" , "code" : 10098 , "n" : 0 , "connectionId" : 543 , "ok" : 1.0}
+        throw new MongoException(10098, "bad index key pattern : " + keys);
+      }
+    }
     this.objectComparator = expressionParser.buildObjectComparator(isAsc(keys));
     if (insertOrder) {
       this.mapValues = new LinkedHashMap<DBObject, List<DBObject>>();
