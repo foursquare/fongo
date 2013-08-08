@@ -275,5 +275,4 @@ public abstract class IndexAbstract<T extends DBObject> {
     }
     return fieldValue;
   }
-
 }
