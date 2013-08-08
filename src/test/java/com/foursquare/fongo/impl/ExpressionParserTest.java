@@ -684,21 +684,20 @@ public class ExpressionParserTest {
     assertEquals(Arrays.<DBObject>asList(rec1), results);
   }
 
-
   @Test
-  public void testEmptyListsMatch(){
-    DBObject query = new BasicDBObject("a", asList());
+  public void testListsMatch(){
+    DBObject query = new BasicDBObject("a", asList(1,2,3));
     List<DBObject> results = doFilter(
         query,
         new BasicDBObject("a", asList()),
         new BasicDBObject("b", asList()),
-        new BasicDBObject("a", asList("1")),
-        new BasicDBObject("a", asDbList("1")),
+        new BasicDBObject("a", asList(1,2,3)),
+        new BasicDBObject("a", asDbList(1,2,3)),
         new BasicDBObject("a", asDbList())
         );
     assertEquals(Arrays.<DBObject>asList(
-        new BasicDBObject("a", asList()),
-        new BasicDBObject("a", asDbList())
+        new BasicDBObject("a", asList(1,2,3)),
+        new BasicDBObject("a", asDbList(1,2,3))
     ), results);
   }
 
