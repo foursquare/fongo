@@ -193,7 +193,7 @@ public class ExpressionParser {
     // http://docs.mongodb.org/manual/reference/operator/near/#op._S_near
     @Override
     public Filter createFilter(final List<String> path, DBObject refExpression) {
-      LOG.info("path:{}, refExp:{}", path, refExpression);
+      LOG.debug("path:{}, refExp:{}", path, refExpression);
       Number maxDistance = typecast(MAXDISTANCE, refExpression.get(MAXDISTANCE), Number.class);
       final List<LatLong> coordinates;
       if (refExpression.get(command) instanceof BasicDBList) {
@@ -599,13 +599,12 @@ public class ExpressionParser {
           if (maxDistance == null) {
             result = true;
           } else {
-            LOG.info("{}", storedOption);
             for (Object storedValue : storedOption) {
               List<Number> numberValue = (List<Number>) storedValue;
               LatLong point = new LatLong(numberValue.get(1).doubleValue(), numberValue.get(0).doubleValue());
 
               double distance = GeoUtil.distanceInRadians(point, coordinate, sphere);
-              LOG.info("distance : {}", distance);
+              LOG.debug("distance : {}", distance);
               result = distance < maxDistance.doubleValue();
               if (result) {
                 break;
