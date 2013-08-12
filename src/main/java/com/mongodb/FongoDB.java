@@ -135,7 +135,7 @@ public class FongoDB extends DB {
           limit == null ? 0L : limit.longValue(),
           skip == null ? 0L : skip.longValue());
       CommandResult okResult = okResult();
-      okResult.append("n", result);
+      okResult.append("n", (double) result);
       return okResult;
     } else if (cmd.containsField("deleteIndexes")) {
       String collectionName = (String) cmd.get("deleteIndexes");
@@ -157,19 +157,22 @@ public class FongoDB extends DB {
       list.addAll(result);
       okResult.put("result", list);
       return okResult;
+    } else if(cmd.containsField("ping")) {
+      CommandResult okResult = okResult();
+      return okResult;
     }
     return notOkErrorResult("undefined command: " + cmd);
   }
 
   public CommandResult okResult() {
     CommandResult result = new CommandResult(fongo.getServerAddress());
-    result.put("ok", true);
+    result.put("ok", 1.0);
     return result;
   }
 
   public CommandResult notOkErrorResult(String err) {
     CommandResult result = new CommandResult(fongo.getServerAddress());
-    result.put("ok", false);
+    result.put("ok", 0.0);
     result.put("err", err);
     return result;
   }
