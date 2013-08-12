@@ -153,12 +153,12 @@ public class Util {
 
     if (source instanceof LazyBSONObject) {
       @SuppressWarnings("unchecked")
-          BasicDBObject clone = new BasicDBObject();
-      for(Map.Entry<String, Object> entry : ((LazyBSONObject) source).entrySet()){
-        if(entry.getValue() instanceof DBObject) {
+      BasicDBObject clone = new BasicDBObject();
+      for (Map.Entry<String, Object> entry : ((LazyBSONObject) source).entrySet()) {
+        if (entry.getValue() instanceof DBObject) {
           clone.put(entry.getKey(), Util.clone((DBObject) entry.getValue()));
         } else {
-        clone.put(entry.getKey(), entry.getValue());
+          clone.put(entry.getKey(), entry.getValue());
         }
       }
       return (T) clone;
@@ -180,19 +180,21 @@ public class Util {
     }
 
     Set<Map.Entry<String, Object>> entrySet;
-    if(source instanceof LazyBSONObject) {
-      entrySet= ((LazyBSONObject) source).entrySet();
+    if (source instanceof LazyBSONObject) {
+      entrySet = ((LazyBSONObject) source).entrySet();
     } else {
       entrySet = source.toMap().entrySet();
     }
     // need to clone the sub obj
     for (Map.Entry<String, Object> entry : entrySet) {
       String field = entry.getKey();
-      Object val = entry.getValue();
-      if (val instanceof DBObject) {
-        newobj.put(field, Util.clone((DBObject) val));
-      } else {
-        newobj.put(field, val);
+      if (!FongoDBCollection.ID_KEY.equals(field)) {
+        Object val = entry.getValue();
+        if (val instanceof DBObject) {
+          newobj.put(field, Util.clone((DBObject) val));
+        } else {
+          newobj.put(field, val);
+        }
       }
     }
     return newobj;
