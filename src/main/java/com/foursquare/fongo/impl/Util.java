@@ -7,9 +7,11 @@ import com.mongodb.FongoDBCollection;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.bson.LazyBSONObject;
 
 public class Util {
 
@@ -149,6 +151,19 @@ public class Util {
       return clone;
     }
 
+    if (source instanceof LazyBSONObject) {
+      @SuppressWarnings("unchecked")
+          BasicDBObject clone = new BasicDBObject();
+      for(Map.Entry<String, Object> entry : ((LazyBSONObject) source).entrySet()){
+        if(entry.getValue() instanceof DBObject) {
+          clone.put(entry.getKey(), Util.clone((DBObject) entry.getValue()));
+        } else {
+        clone.put(entry.getKey(), entry.getValue());
+        }
+      }
+      return (T) clone;
+    }
+
     throw new IllegalArgumentException("Don't know how to clone: " + source);
   }
 
@@ -163,14 +178,19 @@ public class Util {
     if (source.containsField(FongoDBCollection.ID_KEY)) {
       newobj.put(FongoDBCollection.ID_KEY, source.get(FongoDBCollection.ID_KEY));
     }
+
+    Set<Map.Entry<String, Object>> entrySet;
+    if(source instanceof LazyBSONObject) {
+      entrySet= ((LazyBSONObject) source).entrySet();
+    } else {
+      entrySet = source.toMap().entrySet();
+    }
     // need to clone the sub obj
-    for (Map.Entry<String, Object> entry : (Set<Map.Entry<String, Object>>) source.toMap().entrySet()) {
+    for (Map.Entry<String, Object> entry : entrySet) {
       String field = entry.getKey();
       Object val = entry.getValue();
-      if (val instanceof BasicDBObject) {
-        newobj.put(field, ((BasicDBObject) val).copy());
-      } else if (val instanceof BasicDBList) {
-        newobj.put(field, ((BasicDBList) val).copy());
+      if (val instanceof DBObject) {
+        newobj.put(field, Util.clone((DBObject) val));
       } else {
         newobj.put(field, val);
       }

@@ -77,13 +77,17 @@ public class FongoDBCollection extends DBCollection {
   @Override
   public synchronized WriteResult insert(List<DBObject> toInsert, WriteConcern concern, DBEncoder encoder) {
     for (DBObject obj : toInsert) {
-      filterLists(obj);
+      DBObject cloned = Util.cloneIdFirst(obj);
+      filterLists(cloned);
       if (LOG.isDebugEnabled()) {
-        LOG.debug("insert: " + obj);
+        LOG.debug("insert: " + cloned);
       }
-      putIdIfNotPresent(obj);
+      putIdIfNotPresent(cloned);
+      if(!(obj instanceof LazyDBObject) && obj.get(ID_KEY) == null) {
+        obj.put(ID_KEY, cloned.get(ID_KEY));
+      }
 
-      putSizeCheck(obj, concern);
+      putSizeCheck(cloned, concern);
     }
     return new WriteResult(insertResult(toInsert.size()), concern);
   }
@@ -686,8 +690,8 @@ public class FongoDBCollection extends DBCollection {
   @Override
   public void drop() {
     _idIndex.clear();
-    indexes.clear();
-    fongoDb.removeCollection(this);
+    _dropIndexes(); // _idIndex must stay.
+//    fongoDb.removeCollection(this);
   }
 
   /**
