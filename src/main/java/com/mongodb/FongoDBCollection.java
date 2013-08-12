@@ -82,9 +82,9 @@ public class FongoDBCollection extends DBCollection {
       if (LOG.isDebugEnabled()) {
         LOG.debug("insert: " + cloned);
       }
-      putIdIfNotPresent(cloned);
+      ObjectId id = putIdIfNotPresent(cloned);
       if(!(obj instanceof LazyDBObject) && obj.get(ID_KEY) == null) {
-        obj.put(ID_KEY, cloned.get(ID_KEY));
+        obj.put(ID_KEY, id);
       }
 
       putSizeCheck(cloned, concern);
@@ -97,12 +97,19 @@ public class FongoDBCollection extends DBCollection {
     return writeConcern._w instanceof Number && ((Number) writeConcern._w).intValue() > 0;
   }
 
-  public void putIdIfNotPresent(DBObject obj) {
-    if (obj.get(ID_KEY) == null) {
+  public ObjectId putIdIfNotPresent(DBObject obj) {
+    Object object = obj.get(ID_KEY);
+    if (object == null) {
       ObjectId id = new ObjectId();
       id.notNew();
       obj.put(ID_KEY, id);
+    } else if (object instanceof  ObjectId) {
+      ObjectId id = (ObjectId) object;
+      id.notNew();
+      return id;
     }
+
+    return null;
   }
 
   public void putSizeCheck(DBObject obj, WriteConcern concern) {

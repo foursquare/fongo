@@ -1,6 +1,28 @@
 package com.foursquare.fongo;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+
+import org.bson.BSON;
+import org.bson.Transformer;
+import org.bson.types.ObjectId;
+import org.junit.Test;
+import org.slf4j.LoggerFactory;
+
 import ch.qos.logback.classic.Level;
+
 import com.foursquare.fongo.impl.ExpressionParser;
 import com.foursquare.fongo.impl.Util;
 import com.mongodb.BasicDBList;
@@ -17,24 +39,6 @@ import com.mongodb.MongoException;
 import com.mongodb.QueryBuilder;
 import com.mongodb.WriteConcern;
 import com.mongodb.WriteResult;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import org.bson.BSON;
-import org.bson.Transformer;
-import org.bson.types.ObjectId;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import org.junit.Test;
-import org.slf4j.LoggerFactory;
 
 public class FongoTest {
 
@@ -362,6 +366,20 @@ public class FongoTest {
         new BasicDBObject("a", 2).append("_id", 5),
         new BasicDBObject("a", 2).append("_id", 4)
     ), cursor.toArray());
+  }
+
+  @Test
+  public void testCompoundSortFindAndModify() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("a", 1).append("_id", 1));
+    collection.insert(new BasicDBObject("a", 2).append("_id", 5));
+    collection.insert(new BasicDBObject("a", 1).append("_id", 2));
+    collection.insert(new BasicDBObject("a", 2).append("_id", 4));
+    collection.insert(new BasicDBObject("a", 1).append("_id", 3));
+
+    DBObject object = collection.findAndModify(null, new BasicDBObject("a", 1).append("_id", -1), null);
+    assertEquals(
+        new BasicDBObject("a", 1).append("_id", 3), object);
   }
 
   @Test
@@ -784,7 +802,7 @@ public class FongoTest {
   }
 
   @Test
-  public void testSortByEmeddedKey() {
+  public void testSortByEmbeddedKey() {
     DBCollection collection = newCollection();
     collection.insert(new BasicDBObject("_id", 1).append("a", new BasicDBObject("b", 1)));
     collection.insert(new BasicDBObject("_id", 2).append("a", new BasicDBObject("b", 2)));
@@ -1130,6 +1148,17 @@ public class FongoTest {
       // The _id field is always the first.
       assertEquals("_id", object.toMap().keySet().iterator().next());
     }
+  }
+
+  @Test
+  public void canInsertWithNewObjectId() throws Exception {
+    DBCollection collection = newCollection();
+    ObjectId id = ObjectId.get();
+
+    collection.insert(new BasicDBObject("_id", id).append("name", "jon"));
+
+    assertEquals(1, collection.count(new BasicDBObject("name", "jon")));
+    assertFalse(id.isNew());
   }
 
   static class Seq {
