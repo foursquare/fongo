@@ -169,7 +169,11 @@ public class FongoDB extends DB {
       okResult.put("maxBsonObjectSize", 16777216);
       return okResult;
     }
-    return notOkErrorResult("undefined command: " + cmd);
+    String command = cmd.toString();
+    if (!cmd.keySet().isEmpty()) {
+      command = cmd.keySet().iterator().next();
+    }
+    return notOkErrorResult(null, "no such cmd: " + command);
   }
 
   public CommandResult okResult() {
@@ -179,9 +183,18 @@ public class FongoDB extends DB {
   }
 
   public CommandResult notOkErrorResult(String err) {
+    return notOkErrorResult(err, null);
+  }
+
+  public CommandResult notOkErrorResult(String err, String errmsg) {
     CommandResult result = new CommandResult(fongo.getServerAddress());
     result.put("ok", 0.0);
-    result.put("err", err);
+    if (err != null) {
+      result.put("err", err);
+    }
+    if (errmsg != null) {
+      result.put("errmsg", errmsg);
+    }
     return result;
   }
 

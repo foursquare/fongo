@@ -1,28 +1,6 @@
 package com.foursquare.fongo;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-
-import org.bson.BSON;
-import org.bson.Transformer;
-import org.bson.types.ObjectId;
-import org.junit.Test;
-import org.slf4j.LoggerFactory;
-
 import ch.qos.logback.classic.Level;
-
 import com.foursquare.fongo.impl.ExpressionParser;
 import com.foursquare.fongo.impl.Util;
 import com.mongodb.BasicDBList;
@@ -39,6 +17,24 @@ import com.mongodb.MongoException;
 import com.mongodb.QueryBuilder;
 import com.mongodb.WriteConcern;
 import com.mongodb.WriteResult;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import org.bson.BSON;
+import org.bson.Transformer;
+import org.bson.types.ObjectId;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import org.junit.Test;
+import org.slf4j.LoggerFactory;
 
 public class FongoTest {
 
@@ -876,7 +872,7 @@ public class FongoTest {
     DBCollection collection = newCollection();
     collection.insert(new BasicDBObject());
     collection.drop();
-    assertEquals("Collection should have no data", 0, collection.count());
+    assertEquals("Collection should have no data", 0.D, collection.count(), 0.D);
     assertFalse("Collection shouldn't exist in DB", collection.getDB().getCollectionNames().contains(collection.getName()));
   }
 
@@ -886,7 +882,7 @@ public class FongoTest {
     DBCollection collection = fongo.getDB("db").getCollection("coll");
     collection.insert(new BasicDBObject());
     fongo.dropDatabase("db");
-    assertEquals("Collection should have no data", 0, collection.count());
+    assertEquals("Collection should have no data", 0.D, collection.count(), 0.D);
     assertFalse("Collection shouldn't exist in DB", collection.getDB().getCollectionNames().contains(collection.getName()));
     assertFalse("DB shouldn't exist in fongo", fongo.getDatabaseNames().contains("db"));
   }
@@ -923,25 +919,28 @@ public class FongoTest {
   }
 
   @Test
-  public void testUndefinedCommand() {
+  public void testUndefinedCommand() throws Exception {
     Fongo fongo = newFongo();
     DB db = fongo.getDB("db");
+//    DB db = new MongoClient().getDB("test");
     CommandResult result = db.command("undefined");
-    assertEquals("ok should always be defined", false, result.get("ok"));
-    assertEquals("undefined command: { \"undefined\" : true}", result.get("err"));
+    System.out.println(result);
+    assertEquals("ok should always be defined", 0.0, result.get("ok"));
+    assertEquals("no such cmd: undefined", result.get("errmsg"));
   }
 
   @Test
-  public void testCountCommand() {
-    DBObject countCmd = new BasicDBObject("count", "coll");
+  public void testCountCommand() throws Exception {
     Fongo fongo = newFongo();
+
+    DBObject countCmd = new BasicDBObject("count", "coll");
     DB db = fongo.getDB("db");
     DBCollection coll = db.getCollection("coll");
     coll.insert(new BasicDBObject());
     coll.insert(new BasicDBObject());
     CommandResult result = db.command(countCmd);
-    assertEquals("The command should have been succesful", true, result.get("ok"));
-    assertEquals("The count should be in the result", 2L, result.get("n"));
+    assertEquals("The command should have been succesful", 1.0, result.get("ok"));
+    assertEquals("The count should be in the result", 2.0D, result.get("n"));
   }
 
   @Test
@@ -961,7 +960,7 @@ public class FongoTest {
     DBObject countCmd = new BasicDBObject("count", "coll").append("limit", 2).append("skip", 4).append("query", builder.get());
     CommandResult result = db.command(countCmd);
     // Without sort.
-    assertEquals(0L, result.get("n"));
+    assertEquals(0D, result.get("n"));
   }
 
   @Test
@@ -1159,6 +1158,18 @@ public class FongoTest {
 
     assertEquals(1, collection.count(new BasicDBObject("name", "jon")));
     assertFalse(id.isNew());
+  }
+
+  @Test
+  public void saveStringAsObjectId() throws Exception {
+    DBCollection collection = newCollection();
+    String id = ObjectId.get().toString();
+
+    BasicDBObject object = new BasicDBObject("_id", id).append("name", "jon");
+    collection.insert(object);
+
+    assertEquals(1, collection.count(new BasicDBObject("name", "jon")));
+    assertEquals(id, object.get("_id"));
   }
 
   static class Seq {

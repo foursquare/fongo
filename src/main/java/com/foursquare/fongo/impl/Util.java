@@ -4,9 +4,11 @@ import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBObject;
 import com.mongodb.FongoDBCollection;
+import com.mongodb.gridfs.GridFSFile;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -182,6 +184,13 @@ public class Util {
     Set<Map.Entry<String, Object>> entrySet;
     if (source instanceof LazyBSONObject) {
       entrySet = ((LazyBSONObject) source).entrySet();
+    } else if (source instanceof GridFSFile) {
+      // GridFSFile.toMap doen't work.
+      Map<String, Object> copyMap = new HashMap<String, Object>();
+      for(String field : source.keySet()) {
+        copyMap.put(field, source.get(field));
+      }
+      entrySet = copyMap.entrySet();
     } else {
       entrySet = source.toMap().entrySet();
     }
