@@ -694,7 +694,7 @@ public class FongoDBCollection extends DBCollection {
   @Override
   public void drop() {
     _idIndex.clear();
-    indexes.clear();
+    _dropIndexes(); // _idIndex must stay.
     fongoDb.removeCollection(this);
   }
 

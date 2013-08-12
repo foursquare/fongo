@@ -36,8 +36,10 @@ public final class GeoUtil {
     private final LatLong latLong;
 
     public GeoDBObject(DBObject object, String indexKey) {
-      BasicDBList list = (BasicDBList) object.get(indexKey);
-      this.latLong = new LatLong((Double) list.get(1), (Double) list.get(0));
+      List<LatLong> latLongs = GeoUtil.latLon(Util.split(indexKey), object);
+//      BasicDBList list = (BasicDBList) object.get(indexKey);
+//      this.latLong = new LatLong((Double) list.get(1), (Double) list.get(0));
+      this.latLong = latLongs.get(0);
       this.geoHash = GeoUtil.encodeGeoHash(this.getLatLong());
       this.putAll(object);
     }
@@ -135,6 +137,17 @@ public final class GeoUtil {
     return Math.acos(crossProduct);
   }
 
+  /**
+   * Retrieve LatLon from an object.
+   * <p/>
+   * Object can be:
+   * - [lon, lat]
+   * - {lat:lat, lng:lon}
+   *
+   * @param path
+   * @param object
+   * @return
+   */
   public static List<LatLong> latLon(List<String> path, DBObject object) {
     ExpressionParser expressionParser = new ExpressionParser();
     List<LatLong> result = new ArrayList<LatLong>();
@@ -154,8 +167,8 @@ public final class GeoUtil {
         }
       } else if (value instanceof DBObject) {
         DBObject dbObject = (DBObject) value;
-        if (dbObject.containsField("lon") && dbObject.containsField("lat")) {
-          latLong = new LatLong(((Number) dbObject.get("lat")).doubleValue(), ((Number) dbObject.get("lon")).doubleValue());
+        if (dbObject.containsField("lng") && dbObject.containsField("lat")) {
+          latLong = new LatLong(((Number) dbObject.get("lat")).doubleValue(), ((Number) dbObject.get("lng")).doubleValue());
         }
       }
       if (latLong != null) {
