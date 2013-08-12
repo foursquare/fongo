@@ -160,6 +160,14 @@ public class FongoDB extends DB {
     } else if(cmd.containsField("ping")) {
       CommandResult okResult = okResult();
       return okResult;
+    } else if(cmd.containsField("validate")) {
+      CommandResult okResult = okResult();
+      return okResult;
+    } else if(cmd.containsField("buildInfo")) {
+      CommandResult okResult = okResult();
+      okResult.put("version", "2.4.5");
+      okResult.put("maxBsonObjectSize", 16777216);
+      return okResult;
     }
     return notOkErrorResult("undefined command: " + cmd);
   }
