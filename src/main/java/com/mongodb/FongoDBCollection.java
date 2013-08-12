@@ -631,6 +631,7 @@ public class FongoDBCollection extends DBCollection {
           afterObject = Util.clone(beforeObject);
           updateEngine.doUpdate(afterObject, update, query);
           addToIndexes(afterObject, beforeObject, getWriteConcern());
+          break;
         } else {
           remove(dbo);
           return dbo;

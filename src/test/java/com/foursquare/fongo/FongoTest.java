@@ -377,9 +377,9 @@ public class FongoTest {
     collection.insert(new BasicDBObject("a", 2).append("_id", 4));
     collection.insert(new BasicDBObject("a", 1).append("_id", 3));
 
-    DBObject object = collection.findAndModify(null, new BasicDBObject("a", 1).append("_id", -1), null);
+    DBObject object = collection.findAndModify(null, new BasicDBObject("a", 1).append("_id", -1), new BasicDBObject("date", 1));
     assertEquals(
-        new BasicDBObject("a", 1).append("_id", 3), object);
+        new BasicDBObject("_id", 3).append("a", 1), object);
   }
 
   @Test
