@@ -13,6 +13,7 @@ import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
 import com.mongodb.DBRef;
 import com.mongodb.FongoDBCollection;
+import com.mongodb.MongoClient;
 import com.mongodb.MongoException;
 import com.mongodb.QueryBuilder;
 import com.mongodb.WriteConcern;
@@ -56,7 +57,7 @@ public class FongoTest {
     assertNotNull(collection);
     assertSame("getCollection should be idempotent", collection, db.getCollection("coll"));
     assertSame("getCollection should be idempotent", collection, db.getCollectionFromString("coll"));
-    assertEquals(new HashSet<String>(Arrays.asList("coll")), db.getCollectionNames());
+    assertEquals(new HashSet<String>(Arrays.asList("coll", "system.indexes", "system.users")), db.getCollectionNames());
   }
 
   @Test
@@ -64,7 +65,7 @@ public class FongoTest {
     Fongo fongo = newFongo();
     DB db = fongo.getDB("db");
     db.createCollection("coll", null);
-    assertEquals(Collections.singleton("coll"), db.getCollectionNames());
+    assertEquals(new HashSet<String>(Arrays.asList("coll", "system.indexes", "system.users")), db.getCollectionNames());
   }
 
   @Test
@@ -907,10 +908,31 @@ public class FongoTest {
     db.getCollection("coll2");
     int dropCount = 0;
     for (String name : db.getCollectionNames()) {
-      db.getCollection(name).drop();
-      dropCount++;
+      if (!name.startsWith("system.")) {
+        db.getCollection(name).drop();
+        dropCount++;
+      }
     }
     assertEquals("should drop two collections", 2, dropCount);
+  }
+
+  @Test
+  public void testDropCollectionsPermitReuseOfDBCollection() throws Exception {
+    DB db = newFongo().getDB("db");
+//    DB db = new MongoClient().getDB("test");
+    int startingCollectionSize = db.getCollectionNames().size();
+    DBCollection coll1 = db.getCollection("coll1");
+    DBCollection coll2 = db.getCollection("coll2");
+    assertEquals(startingCollectionSize + 2, db.getCollectionNames().size());
+
+    // when
+    coll1.drop();
+    coll2.drop();
+    assertEquals(startingCollectionSize + 0, db.getCollectionNames().size());
+
+    // Insert a value must create the collection.
+    coll1.insert(new BasicDBObject("_id", 1));
+    assertEquals(startingCollectionSize + 1, db.getCollectionNames().size());
   }
 
   @Test

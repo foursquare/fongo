@@ -30,6 +30,8 @@ public class FongoDB extends DB {
   public FongoDB(Fongo fongo, String name) {
     super(fongo.getMongo(), name);
     this.fongo = fongo;
+    doGetCollection("system.users");
+    doGetCollection("system.indexes");
   }
 
   @Override
@@ -218,5 +220,9 @@ public class FongoDB extends DB {
 
   public void removeCollection(FongoDBCollection collection) {
     collMap.remove(collection.getName());
+  }
+
+  public void addCollection(FongoDBCollection collection) {
+    collMap.put(collection.getName(), collection);
   }
 }

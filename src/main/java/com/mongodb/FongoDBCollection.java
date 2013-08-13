@@ -736,6 +736,8 @@ public class FongoDBCollection extends DBCollection {
    * @param oldObject null if insert, old object if update.
    */
   private synchronized void addToIndexes(DBObject object, DBObject oldObject, WriteConcern concern) {
+    // Ensure "insert/update" create collection into "fongoDB"
+    this.fongoDb.addCollection(this);
     Set<String> queryFields = object.keySet();
     // First, try to see if index can add the new value.
     for (Index index : indexes) {
