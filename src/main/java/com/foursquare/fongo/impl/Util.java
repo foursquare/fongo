@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.bson.LazyBSONObject;
+import org.bson.LazyDBList;
 
 public class Util {
 
@@ -153,6 +154,20 @@ public class Util {
       return clone;
     }
 
+    if (source instanceof LazyDBList) {
+      BasicDBList clone = new BasicDBList();
+      Iterator it = ((LazyDBList) source).iterator();
+      while (it.hasNext()) {
+        Object o = it.next();
+        if (o instanceof DBObject) {
+          clone.add(Util.clone((DBObject) o));
+        } else {
+          clone.add(o);
+        }
+      }
+      return (T) clone;
+    }
+
     if (source instanceof LazyBSONObject) {
       @SuppressWarnings("unchecked")
       BasicDBObject clone = new BasicDBObject();
@@ -187,7 +202,7 @@ public class Util {
     } else if (source instanceof GridFSFile) {
       // GridFSFile.toMap doen't work.
       Map<String, Object> copyMap = new HashMap<String, Object>();
-      for(String field : source.keySet()) {
+      for (String field : source.keySet()) {
         copyMap.put(field, source.get(field));
       }
       entrySet = copyMap.entrySet();
