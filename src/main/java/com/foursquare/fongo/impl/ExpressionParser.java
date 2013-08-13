@@ -594,14 +594,13 @@ public class ExpressionParser {
           return false;
         }
         boolean result = false;
-        List<Object> storedOption = getEmbeddedValues(path, o);
+
+        List<LatLong> storedOption = GeoUtil.latLon(path, o);
         if (!storedOption.isEmpty()) {
           if (maxDistance == null) {
             result = true;
           } else {
-            for (Object storedValue : storedOption) {
-              List<Number> numberValue = (List<Number>) storedValue;
-              LatLong point = new LatLong(numberValue.get(1).doubleValue(), numberValue.get(0).doubleValue());
+            for (LatLong point : storedOption) {
 
               double distance = GeoUtil.distanceInRadians(point, coordinate, sphere);
               LOG.debug("distance : {}", distance);
