@@ -213,22 +213,26 @@ public class ExpressionParser {
   List<FilterFactory> filterFactories = Arrays.<FilterFactory>asList(
       new ConditionalOperatorFilterFactory(GTE) {
         boolean singleCompare(Object queryValue, Object storedValue) {
-          return compareObjects(queryValue, storedValue) <= 0;
+          Integer result = compareObjects(queryValue, storedValue);
+          return result != null && result.intValue() <= 0;
         }
       },
       new ConditionalOperatorFilterFactory(LTE) {
         boolean singleCompare(Object queryValue, Object storedValue) {
-          return compareObjects(queryValue, storedValue) >= 0;
+          Integer result = compareObjects(queryValue, storedValue);
+          return result != null && result.intValue() >= 0;
         }
       },
       new ConditionalOperatorFilterFactory(GT) {
         boolean singleCompare(Object queryValue, Object storedValue) {
-          return compareObjects(queryValue, storedValue) < 0;
+          Integer result = compareObjects(queryValue, storedValue);
+          return result != null && result.intValue() < 0;
         }
       },
       new ConditionalOperatorFilterFactory(LT) {
         boolean singleCompare(Object queryValue, Object storedValue) {
-          return compareObjects(queryValue, storedValue) > 0;
+          Integer result = compareObjects(queryValue, storedValue);
+          return result != null && result.intValue() > 0;
         }
       },
       new BasicCommandFilterFactory(NE) {
@@ -480,7 +484,7 @@ public class ExpressionParser {
 
 
   @SuppressWarnings("all")
-  public int compareObjects(Object queryValue, Object storedValue) {
+  public Integer compareObjects(Object queryValue, Object storedValue) {
     LOG.debug("comparing {} and {}", queryValue, storedValue);
 
     if (queryValue instanceof DBObject && storedValue instanceof DBObject) {
@@ -491,6 +495,9 @@ public class ExpressionParser {
       return compareLists(queryList, storedList);
     } else {
       Comparable queryComp = typecast("query value", queryValue, Comparable.class);
+      if(!(storedValue instanceof Comparable) && storedValue != null) {
+        return null;
+      }
       Comparable storedComp = typecast("stored value", storedValue, Comparable.class);
       if (storedComp == null) {
         return 1;
