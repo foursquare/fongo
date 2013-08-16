@@ -20,12 +20,15 @@ import com.mongodb.WriteConcern;
 import com.mongodb.WriteResult;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.bson.BSON;
 import org.bson.Transformer;
+import org.bson.types.MaxKey;
+import org.bson.types.MinKey;
 import org.bson.types.ObjectId;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -1138,8 +1141,6 @@ public class FongoTest {
   public void shouldFilterByType() throws Exception {
     // Given
     DBCollection collection = newCollection();
-//    DBCollection collection = new MongoClient().getDB("test").getCollection("typeFilter");
-//    collection.drop();
     collection.insert(new BasicDBObject("date", 1).append("_id", 1));
     collection.insert(new BasicDBObject("date", 2D).append("_id", 2));
     collection.insert(new BasicDBObject("date", "3").append("_id", 3));
@@ -1195,6 +1196,39 @@ public class FongoTest {
     // Null ?
     objects = collection.find(new BasicDBObject("date", new BasicDBObject("$type", 10))).toArray();
     assertEquals(Collections.singletonList(new BasicDBObject("_id", 5).append("date", null)), objects);
+  }
+
+  // sorting like : http://docs.mongodb.org/manual/reference/operator/type/
+  @Test
+  public void testSorting() throws Exception {
+    // Given
+    DBCollection collection = newCollection();
+//    DBCollection collection = new MongoClient().getDB("test").getCollection("typeFilter");
+//    collection.drop();
+
+    Date date = new Date();
+    collection.insert(new BasicDBObject("_id", 1).append("x", 3));
+    collection.insert(new BasicDBObject("_id", 2).append("x", 2.9D));
+    collection.insert(new BasicDBObject("_id", 3).append("x", date));
+    collection.insert(new BasicDBObject("_id", 4).append("x", true));
+    collection.insert(new BasicDBObject("_id", 5).append("x", new MaxKey()));
+    collection.insert(new BasicDBObject("_id", 6).append("x", new MinKey()));
+    collection.insert(new BasicDBObject("_id", 7).append("x", false));
+    collection.insert(new BasicDBObject("_id", 8).append("x", 2));
+    collection.insert(new BasicDBObject("_id", 9).append("x", date.getTime() + 100));
+
+    List<DBObject> objects = collection.find().sort(new BasicDBObject("x", 1)).toArray();
+    assertEquals(Arrays.asList(
+        new BasicDBObject("_id", 6).append("x", new MinKey()),
+        new BasicDBObject("_id", 8).append("x", 2),
+        new BasicDBObject("_id", 2).append("x", 2.9D),
+        new BasicDBObject("_id", 1).append("x", 3),
+        new BasicDBObject("_id", 9).append("x", date.getTime() + 100),
+        new BasicDBObject("_id", 7).append("x", false),
+        new BasicDBObject("_id", 4).append("x", true),
+        new BasicDBObject("_id", 3).append("x", date),
+        new BasicDBObject("_id", 5).append("x", new MaxKey())
+    ), objects);
   }
 
   static class Seq {

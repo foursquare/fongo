@@ -6,7 +6,10 @@ import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
 import com.mongodb.BasicDBObjectBuilder;
 import com.mongodb.DBObject;
+import org.bson.types.MaxKey;
+import org.bson.types.MinKey;
 import org.bson.types.ObjectId;
+import static org.junit.Assert.assertThat;
 import org.junit.Test;
 
 import java.lang.reflect.Array;
@@ -609,7 +612,25 @@ public class ExpressionParserTest {
     assertTrue(0 < expressionParser.compareObjects(new BasicDBObject("a", 3), new BasicDBObject("a", 1)));
     assertTrue(0 < expressionParser.compareObjects(new BasicDBObject("a", 3), new BasicDBObject("b", 1)));
     assertTrue(0 < expressionParser.compareObjects(new BasicDBObject("a", asList(2,3)), new BasicDBObject("a", asList(1,2))));
+  }
 
+  @Test
+  public void testCompareTo() {
+    ExpressionParser expressionParser = new ExpressionParser();
+    assertTrue(0 < expressionParser.compareTo(Boolean.TRUE, 1));
+    assertTrue(0 > expressionParser.compareTo(1, Boolean.TRUE));
+    assertTrue(0 > expressionParser.compareTo(1, 2.0));
+    assertTrue(0 < expressionParser.compareTo(2.0, 1));
+    assertTrue(0 > expressionParser.compareTo(100, new Date()));
+    assertTrue(0 < expressionParser.compareTo(new Date(), 100));
+    assertTrue(0 < expressionParser.compareTo(new MaxKey(), new MinKey()));
+    assertTrue(0 > expressionParser.compareTo(new MinKey(), new MaxKey()));
+    assertTrue(0 == expressionParser.compareTo(new MinKey(), new MinKey()));
+    assertTrue(0 == expressionParser.compareTo(new MaxKey(), new MaxKey()));
+    assertTrue(0 > expressionParser.compareTo(12, new MaxKey()));
+    assertTrue(0 < expressionParser.compareTo(new MaxKey(), 12));
+    assertTrue(0 < expressionParser.compareTo(12, new MinKey()));
+    assertTrue(0 > expressionParser.compareTo(new MinKey(), 12));
   }
   
   @Test

@@ -11,11 +11,15 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
+import org.bson.LazyBSONList;
+import org.bson.types.MaxKey;
+import org.bson.types.MinKey;
 import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,6 +44,29 @@ public class ExpressionParser {
   public final static String REGEX = "$regex";
   public final static String REGEX_OPTIONS = "$options";
   public final static String TYPE = "$type";
+
+  private static final Map<Class, Integer> CLASS_TO_TYPE;
+
+  static {
+    Map<Class, Integer> map = new HashMap<Class, Integer>();
+    map.put(Double.class, 1);
+    map.put(Float.class, 1);
+    map.put(String.class, 2);
+    map.put(Object.class, 3);
+    map.put(BasicDBList.class, 4);
+    map.put(LazyBSONList.class, 4);
+    map.put(ObjectId.class, 6);
+    map.put(Boolean.class, 7);
+    map.put(Date.class, 9);
+    map.put(Pattern.class, 11);
+    map.put(Integer.class, 16);
+//    map.put(Timestamp.class, 17);
+    map.put(Long.class, 18);
+    map.put(MinKey.class, -1); // 255
+    map.put(MaxKey.class, 127);
+
+    CLASS_TO_TYPE = Collections.unmodifiableMap(map);
+  }
 
   public class ObjectComparator implements Comparator {
     private final int asc;
@@ -352,7 +379,6 @@ public class ExpressionParser {
     return false;
   }
 
-
   /**
    * http://docs.mongodb.org/manual/reference/operator/type
    * <p/>
@@ -554,13 +580,42 @@ public class ExpressionParser {
       List storedList = (List) storedValue;
       return compareLists(queryList, storedList);
     } else {
-      Comparable queryComp = typecast("query value", queryValue, Comparable.class);
-      Comparable storedComp = typecast("stored value", storedValue, Comparable.class);
+      Object queryComp = typecast("query value", queryValue, Object.class);
+      Object storedComp = typecast("stored value", storedValue, Object.class);
       if (storedComp == null) {
         return 1;
       }
-      return queryComp.compareTo(storedComp);
+      return compareTo(queryComp, storedComp);
     }
+  }
+
+  //@VisibleForTesting
+  protected int compareTo(Object c1, Object c2) { // Object to handle MinKey/MaxKey
+    Object cc1 = c1;
+    Object cc2 = c2;
+    if (!cc1.getClass().equals(cc2.getClass()) || !(cc1 instanceof Comparable)) {
+      if (cc1 instanceof Number) {
+        if (cc2 instanceof Number) {
+          cc1 = ((Number) cc1).doubleValue();
+          cc2 = ((Number) cc2).doubleValue();
+        } else {
+          return cc2 instanceof MinKey ? 1 : -1;
+        }
+      } else if (cc2 instanceof Number && !(cc1 instanceof MinKey) && !(cc1 instanceof MaxKey)) {
+        return 1;
+      } else {
+        Integer type1 = CLASS_TO_TYPE.get(cc1.getClass());
+        Integer type2 = CLASS_TO_TYPE.get(cc2.getClass());
+        if (type1 != null && type2 != null) {
+          cc1 = type1;
+          cc2 = type2;
+        } else {
+          // TODO what to do ?!
+        }
+      }
+    }
+
+    return ((Comparable) cc1).compareTo(cc2);
   }
 
   public int compareLists(List queryList, List storedList) {
