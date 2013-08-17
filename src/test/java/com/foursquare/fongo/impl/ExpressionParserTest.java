@@ -608,10 +608,26 @@ public class ExpressionParserTest {
   @Test
   public void testCompareObjects() {
     ExpressionParser expressionParser = new ExpressionParser();
-    assertEquals(0, expressionParser.compareObjects(new BasicDBObject(), new BasicDBObject()));
+    assertEquals(0, expressionParser.compareObjects(new BasicDBObject(), new BasicDBObject()).intValue());
     assertTrue(0 < expressionParser.compareObjects(new BasicDBObject("a", 3), new BasicDBObject("a", 1)));
-    assertTrue(0 < expressionParser.compareObjects(new BasicDBObject("a", 3), new BasicDBObject("b", 1)));
+//    assertTrue(0 < expressionParser.compareObjects(new BasicDBObject("a", 3), new BasicDBObject("b", 1))); (twillouer : not sure. See FongoTest#strangeSorting
     assertTrue(0 < expressionParser.compareObjects(new BasicDBObject("a", asList(2,3)), new BasicDBObject("a", asList(1,2))));
+  }
+
+  @Test
+  public void testCompareObjectsMinMax() {
+    ExpressionParser expressionParser = new ExpressionParser();
+    assertTrue(0 > expressionParser.compareObjects(new MinKey(), null));
+    assertTrue(0 < expressionParser.compareObjects(new MaxKey(), null));
+  }
+
+  @Test
+  public void testCompareLists() {
+    ExpressionParser expressionParser = new ExpressionParser();
+    assertTrue(0 > expressionParser.compareObjects(Arrays.asList(new MinKey()), Arrays.asList()));
+    assertTrue(0 < expressionParser.compareObjects(Arrays.asList(new MaxKey()), Arrays.asList()));
+    assertTrue(0 < expressionParser.compareObjects(Arrays.asList(), Arrays.asList(new MinKey())));
+    assertTrue(0 > expressionParser.compareObjects(Arrays.asList(), Arrays.asList(new MaxKey())));
   }
 
   @Test

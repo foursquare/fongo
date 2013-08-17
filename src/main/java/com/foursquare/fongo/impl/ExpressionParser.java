@@ -45,10 +45,31 @@ public class ExpressionParser {
   public final static String REGEX_OPTIONS = "$options";
   public final static String TYPE = "$type";
 
-  private static final Map<Class, Integer> CLASS_TO_TYPE;
+
+  private static class Null {
+  }
+
+  private static final Map<Class, Integer> CLASS_TO_WEIGHT;
 
   static {
+    // http://docs.mongodb.org/manual/reference/operator/type
     Map<Class, Integer> map = new HashMap<Class, Integer>();
+//    map.put(Double.class, 1);
+//    map.put(Float.class, 1);
+//    map.put(String.class, 2);
+//    map.put(Object.class, 3);
+//    map.put(BasicDBList.class, 4);
+//    map.put(LazyBSONList.class, 4);
+//    map.put(ObjectId.class, 6);
+//    map.put(Boolean.class, 7);
+//    map.put(Date.class, 9);
+//    map.put(Null.class, 10);
+//    map.put(Pattern.class, 11);
+//    map.put(Integer.class, 16);
+////    map.put(Timestamp.class, 17);
+//    map.put(Long.class, 18);
+//    map.put(MinKey.class, -1); // 255
+//    map.put(MaxKey.class, 127);
     map.put(Double.class, 1);
     map.put(Float.class, 1);
     map.put(String.class, 2);
@@ -58,14 +79,15 @@ public class ExpressionParser {
     map.put(ObjectId.class, 6);
     map.put(Boolean.class, 7);
     map.put(Date.class, 9);
+    map.put(Null.class, 0);
     map.put(Pattern.class, 11);
     map.put(Integer.class, 16);
 //    map.put(Timestamp.class, 17);
     map.put(Long.class, 18);
-    map.put(MinKey.class, -1); // 255
-    map.put(MaxKey.class, 127);
+    map.put(MinKey.class, Integer.MIN_VALUE);
+    map.put(MaxKey.class, Integer.MAX_VALUE);
 
-    CLASS_TO_TYPE = Collections.unmodifiableMap(map);
+    CLASS_TO_WEIGHT = Collections.unmodifiableMap(map);
   }
 
   public class ObjectComparator implements Comparator {
@@ -243,22 +265,26 @@ public class ExpressionParser {
   List<FilterFactory> filterFactories = Arrays.<FilterFactory>asList(
       new ConditionalOperatorFilterFactory(GTE) {
         boolean singleCompare(Object queryValue, Object storedValue) {
-          return compareObjects(queryValue, storedValue) <= 0;
+          Integer result = compareObjects(queryValue, storedValue, true);
+          return result != null && result.intValue() <= 0;
         }
       },
       new ConditionalOperatorFilterFactory(LTE) {
         boolean singleCompare(Object queryValue, Object storedValue) {
-          return compareObjects(queryValue, storedValue) >= 0;
+          Integer result = compareObjects(queryValue, storedValue, true);
+          return result != null && result.intValue() >= 0;
         }
       },
       new ConditionalOperatorFilterFactory(GT) {
         boolean singleCompare(Object queryValue, Object storedValue) {
-          return compareObjects(queryValue, storedValue) < 0;
+          Integer result = compareObjects(queryValue, storedValue, true);
+          return result != null && result.intValue() < 0;
         }
       },
       new ConditionalOperatorFilterFactory(LT) {
         boolean singleCompare(Object queryValue, Object storedValue) {
-          return compareObjects(queryValue, storedValue) > 0;
+          Integer result = compareObjects(queryValue, storedValue, true);
+          return result != null && result.intValue() > 0;
         }
       },
       new BasicCommandFilterFactory(NE) {
@@ -568,9 +594,21 @@ public class ExpressionParser {
     };
   }
 
+  public Integer compareObjects(Object queryValue, Object storedValue) {
+    return compareObjects(queryValue, storedValue, false);
+  }
 
+  /**
+   * Compare objects between {@code queryValue} and {@code storedValue}.
+   * Can return null if {@code comparableFilter} is true and {@code queryValue} and {@code storedValue} can't be compared.
+   *
+   * @param queryValue
+   * @param storedValue
+   * @param comparableFilter if true, return null if {@code queryValue} and {@code storedValue} can't be compared..
+   * @return
+   */
   @SuppressWarnings("all")
-  public int compareObjects(Object queryValue, Object storedValue) {
+  public Integer compareObjects(Object queryValue, Object storedValue, boolean comparableFilter) {
     LOG.debug("comparing {} and {}", queryValue, storedValue);
 
     if (queryValue instanceof DBObject && storedValue instanceof DBObject) {
@@ -581,10 +619,10 @@ public class ExpressionParser {
       return compareLists(queryList, storedList);
     } else {
       Object queryComp = typecast("query value", queryValue, Object.class);
-      Object storedComp = typecast("stored value", storedValue, Object.class);
-      if (storedComp == null) {
-        return 1;
+      if(comparableFilter && !(storedValue instanceof Comparable)) {
+        return null;
       }
+      Object storedComp = typecast("stored value", storedValue, Object.class);
       return compareTo(queryComp, storedComp);
     }
   }
@@ -593,7 +631,9 @@ public class ExpressionParser {
   protected int compareTo(Object c1, Object c2) { // Object to handle MinKey/MaxKey
     Object cc1 = c1;
     Object cc2 = c2;
-    if (!cc1.getClass().equals(cc2.getClass()) || !(cc1 instanceof Comparable)) {
+    Class<?> clazz1 = c1 == null ? Null.class : c1.getClass();
+    Class<?> clazz2 = c2 == null ? Null.class : c2.getClass();
+    if (!clazz1.equals(clazz2) || !(cc1 instanceof Comparable)) {
       if (cc1 instanceof Number) {
         if (cc2 instanceof Number) {
           cc1 = ((Number) cc1).doubleValue();
@@ -604,8 +644,8 @@ public class ExpressionParser {
       } else if (cc2 instanceof Number && !(cc1 instanceof MinKey) && !(cc1 instanceof MaxKey)) {
         return 1;
       } else {
-        Integer type1 = CLASS_TO_TYPE.get(cc1.getClass());
-        Integer type2 = CLASS_TO_TYPE.get(cc2.getClass());
+        Integer type1 = CLASS_TO_WEIGHT.get(clazz1);
+        Integer type2 = CLASS_TO_WEIGHT.get(clazz2);
         if (type1 != null && type2 != null) {
           cc1 = type1;
           cc2 = type2;
@@ -615,17 +655,24 @@ public class ExpressionParser {
       }
     }
 
+//    LOG.info("\tcompareTo() cc1:{}, cc2:{} => {}", cc1, cc2, ((Comparable) cc1).compareTo(cc2));
     return ((Comparable) cc1).compareTo(cc2);
   }
 
   public int compareLists(List queryList, List storedList) {
     int sizeDiff = queryList.size() - storedList.size();
     if (sizeDiff != 0) {
+      if (sizeDiff > 0 && queryList.get(storedList.size()) instanceof MinKey) {
+        return -1; // Minkey is ALWAYS first, even if other is null
+      }
+      if (sizeDiff < 0 && storedList.get(queryList.size()) instanceof MinKey) {
+        return 1; // Minkey is ALWAYS first, even if other is null
+      }
       return sizeDiff;
     }
     for (int i = 0; i < queryList.size(); i++) {
-      int compareValue = compareObjects(queryList.get(i), storedList.get(i));
-      if (compareValue != 0) {
+      Integer compareValue = compareObjects(queryList.get(i), storedList.get(i));
+      if (compareValue != null && compareValue != 0) {
         return compareValue;
       }
     }
