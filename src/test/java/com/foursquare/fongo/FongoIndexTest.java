@@ -565,9 +565,8 @@ public class FongoIndexTest {
     assertEquals(1, index.getLookupCount());
   }
 
-  @Test
+  @Test(expected = MongoException.class)
   public void testStrangeIndexThrowException() throws Exception {
-    exception.expect(MongoException.class);
     DBCollection collection = FongoTest.newCollection();
     collection.ensureIndex(new BasicDBObject("a", new BasicDBObject("n", 1)));
 
