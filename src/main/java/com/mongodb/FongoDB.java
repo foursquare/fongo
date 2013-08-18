@@ -174,7 +174,7 @@ public class FongoDB extends DB {
     return result;
   }
 
-  public CommandResult koErrorResult(int code, String err) {
+  public CommandResult notOkErrorResult(int code, String err) {
     CommandResult result = notOkErrorResult(err);
     result.put("code", code);
     return result;
