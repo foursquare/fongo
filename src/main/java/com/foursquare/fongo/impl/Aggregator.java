@@ -20,8 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * User: william
- * Date: 22/07/13
+ * Handle the aggregation of a collection.
  */
 public class Aggregator {
   private static final Logger LOG = LoggerFactory.getLogger(Aggregator.class);

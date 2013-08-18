@@ -92,6 +92,22 @@ public class FongoRule extends ExternalResource {
     return coll;
   }
 
+  public void insertFile(DBCollection coll, String filename) throws IOException {
+    InputStream is = this.getClass().getResourceAsStream(filename);
+    try {
+      BufferedReader br = new BufferedReader(new InputStreamReader(is));
+      String line = br.readLine();
+      while (line != null) {
+        coll.insert(this.parseDEObject(line));
+        line = br.readLine();
+      }
+    } finally {
+      if (is != null) {
+        is.close();
+      }
+    }
+  }
+
   public List<DBObject> parseList(String json) {
     return parse(json);
   }
