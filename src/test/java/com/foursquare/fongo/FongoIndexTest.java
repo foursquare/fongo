@@ -16,6 +16,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -542,6 +543,59 @@ public class FongoIndexTest {
     assertEquals(new BasicDBObject("date", 1).append("name", "will").append("_id", 1), collection.findOne(new BasicDBObject("_id", 1)));
     assertEquals(1, indexDate.getLookupCount());
     assertEquals(1, indexName.getLookupCount());
+  }
+
+  @Test
+  @Ignore("strange index, Mongo doen't handle but no exception.")
+  public void testInnerIndex() throws Exception {
+    DBCollection collection = FongoTest.newCollection();
+    collection.insert(new BasicDBObject("_id", 1).append("a", new BasicDBObject("n", 1)));
+
+    assertEquals(
+        new BasicDBObject("_id", 1).append("a", new BasicDBObject("n", 1)),
+        collection.findOne(new BasicDBObject("a.n", 1))
+    );
+
+    collection.ensureIndex(new BasicDBObject("a.n", 1));
+    Index index = getIndex(collection, "a.n_1");
+    assertEquals(
+        new BasicDBObject("_id", 1).append("a", new BasicDBObject("n", 1)),
+        collection.findOne(new BasicDBObject("a.n", 1))
+    );
+    assertEquals(1, index.getLookupCount());
+  }
+
+  @Test
+  public void testStrangeIndexThrowException() throws Exception {
+    exception.expect(MongoException.class);
+    DBCollection collection = FongoTest.newCollection();
+    collection.ensureIndex(new BasicDBObject("a", new BasicDBObject("n", 1)));
+
+    // Code : 10098
+  }
+
+  // Creating an index after inserting into a collection must add records only if necessary
+  @Test
+  public void testCreateIndexLater() throws Exception {
+    DBCollection collection = FongoTest.newCollection();
+    collection.insert(new BasicDBObject("_id", 1).append("a", 1));
+    collection.insert(new BasicDBObject("_id", 2));
+    collection.ensureIndex(new BasicDBObject("a", 1));
+
+    Index index = getIndex(collection, "a_1");
+    assertEquals(1, index.size());
+  }
+
+  // Creating an index before inserting into a collection must add records only if necessary
+  @Test
+  public void testCreateIndexBefore() throws Exception {
+    DBCollection collection = FongoTest.newCollection();
+    collection.ensureIndex(new BasicDBObject("a", 1));
+    collection.insert(new BasicDBObject("_id", 1).append("a", 1));
+    collection.insert(new BasicDBObject("_id", 2));
+
+    Index index = getIndex(collection, "a_1");
+    assertEquals(1, index.size());
   }
 
   private Index getIndex(DBCollection collection, String name) {
