@@ -98,15 +98,11 @@ public class FongoDBCollectionTest {
   }
 
   @Test
-  public void applyFindOneProjection(){
-    BasicDBObject existing = new BasicDBObject()
-          .append("_id", 1)
-          .append("aList",asDbList("a","b","c") );
+  public void findByListInQuery(){
+    BasicDBObject existing = new BasicDBObject().append("_id", 1).append("aList", asDbList("a", "b", "c"));
     collection.insert(existing);
     DBObject result = collection.findOne(existing);
-    assertEquals("should have projected result",
-        existing,
-        result);
+    assertEquals("should have projected result", existing, result);
   }
 
   BasicDBList asDbList(Object ... objects) {
