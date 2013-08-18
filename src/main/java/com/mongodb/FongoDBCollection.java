@@ -206,7 +206,7 @@ public class FongoDBCollection extends DBCollection {
   }
 
 
-  public List idsIn(DBObject query) {
+  private List idsIn(DBObject query) {
     Object idValue = query.get(ID_KEY);
     if (idValue == null || query.keySet().size() > 1) {
       return Collections.emptyList();
@@ -443,16 +443,6 @@ public class FongoDBCollection extends DBCollection {
       dbObjectIterable = _idIndex.values();
     }
     return dbObjectIterable;
-  }
-
-  private List<DBObject> copyResults(final List<DBObject> results) {
-    final List<DBObject> ret = new ArrayList<DBObject>(results.size());
-
-    for (DBObject result : results) {
-      ret.add(Util.clone(result));
-    }
-
-    return ret;
   }
 
   private List<DBObject> applyProjections(List<DBObject> results, DBObject projection) {
