@@ -8,6 +8,8 @@ import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
 import com.mongodb.FongoDBCollection;
 import com.mongodb.MongoException;
+import com.mongodb.WriteConcernException;
+import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.List;
 import static org.junit.Assert.assertEquals;
@@ -492,6 +494,27 @@ public class FongoIndexTest {
         new BasicDBObject("date", 2),
         new BasicDBObject("date", 3)
     ), cursor.toArray());
+  }
+
+  @Test
+  public void test2dIndex() {
+    DBCollection collection = FongoTest.newCollection();
+    collection.insert(new BasicDBObject("_id", 1).append("loc", Util.list(-73.97D, 40.72D)));
+    collection.insert(new BasicDBObject("_id", 2).append("loc", Util.list(2.265D, 48.791D)));
+    collection.ensureIndex(new BasicDBObject("loc", "2d"));
+
+    Index index = getIndex(collection, "loc_2d");
+    assertTrue(index.isGeoIndex());
+  }
+
+  @Test(expected = WriteConcernException.class)
+  public void test2dIndexNotFirst() {
+    DBCollection collection = FongoTest.newCollection();
+// com.mongodb.WriteConcernException: { "serverUsed" : "localhost/127.0.0.1:27017" , "err" : "2d has to be first in index" , "code" : 13023 , "n" : 0 , "connectionId" : 272 , "ok" : 1.0}
+
+    collection.insert(new BasicDBObject("_id", 1).append("loc", Util.list(-73.97D, 40.72D)));
+    collection.insert(new BasicDBObject("_id", 2).append("loc", Util.list(2.265D, 48.791D)));
+    collection.ensureIndex(new BasicDBObject("name", 1).append("loc", "2d"));
   }
 
   @Test

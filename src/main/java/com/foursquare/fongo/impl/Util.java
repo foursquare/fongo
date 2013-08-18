@@ -152,6 +152,10 @@ public class Util {
     throw new IllegalArgumentException("Don't know how to clone: " + source);
   }
 
+  public static Set<Map.Entry<String, Object>> entrySet(DBObject object) {
+    return (Set<Map.Entry<String, Object>>) object.toMap().entrySet();
+  }
+
   // When inserting, MongoDB set _id in first place.
   public static DBObject cloneIdFirst(DBObject source) {
     if (source == null) {
@@ -164,7 +168,7 @@ public class Util {
       newobj.put(FongoDBCollection.ID_KEY, source.get(FongoDBCollection.ID_KEY));
     }
     // need to clone the sub obj
-    for (Map.Entry<String, Object> entry : (Set<Map.Entry<String, Object>>) source.toMap().entrySet()) {
+    for (Map.Entry<String, Object> entry : Util.entrySet(source)) {
       String field = entry.getKey();
       Object val = entry.getValue();
       if (val instanceof BasicDBObject) {

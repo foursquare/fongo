@@ -2,10 +2,10 @@ package com.foursquare.fongo.impl;
 
 import com.mongodb.DBObject;
 import com.mongodb.FongoDBCollection;
+import com.mongodb.MongoException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,6 +20,7 @@ public class Index {
   private final DBObject keys;
   private final Set<String> fields;
   private final boolean unique;
+  private final boolean geoIndex;
   private final ExpressionParser expressionParser = new ExpressionParser();
   private final ExpressionParser.ObjectComparator objectComparator;
   // Contains all dbObject than field value can have
@@ -29,8 +30,9 @@ public class Index {
   public Index(String name, DBObject keys, boolean unique, boolean insertOrder) {
     this.name = name;
     this.fields = Collections.unmodifiableSet(keys.keySet()); // Setup BEFORE keys.
-    this.keys = exludeIdIfNecessary(keys);
+    this.keys = prepareKeys(keys);
     this.unique = unique;
+    this.geoIndex = isGeo(keys);
 
     this.objectComparator = expressionParser.buildObjectComparator(isAsc(keys));
     if (insertOrder) {
@@ -40,17 +42,49 @@ public class Index {
     }
   }
 
-  private DBObject exludeIdIfNecessary(DBObject keys) {
+  private DBObject prepareKeys(DBObject keys) {
     DBObject nKeys = Util.clone(keys);
     if (!nKeys.containsField(FongoDBCollection.ID_KEY)) {
       // Remove _id for projection.
       nKeys.put("_id", 0);
     }
+    // Transform 2d indexes into "1" (for now, can change later).
+    for (Map.Entry<String, Object> entry : Util.entrySet(keys)) { // Work on keys to avoid ConcurrentModificationException
+      if (entry.getValue().equals("2d")) {
+        nKeys.put(entry.getKey(), 1);
+      }
+    }
     return nKeys;
   }
 
   private boolean isAsc(DBObject keys) {
-    return ((Comparable) keys.toMap().values().iterator().next()).compareTo(0) == 1;
+    Object value = keys.toMap().values().iterator().next();
+    if (value instanceof Number) {
+      return ((Number) value).intValue() >= 1;
+    }
+    return false;
+  }
+
+  private boolean isGeo(DBObject keys) {
+    boolean first = true;
+    boolean geo = false;
+    for (Map.Entry<String, Object> entry : Util.entrySet(keys)) {
+      Object value = entry.getValue();
+      if (value instanceof String) {
+        boolean localGeo = "2d".equals(value);
+        if (localGeo && !first) {
+          //	"err" : "2d has to be first in index",
+//        "code" : 13023,
+//            "n" : 0,
+//            "connectionId" : 206,
+//            "ok" : 1
+          throw new MongoException(13023, "2d has to be first in index");
+        }
+        geo |= localGeo;
+      }
+      first = false;
+    }
+    return geo;
   }
 
   public String getName() {
@@ -59,6 +93,10 @@ public class Index {
 
   public boolean isUnique() {
     return unique;
+  }
+
+  public boolean isGeoIndex() {
+    return geoIndex;
   }
 
   public DBObject getKeys() {
@@ -247,4 +285,5 @@ public class Index {
   public boolean canHandle(Set<String> queryFields) {
     return queryFields.containsAll(fields);
   }
+
 }
