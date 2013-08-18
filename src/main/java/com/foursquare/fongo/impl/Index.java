@@ -27,13 +27,19 @@ public class Index {
   private final Map<DBObject, List<DBObject>> mapValues;
   private int lookupCount = 0;
 
-  public Index(String name, DBObject keys, boolean unique, boolean insertOrder) {
+  public Index(String name, DBObject keys, boolean unique, boolean insertOrder) throws MongoException {
     this.name = name;
     this.fields = Collections.unmodifiableSet(keys.keySet()); // Setup BEFORE keys.
     this.keys = prepareKeys(keys);
     this.unique = unique;
     this.geoIndex = isGeo(keys);
 
+    for(Object value : keys.toMap().values()) {
+      if(!(value instanceof String) && !(value instanceof Number)) {
+        //com.mongodb.WriteConcernException: { "serverUsed" : "/127.0.0.1:27017" , "err" : "bad index key pattern { a: { n: 1 } }" , "code" : 10098 , "n" : 0 , "connectionId" : 543 , "ok" : 1.0}
+        throw new MongoException(10098, "bad index key pattern : " + keys);
+      }
+    }
     this.objectComparator = expressionParser.buildObjectComparator(isAsc(keys));
     if (insertOrder) {
       this.mapValues = new LinkedHashMap<DBObject, List<DBObject>>();
@@ -197,10 +203,12 @@ public class Index {
    */
   public synchronized List<List<Object>> addAll(Iterable<DBObject> objects) {
     for (DBObject object : objects) {
-      List<List<Object>> nonUnique = addOrUpdate(object, null);
-      // TODO(twillouer) : must handle writeConcern.
-      if (!nonUnique.isEmpty()) {
-        return nonUnique;
+      if (canHandle(object.keySet())) {
+        List<List<Object>> nonUnique = addOrUpdate(object, null);
+        // TODO(twillouer) : must handle writeConcern.
+        if (!nonUnique.isEmpty()) {
+          return nonUnique;
+        }
       }
     }
     return Collections.emptyList();
