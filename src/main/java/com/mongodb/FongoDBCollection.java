@@ -212,7 +212,7 @@ public class FongoDBCollection extends DBCollection {
       return Collections.emptyList();
     } else if (idValue instanceof DBObject) {
       DBObject idDbObject = (DBObject) idValue;
-      List inList = (List) idDbObject.get(ExpressionParser.IN);
+      Collection inList = (Collection) idDbObject.get(ExpressionParser.IN);
 
       // I think sorting the inputed keys is a rough
       // approximation of how mongo creates the bounds for walking
