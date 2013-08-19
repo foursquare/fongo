@@ -398,7 +398,7 @@ public class ExpressionParserTest {
         new BasicDBObject("a", asList(new BasicDBObject("b",1).append("c", 1)))
     ), results);
   }
-  
+
   @Test
   public void testEmbeddedEmptyMatch(){
     DBObject query = new BasicDBObject("a.b.c", 1);
@@ -682,6 +682,23 @@ public class ExpressionParserTest {
         new BasicDBObject("a", asList(new DBRef(null, "c", 2))));
     
     assertEquals(Arrays.<DBObject>asList(rec1), results);
+  }
+
+  @Test
+  public void testListsMatch(){
+    DBObject query = new BasicDBObject("a", asList(1,2,3));
+    List<DBObject> results = doFilter(
+        query,
+        new BasicDBObject("a", asList()),
+        new BasicDBObject("b", asList()),
+        new BasicDBObject("a", asList(1,2,3)),
+        new BasicDBObject("a", asDbList(1,2,3)),
+        new BasicDBObject("a", asDbList())
+        );
+    assertEquals(Arrays.<DBObject>asList(
+        new BasicDBObject("a", asList(1,2,3)),
+        new BasicDBObject("a", asDbList(1,2,3))
+    ), results);
   }
 
   private void assertQuery(BasicDBObject query, List<DBObject> expected) {

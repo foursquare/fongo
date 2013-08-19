@@ -141,7 +141,7 @@ public class ExpressionParser {
 
     @Override
     public Filter createFilter(final List<String> path, final DBObject refExpression) {
-      List queryList = typecast(command + " clause", refExpression.get(command), List.class);
+      Collection queryList = typecast(command + " clause", refExpression.get(command), Collection.class);
       final Set querySet = new HashSet(queryList);
       return new Filter() {
         public boolean apply(DBObject o) {
@@ -176,7 +176,7 @@ public class ExpressionParser {
     try {
       return clazz.cast(obj);
     } catch (Exception e) {
-      throw new FongoException(fieldName + " expected to be of type " + clazz.getName() + " but is " + obj);
+      throw new FongoException(fieldName + " expected to be of type " + clazz.getName() + " but is " + (obj != null ? obj.getClass() : "null") + " toString:" + obj);
     }
   }
 
@@ -265,7 +265,7 @@ public class ExpressionParser {
       },
       new BasicFilterFactory(ALL) {
         boolean compare(Object queryValue, Object storedValue) {
-          List queryList = typecast(command + " clause", queryValue, List.class);
+          Collection queryList = typecast(command + " clause", queryValue, Collection.class);
           List storedList = typecast("value", storedValue, List.class);
           if (storedList == null) {
             return false;
@@ -411,14 +411,14 @@ public class ExpressionParser {
 
   private Filter buildExpressionFilter(final List<String> path, Object expression) {
     if (OR.equals(path.get(0))) {
-      List<DBObject> queryList = typecast(path + " operator", expression, List.class);
+      Collection<DBObject> queryList = typecast(path + " operator", expression, Collection.class);
       OrFilter orFilter = new OrFilter();
       for (DBObject query : queryList) {
         orFilter.addFilter(buildFilter(query));
       }
       return orFilter;
     } else if (AND.equals(path.get(0))) {
-      List<DBObject> queryList = typecast(path + " operator", expression, List.class);
+      Collection<DBObject> queryList = typecast(path + " operator", expression, Collection.class);
       AndFilter andFilter = new AndFilter();
       for (DBObject query : queryList) {
         andFilter.addFilter(buildFilter(query));
@@ -463,6 +463,11 @@ public class ExpressionParser {
         } else {
           for (Object storedValue : storedOption) {
             if (storedValue instanceof List) {
+              if(expression instanceof List){
+                if(storedValue.equals(expression)){
+                  return true;
+                }
+              }
               if (((List) storedValue).contains(expression)) {
                 return true;
               }
