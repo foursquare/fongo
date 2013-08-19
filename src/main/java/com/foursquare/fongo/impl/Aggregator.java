@@ -20,8 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * User: william
- * Date: 22/07/13
+ * Handle the aggregation of a collection.
  */
 public class Aggregator {
   private static final Logger LOG = LoggerFactory.getLogger(Aggregator.class);
@@ -55,7 +54,7 @@ public class Aggregator {
           }
         }
         if (!found) {
-          throw fongoDB.errorResult(16436, "exception: Unrecognized pipeline stage name: '" + object.keySet() + "'").getException();
+          fongoDB.errorResult(16436, "exception: Unrecognized pipeline stage name: '" + object.keySet() + "'").throwOnError();
         }
         // Not found : com.mongodb.CommandFailureException: { "serverUsed" : "localhost/127.0.0.1:27017" , "errmsg" : "exception: Unrecognized pipeline stage name: '_id'" , "code" : 16436 , "ok" : 0.0}
       }

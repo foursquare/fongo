@@ -22,6 +22,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.bson.BSON;
@@ -57,7 +58,7 @@ public class FongoTest {
     assertNotNull(collection);
     assertSame("getCollection should be idempotent", collection, db.getCollection("coll"));
     assertSame("getCollection should be idempotent", collection, db.getCollectionFromString("coll"));
-    assertEquals(new HashSet<String>(Arrays.asList("coll")), db.getCollectionNames());
+    assertEquals(newHashSet("coll"), db.getCollectionNames());
   }
 
   @Test
@@ -124,6 +125,22 @@ public class FongoTest {
   }
 
   @Test
+  public void testFindOneInSetOfId() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1));
+    DBObject result = collection.findOne(new BasicDBObject("_id", new BasicDBObject("$in", newHashSet(1, 2))));
+    assertEquals(new BasicDBObject("_id", 1), result);
+  }
+
+  @Test
+  public void testFindOneInSetOfData() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1).append("data", 1));
+    DBObject result = collection.findOne(new BasicDBObject("data", new BasicDBObject("$in", newHashSet(1, 2))));
+    assertEquals(new BasicDBObject("_id", 1).append("data", 1), result);
+  }
+
+  @Test
   public void testFindOneIn() {
     DBCollection collection = newCollection();
     collection.insert(new BasicDBObject("date", 1));
@@ -150,6 +167,14 @@ public class FongoTest {
   }
 
   @Test
+  public void testFindOneOrIdCollection() throws Exception {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1));
+    DBObject result = collection.findOne(new BasicDBObject("$or", newHashSet(new BasicDBObject("_id", 1), new BasicDBObject("_id", 2))));
+    assertEquals(new BasicDBObject("_id", 1), result);
+  }
+
+  @Test
   public void testFindOneOrData() {
     DBCollection collection = newCollection();
     collection.insert(new BasicDBObject("date", 1));
@@ -165,6 +190,14 @@ public class FongoTest {
 
     DBObject result = collection.findOne(new BasicDBObject("_id", new BasicDBObject("$nin", new Integer[]{1, 3})));
     assertEquals(new BasicDBObject("_id", 2), result);
+  }
+
+  @Test
+  public void testFindOneAndIdCollection() throws Exception {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1).append("data", 2));
+    DBObject result = collection.findOne(new BasicDBObject("$and", newHashSet(new BasicDBObject("_id", 1), new BasicDBObject("data", 2))));
+    assertEquals(new BasicDBObject("_id", 1).append("data", 2), result);
   }
 
   @Test
@@ -989,6 +1022,42 @@ public class FongoTest {
   }
 
   @Test
+  public void testFindAllWithDBList() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1).append("tags", Util.list("mongo", "javascript")));
+
+    // When
+    DBObject result = collection.findOne(new BasicDBObject("tags", new BasicDBObject("$all", Util.list("mongo", "javascript"))));
+
+    // then
+    assertEquals(new BasicDBObject("_id", 1).append("tags", Util.list("mongo", "javascript")), result);
+  }
+
+  @Test
+  public void testFindAllWithList() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1).append("tags", Util.list("mongo", "javascript")));
+
+    // When
+    DBObject result = collection.findOne(new BasicDBObject("tags", new BasicDBObject("$all", Arrays.asList("mongo", "javascript"))));
+
+    // then
+    assertEquals(new BasicDBObject("_id", 1).append("tags", Util.list("mongo", "javascript")), result);
+  }
+
+  @Test
+  public void testFindAllWithCollection() throws Exception {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1).append("tags", Util.list("mongo", "javascript")));
+
+    // When
+    DBObject result = collection.findOne(new BasicDBObject("tags", new BasicDBObject("$all", newHashSet("mongo", "javascript"))));
+
+    // then
+    assertEquals(new BasicDBObject("_id", 1).append("tags", Util.list("mongo", "javascript")), result);
+  }
+
+  @Test
   public void testEncodingHooks() {
     BSON.addEncodingHook(Seq.class, new Transformer() {
       @Override
@@ -1203,6 +1272,10 @@ public class FongoTest {
     Seq(Object... data) {
       this.data = data;
     }
+  }
+
+  private static <T> Set<T> newHashSet(T... objects) {
+    return new HashSet<T>(Arrays.asList(objects));
   }
 
   public static DBCollection newCollection() {
