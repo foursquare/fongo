@@ -170,7 +170,7 @@ public class FongoDBCollection extends DBCollection {
     }
 
     if (o.containsField(ID_KEY) && q.containsField(ID_KEY) && !o.get(ID_KEY).equals(q.get(ID_KEY))) {
-      throw new MongoException.DuplicateKey(fongoDb.koErrorResult(0, "can not change _id of a document " + ID_KEY));
+      throw new MongoException.DuplicateKey(fongoDb.notOkErrorResult(0, "can not change _id of a document " + ID_KEY));
     }
 
     int updatedDocuments = 0;
@@ -210,13 +210,13 @@ public class FongoDBCollection extends DBCollection {
   }
 
 
-  public List idsIn(DBObject query) {
+  private List idsIn(DBObject query) {
     Object idValue = query.get(ID_KEY);
     if (idValue == null || query.keySet().size() > 1) {
       return Collections.emptyList();
     } else if (idValue instanceof DBObject) {
       DBObject idDbObject = (DBObject) idValue;
-      List inList = (List) idDbObject.get(ExpressionParser.IN);
+      Collection inList = (Collection) idDbObject.get(ExpressionParser.IN);
 
       // I think sorting the inputed keys is a rough
       // approximation of how mongo creates the bounds for walking
@@ -447,16 +447,6 @@ public class FongoDBCollection extends DBCollection {
       dbObjectIterable = _idIndex.values();
     }
     return dbObjectIterable;
-  }
-
-  private List<DBObject> copyResults(final List<DBObject> results) {
-    final List<DBObject> ret = new ArrayList<DBObject>(results.size());
-
-    for (DBObject result : results) {
-      ret.add(Util.clone(result));
-    }
-
-    return ret;
   }
 
   private List<DBObject> applyProjections(List<DBObject> results, DBObject projection) {
@@ -733,7 +723,7 @@ public class FongoDBCollection extends DBCollection {
     for (IndexAbstract index : indexes) {
       if (index.isGeoIndex()) {
         if (result != null && unique) {
-          this.fongoDb.koErrorResult(-5, "more than one 2d index, not sure which to run geoNear on").throwOnError();
+          this.fongoDb.notOkErrorResult(-5, "more than one 2d index, not sure which to run geoNear on").throwOnError();
         }
         result = index;
         if (!unique) {
@@ -801,7 +791,7 @@ public class FongoDBCollection extends DBCollection {
   public synchronized List<DBObject> geoNear(DBObject near, DBObject query, Number limit, Number maxDistance, boolean spherical) {
     IndexAbstract matchingIndex = searchGeoIndex(true);
     if (matchingIndex == null) {
-      fongoDb.koErrorResult(-5, "no geo indices for geoNear").throwOnError();
+      fongoDb.notOkErrorResult(-5, "no geo indices for geoNear").throwOnError();
     }
     LOG.info("geoNear() near:{}, query:{}, limit:{}, maxDistance:{}, spherical:{}, use index:{}", near, query, limit, maxDistance, spherical, matchingIndex.getName());
 

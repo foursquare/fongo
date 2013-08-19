@@ -1,6 +1,7 @@
 package com.mongodb;
 
 import com.foursquare.fongo.impl.Aggregator;
+import com.foursquare.fongo.impl.MapReduce;
 import java.util.HashSet;
 
 import java.util.ArrayList;
@@ -61,6 +62,12 @@ public class FongoDB extends DB {
     Aggregator aggregator = new Aggregator(this, coll, pipeline);
 
     return aggregator.computeResult();
+  }
+
+  private DBObject doMapReduce(String collection, String map, String reduce, DBObject out, DBObject query, DBObject sort, Number limit) {
+    FongoDBCollection coll = doGetCollection(collection);
+    MapReduce mapReduce = new MapReduce(this, coll, map, reduce, out, query, sort, limit);
+    return mapReduce.computeResult();
   }
 
   private List<DBObject> doGeoNearCollection(String collection, DBObject near, DBObject query, Number limit, Number maxDistance, boolean spherical) {
@@ -163,6 +170,15 @@ public class FongoDB extends DB {
       list.addAll(result);
       okResult.put("result", list);
       return okResult;
+    } else if (cmd.containsField("mapreduce")) {
+      // TODO : sort/limit
+      DBObject result = doMapReduce((String) cmd.get("mapreduce"), (String) cmd.get("map"), (String) cmd.get("reduce"), (DBObject) cmd.get("out"), (DBObject) cmd.get("query"), (DBObject) cmd.get("sort"), (Number) cmd.get("limit"));
+      if (result == null) {
+        return notOkErrorResult("can't mapReduce");
+      }
+      CommandResult okResult = okResult();
+      okResult.put("result", result);
+      return okResult;
     } else if (cmd.containsField("geoNear")) {
       // http://docs.mongodb.org/manual/reference/command/geoNear/
       // TODO : handle "num" (override limit)
@@ -202,7 +218,7 @@ public class FongoDB extends DB {
     return result;
   }
 
-  public CommandResult koErrorResult(int code, String err) {
+  public CommandResult notOkErrorResult(int code, String err) {
     CommandResult result = notOkErrorResult(err);
     result.put("code", code);
     return result;

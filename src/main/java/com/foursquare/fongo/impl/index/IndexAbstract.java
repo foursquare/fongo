@@ -185,23 +185,33 @@ public abstract class IndexAbstract<T extends DBObject> {
     return Collections.emptyList();
   }
 
-  // Only for unique index.
+  // Only for unique index and for query with values. ($in doens't work by example.)
   public List<T> get(DBObject query) {
+    if(!unique) {
+      throw new IllegalStateException("get is only for unique index");
+    }
+    lookupCount++;
+
     DBObject key = getKeyFor(query);
     return mapValues.get(key);
   }
 
-  public Collection<DBObject> retrieveObjects(DBObject query) {
+  public Collection<T> retrieveObjects(DBObject query) {
+    // Optimization
+    if(unique && query.keySet().size() == 1 && !(query.toMap().values().iterator().next() instanceof DBObject)) {
+      return get(query);
+    }
+
     lookupCount++;
 
     // Filter for the key.
     Filter filterKey = expressionParser.buildFilter(query, getFields());
     // Filter for the data.
     Filter filter = expressionParser.buildFilter(query);
-    List<DBObject> result = new ArrayList<DBObject>();
+    List<T> result = new ArrayList<T>();
     for (Map.Entry<T, List<T>> entry : mapValues.entrySet()) {
       if (filterKey.apply(entry.getKey())) {
-        for (DBObject object : entry.getValue()) {
+        for (T object : entry.getValue()) {
           if (filter.apply(object)) {
             result.add(object); // DO NOT CLONE ! need for update.
           }

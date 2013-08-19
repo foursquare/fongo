@@ -572,11 +572,9 @@ public class FongoIndexTest {
 
   @Test
   public void testStrangeIndexThrowException() throws Exception {
-    exception.expect(MongoException.class);
+    ExpectedMongoException.expectCode(exception, 10098, MongoException.class);
     DBCollection collection = fongoRule.newCollection();
     collection.ensureIndex(new BasicDBObject("a", new BasicDBObject("n", 1)));
-
-    // Code : 10098
   }
 
   // Creating an index after inserting into a collection must add records only if necessary
