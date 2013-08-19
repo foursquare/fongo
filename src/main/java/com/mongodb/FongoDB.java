@@ -166,7 +166,6 @@ public class FongoDB extends DB {
       okResult.put("result", list);
       return okResult;
     } else if (cmd.containsField("mapreduce")) {
-      System.out.println(cmd);
       // TODO : sort/limit
       DBObject result = doMapReduce((String) cmd.get("mapreduce"), (String) cmd.get("map"), (String) cmd.get("reduce"), (DBObject) cmd.get("out"), (DBObject) cmd.get("query"), (DBObject) cmd.get("sort"), (Number) cmd.get("limit"));
       if (result == null) {
