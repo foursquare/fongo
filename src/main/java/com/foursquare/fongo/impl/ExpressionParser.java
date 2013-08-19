@@ -656,7 +656,7 @@ public class ExpressionParser {
           cc1 = type1;
           cc2 = type2;
         } else {
-          // TODO what to do ?!
+          throw new FongoException("Don't know how to compare class " + cc1.getClass() + " and " + cc2.getClass() + " values are : " + c1 + " vs " + c2);
         }
       }
     }
