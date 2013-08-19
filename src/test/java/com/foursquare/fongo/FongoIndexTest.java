@@ -7,26 +7,27 @@ import com.mongodb.DBCollection;
 import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
 import com.mongodb.FongoDBCollection;
-import com.mongodb.MongoClient;
 import com.mongodb.MongoException;
+import com.mongodb.WriteConcernException;
+import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.List;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 public class FongoIndexTest {
 
   @Rule
-  public ExpectedException exception = ExpectedException.none();
+  public FongoRule fongoRule = new FongoRule("db");
 
   @Test
   public void testCreateIndexes() {
-    DBCollection collection = FongoTest.newCollection();
+    DBCollection collection = fongoRule.newCollection("coll");
     collection.ensureIndex("n");
     collection.ensureIndex("b");
     List<DBObject> indexes = collection.getIndexInfo();
@@ -42,7 +43,7 @@ public class FongoIndexTest {
    */
   @Test
   public void testCreateSameIndex() {
-    DBCollection collection = FongoTest.newCollection();
+    DBCollection collection = fongoRule.newCollection("coll");
     collection.ensureIndex("n");
     collection.ensureIndex("n");
     List<DBObject> indexes = collection.getIndexInfo();
@@ -57,7 +58,7 @@ public class FongoIndexTest {
    */
   @Test
   public void testCreateSameIndexButUnique() {
-    DBCollection collection = FongoTest.newCollection();
+    DBCollection collection = fongoRule.newCollection("coll");
     collection.ensureIndex(new BasicDBObject("n", 1), "n_1");
     collection.ensureIndex(new BasicDBObject("n", 1), "n_1", true);
     List<DBObject> indexes = collection.getIndexInfo();
@@ -97,7 +98,7 @@ public class FongoIndexTest {
 
   @Test
   public void testDropIndex() {
-    DBCollection collection = FongoTest.newCollection();
+    DBCollection collection = fongoRule.newCollection("coll");
     collection.ensureIndex("n");
     collection.ensureIndex("b");
 
@@ -118,7 +119,7 @@ public class FongoIndexTest {
 
   @Test
   public void testDropIndexes() {
-    DBCollection collection = FongoTest.newCollection();
+    DBCollection collection = fongoRule.newCollection("coll");
     collection.ensureIndex("n");
     collection.ensureIndex("b");
 
@@ -497,6 +498,27 @@ public class FongoIndexTest {
   }
 
   @Test
+  public void test2dIndex() {
+    DBCollection collection = FongoTest.newCollection();
+    collection.insert(new BasicDBObject("_id", 1).append("loc", Util.list(-73.97D, 40.72D)));
+    collection.insert(new BasicDBObject("_id", 2).append("loc", Util.list(2.265D, 48.791D)));
+    collection.ensureIndex(new BasicDBObject("loc", "2d"));
+
+    Index index = getIndex(collection, "loc_2d");
+    assertTrue(index.isGeoIndex());
+  }
+
+  @Test(expected = WriteConcernException.class)
+  public void test2dIndexNotFirst() {
+    DBCollection collection = FongoTest.newCollection();
+// com.mongodb.WriteConcernException: { "serverUsed" : "localhost/127.0.0.1:27017" , "err" : "2d has to be first in index" , "code" : 13023 , "n" : 0 , "connectionId" : 272 , "ok" : 1.0}
+
+    collection.insert(new BasicDBObject("_id", 1).append("loc", Util.list(-73.97D, 40.72D)));
+    collection.insert(new BasicDBObject("_id", 2).append("loc", Util.list(2.265D, 48.791D)));
+    collection.ensureIndex(new BasicDBObject("name", 1).append("loc", "2d"));
+  }
+
+  @Test
   public void testUpdateMustModifyAllIndexes() throws Exception {
     DBCollection collection = FongoTest.newCollection();
     collection.insert(new BasicDBObject("date", 1).append("name", "jon").append("_id", 1));
@@ -521,6 +543,58 @@ public class FongoIndexTest {
     assertEquals(new BasicDBObject("date", 1).append("name", "will").append("_id", 1), collection.findOne(new BasicDBObject("_id", 1)));
     assertEquals(1, indexDate.getLookupCount());
     assertEquals(1, indexName.getLookupCount());
+  }
+
+  @Test
+  @Ignore("strange index, Mongo doen't handle but no exception.")
+  public void testInnerIndex() throws Exception {
+    DBCollection collection = FongoTest.newCollection();
+    collection.insert(new BasicDBObject("_id", 1).append("a", new BasicDBObject("n", 1)));
+
+    assertEquals(
+        new BasicDBObject("_id", 1).append("a", new BasicDBObject("n", 1)),
+        collection.findOne(new BasicDBObject("a.n", 1))
+    );
+
+    collection.ensureIndex(new BasicDBObject("a.n", 1));
+    Index index = getIndex(collection, "a.n_1");
+    assertEquals(
+        new BasicDBObject("_id", 1).append("a", new BasicDBObject("n", 1)),
+        collection.findOne(new BasicDBObject("a.n", 1))
+    );
+    assertEquals(1, index.getLookupCount());
+  }
+
+  @Test(expected = MongoException.class)
+  public void testStrangeIndexThrowException() throws Exception {
+    DBCollection collection = FongoTest.newCollection();
+    collection.ensureIndex(new BasicDBObject("a", new BasicDBObject("n", 1)));
+
+    // Code : 10098
+  }
+
+  // Creating an index after inserting into a collection must add records only if necessary
+  @Test
+  public void testCreateIndexLater() throws Exception {
+    DBCollection collection = FongoTest.newCollection();
+    collection.insert(new BasicDBObject("_id", 1).append("a", 1));
+    collection.insert(new BasicDBObject("_id", 2));
+    collection.ensureIndex(new BasicDBObject("a", 1));
+
+    Index index = getIndex(collection, "a_1");
+    assertEquals(1, index.size());
+  }
+
+  // Creating an index before inserting into a collection must add records only if necessary
+  @Test
+  public void testCreateIndexBefore() throws Exception {
+    DBCollection collection = FongoTest.newCollection();
+    collection.ensureIndex(new BasicDBObject("a", 1));
+    collection.insert(new BasicDBObject("_id", 1).append("a", 1));
+    collection.insert(new BasicDBObject("_id", 2));
+
+    Index index = getIndex(collection, "a_1");
+    assertEquals(1, index.size());
   }
 
   private Index getIndex(DBCollection collection, String name) {
