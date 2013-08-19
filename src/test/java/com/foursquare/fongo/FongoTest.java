@@ -1423,6 +1423,25 @@ public class FongoTest {
         new BasicDBObject("_id", 2).append("a", 2)), objects);
   }
 
+  @Test
+  public void shouldCompareObjectId() throws Exception {
+    // Given
+    DBCollection collection = newCollection();
+    ObjectId id1 = ObjectId.get();
+    ObjectId id2 = ObjectId.get();
+    collection.insert(new BasicDBObject("_id", id1));
+    collection.insert(new BasicDBObject("_id", id2));
+
+    // When
+    List<DBObject> objects = collection.find(new BasicDBObject("_id", new BasicDBObject("$gte", id1))).toArray();
+
+    // Then
+    assertEquals(Arrays.asList(
+        new BasicDBObject("_id", id1),
+        new BasicDBObject("_id", id2)
+    ), objects);
+  }
+
   static class Seq {
     Object[] data;
 
