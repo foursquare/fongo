@@ -384,7 +384,7 @@ public class ExpressionParser {
       case 2:
         return obj instanceof CharSequence;
       case 3:
-        return obj instanceof Object; // TODO verify
+        return obj instanceof Object;
       case 4:
         return obj instanceof List;
       case 7:
