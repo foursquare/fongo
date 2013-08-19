@@ -5,6 +5,7 @@ import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBObject;
 import com.mongodb.DBRefBase;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -575,8 +576,8 @@ public class ExpressionParser {
         } else {
           for (Object storedValue : storedOption) {
             if (storedValue instanceof List) {
-              if(expression instanceof List){
-                if(storedValue.equals(expression)){
+              if (expression instanceof List) {
+                if (storedValue.equals(expression)) {
                   return true;
                 }
               }
@@ -624,7 +625,7 @@ public class ExpressionParser {
       return compareLists(queryList, storedList);
     } else {
       Object queryComp = typecast("query value", queryValue, Object.class);
-      if(comparableFilter && !(storedValue instanceof Comparable)) {
+      if (comparableFilter && !(storedValue instanceof Comparable)) {
         return null;
       }
       Object storedComp = typecast("stored value", storedValue, Object.class);
@@ -641,8 +642,8 @@ public class ExpressionParser {
     if (!clazz1.equals(clazz2) || !(cc1 instanceof Comparable)) {
       if (cc1 instanceof Number) {
         if (cc2 instanceof Number) {
-          cc1 = ((Number) cc1).doubleValue();
-          cc2 = ((Number) cc2).doubleValue();
+          cc1 = new BigDecimal(cc1.toString());
+          cc2 = new BigDecimal(cc2.toString());
         } else {
           return cc2 instanceof MinKey ? 1 : -1;
         }
