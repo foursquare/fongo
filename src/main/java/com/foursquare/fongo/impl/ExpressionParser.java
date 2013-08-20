@@ -5,6 +5,7 @@ import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBObject;
 import com.mongodb.DBRefBase;
+import com.mongodb.LazyDBObject;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -71,21 +72,25 @@ public class ExpressionParser {
 //    map.put(Long.class, 18);
 //    map.put(MinKey.class, -1); // 255
 //    map.put(MaxKey.class, 127);
+    map.put(MinKey.class, Integer.MIN_VALUE);
+    map.put(Null.class, 0);
     map.put(Double.class, 1);
     map.put(Float.class, 1);
+    map.put(Integer.class, 1);
+    map.put(Long.class, 1);
+    map.put(Short.class, 1);
     map.put(String.class, 2);
     map.put(Object.class, 3);
     map.put(BasicDBList.class, 4);
     map.put(LazyBSONList.class, 4);
+    map.put(BasicDBObject.class, 4);
+    map.put(LazyDBObject.class, 4);
+    map.put(byte[].class, 5);
     map.put(ObjectId.class, 6);
     map.put(Boolean.class, 7);
-    map.put(Date.class, 9);
-    map.put(Null.class, 0);
-    map.put(Pattern.class, 11);
-    map.put(Integer.class, 16);
+    map.put(Date.class, 8);
+    map.put(Pattern.class, 9);
 //    map.put(Timestamp.class, 17);
-    map.put(Long.class, 18);
-    map.put(MinKey.class, Integer.MIN_VALUE);
     map.put(MaxKey.class, Integer.MAX_VALUE);
 
     CLASS_TO_WEIGHT = Collections.unmodifiableMap(map);
@@ -639,24 +644,24 @@ public class ExpressionParser {
     Object cc2 = c2;
     Class<?> clazz1 = c1 == null ? Null.class : c1.getClass();
     Class<?> clazz2 = c2 == null ? Null.class : c2.getClass();
+    // Not comparable for MinKey/MaxKey
     if (!clazz1.equals(clazz2) || !(cc1 instanceof Comparable)) {
+      boolean checkTypes = true;
       if (cc1 instanceof Number) {
         if (cc2 instanceof Number) {
           cc1 = new BigDecimal(cc1.toString());
           cc2 = new BigDecimal(cc2.toString());
-        } else {
-          return cc2 instanceof MinKey ? 1 : -1;
+          checkTypes = false;
         }
-      } else if (cc2 instanceof Number && !(cc1 instanceof MinKey) && !(cc1 instanceof MaxKey)) {
-        return 1;
-      } else {
+      }
+      if(checkTypes) {
         Integer type1 = CLASS_TO_WEIGHT.get(clazz1);
         Integer type2 = CLASS_TO_WEIGHT.get(clazz2);
         if (type1 != null && type2 != null) {
           cc1 = type1;
           cc2 = type2;
         } else {
-          throw new FongoException("Don't know how to compare class " + cc1.getClass() + " and " + cc2.getClass() + " values are : " + c1 + " vs " + c2);
+          throw new FongoException("Don't know how to compare " + cc1.getClass() + " and " + cc2.getClass() + " values are : " + c1 + " vs " + c2);
         }
       }
     }

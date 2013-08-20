@@ -647,6 +647,26 @@ public class ExpressionParserTest {
     assertTrue(0 < expressionParser.compareTo(new MaxKey(), 12));
     assertTrue(0 < expressionParser.compareTo(12, new MinKey()));
     assertTrue(0 > expressionParser.compareTo(new MinKey(), 12));
+    // No difference between Long and Integer
+    assertTrue(0 == expressionParser.compareTo(3L, 3));
+    assertTrue(0 == expressionParser.compareTo(3, 3L));
+    // No difference between Double and Float
+    assertTrue(0 == expressionParser.compareTo(3D, 3F));
+    assertTrue(0 == expressionParser.compareTo(3F, 3D));
+    // False before true
+    assertTrue(0 > expressionParser.compareTo(false, true));
+    assertTrue(0 < expressionParser.compareTo(true, false));
+
+    assertTrue(0 == expressionParser.compareTo(null, null));
+    assertTrue(0 < expressionParser.compareTo(12, null));
+    assertTrue(0 > expressionParser.compareTo(null, 12));
+
+    assertTrue(0 < expressionParser.compareTo(new BasicDBObject("a", 3), "3"));
+    assertTrue(0 < expressionParser.compareTo("3", 3));
+    assertTrue(0 < expressionParser.compareTo(ObjectId.get(), new BasicDBObject("a", 3)));
+    assertTrue(0 > expressionParser.compareTo(ObjectId.get(), Pattern.compile("a*")));
+    assertTrue(0 > expressionParser.compareTo(new Date(), Pattern.compile("a*")));
+
     // For NOT converting Double to Long
     assertEquals(1, expressionParser.compareTo(-9223372036854775808L, (double) -9223372036854775807L));
     assertEquals(-1,  expressionParser.compareTo((double) -9223372036854775807L, -9223372036854775808L));

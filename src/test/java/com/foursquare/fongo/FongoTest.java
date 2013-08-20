@@ -13,7 +13,6 @@ import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
 import com.mongodb.DBRef;
 import com.mongodb.FongoDBCollection;
-import com.mongodb.MongoClient;
 import com.mongodb.MongoException;
 import com.mongodb.QueryBuilder;
 import com.mongodb.WriteConcern;
@@ -26,6 +25,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 import org.bson.BSON;
 import org.bson.Transformer;
 import org.bson.types.MaxKey;
@@ -1304,6 +1304,83 @@ public class FongoTest {
   }
 
   @Test
+  public void testSortingNull() throws Exception {
+    // Given
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1).append("x", new MinKey()));
+    collection.insert(new BasicDBObject("_id", 2).append("x", new MaxKey()));
+    collection.insert(new BasicDBObject("_id", 3).append("x", 3));
+    collection.insert(new BasicDBObject("_id", 4).append("x", null));
+    collection.insert(new BasicDBObject("_id", 5));
+
+    // When
+    List<DBObject> objects = collection.find().sort(new BasicDBObject("x", 1)).toArray();
+
+    // Then
+    assertEquals(Arrays.asList(
+        new BasicDBObject("_id", 1).append("x", new MinKey()),
+        new BasicDBObject("_id", 5),
+        new BasicDBObject("_id", 4).append("x", null),
+        new BasicDBObject("_id", 3).append("x", 3),
+        new BasicDBObject("_id", 2).append("x", new MaxKey())
+    ), objects);
+  }
+
+  // Pattern is last.
+  @Test
+  public void testSortingPattern() throws Exception {
+    // Given
+    DBCollection collection = newCollection();
+//    DBCollection collection = new MongoClient().getDB("test").getCollection("sorting");
+//    collection.drop();
+    ObjectId id = ObjectId.get();
+    Date date = new Date();
+    collection.insert(new BasicDBObject("_id", 1).append("x", Pattern.compile("a*")));
+    collection.insert(new BasicDBObject("_id", 2).append("x", 2));
+    collection.insert(new BasicDBObject("_id", 3).append("x", "3"));
+    collection.insert(new BasicDBObject("_id", 4).append("x", id));
+    collection.insert(new BasicDBObject("_id", 5).append("x", new BasicDBObject("a", 3)));
+    collection.insert(new BasicDBObject("_id", 6).append("x", date));
+//    collection.insert(new BasicDBObject("_id", 7).append("x", "3".getBytes())); // later
+
+    // When
+    List<DBObject> objects = collection.find().sort(new BasicDBObject("x", 1)).toArray();
+
+    // Then
+    assertEquals(Arrays.asList(
+        new BasicDBObject("_id", 2).append("x", 2),
+        new BasicDBObject("_id", 3).append("x", "3"),
+        new BasicDBObject("_id", 5).append("x", new BasicDBObject("a", 3)),
+//        new BasicDBObject("_id", 7).append("x", "3".getBytes()), // later.
+        new BasicDBObject("_id", 4).append("x", id),
+        new BasicDBObject("_id", 6).append("x", date),
+        new BasicDBObject("_id", 1).append("x", Pattern.compile("a*"))
+    ), objects);
+  }
+
+  @Test
+  public void testSortingDBObject() throws Exception {
+    // Given
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1).append("x", new BasicDBObject("a", 3)));
+    ObjectId val = ObjectId.get();
+    collection.insert(new BasicDBObject("_id", 2).append("x", val));
+    collection.insert(new BasicDBObject("_id", 3).append("x", "3"));
+    collection.insert(new BasicDBObject("_id", 4).append("x", 3));
+
+    // When
+    List<DBObject> objects = collection.find().sort(new BasicDBObject("x", 1)).toArray();
+
+    // Then
+    assertEquals(Arrays.asList(
+        new BasicDBObject("_id", 4).append("x", 3),
+        new BasicDBObject("_id", 3).append("x", "3"),
+        new BasicDBObject("_id", 1).append("x", new BasicDBObject("a", 3)),
+        new BasicDBObject("_id", 2).append("x", val)
+    ), objects);
+  }
+
+  @Test
   public void testSortingNullVsMinKey() throws Exception {
     // Given
     DBCollection collection = newCollection();
@@ -1326,8 +1403,6 @@ public class FongoTest {
   public void testStrangeSorting() throws Exception {
     // Given
     DBCollection collection = newCollection();
-//    DBCollection collection = new MongoClient().getDB("test").getCollection("typeFilter");
-//    collection.drop();
 
     collection.insert(new BasicDBObject("_id", 2).append("b", 1));
     collection.insert(new BasicDBObject("_id", 1).append("a", 3));
@@ -1340,7 +1415,6 @@ public class FongoTest {
         new BasicDBObject("_id", 2).append("b", 1),
         new BasicDBObject("_id", 1).append("a", 3)
     ), objects);
-
   }
 
   @Test
