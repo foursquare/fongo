@@ -56,13 +56,7 @@ public class GeoIndex extends IndexAbstract<GeoUtil.GeoDBObject> {
   public List<DBObject> geoNear(DBObject query, List<LatLong> coordinates, int limit, boolean spherical) {
     lookupCount++;
 
-    LOG.info("geoNear() query:{}, coordinate:{}, limit:{}, spherical:{}", query, coordinates, limit, spherical);
-    Queue<String> hashs = new LinkedList<String>();
-    for (LatLong coordinate : coordinates) {
-      hashs.add(GeoUtil.encodeGeoHash(coordinate));
-      hashs.addAll(GeoUtil.neightbours(GeoUtil.encodeGeoHash(coordinate)));
-    }
-
+    LOG.info("geoNear() query:{}, coordinate:{}, limit:{}, spherical:{} (mapValues size:{})", query, coordinates, limit, spherical, mapValues.size());
     // Filter values
     Filter filterValue = expressionParser.buildFilter(query);
 
@@ -73,10 +67,16 @@ public class GeoIndex extends IndexAbstract<GeoUtil.GeoDBObject> {
       // Bruteforce : try all.
       geoNearCoverAll(mapValues, filterValue, coordinates, spherical, resultSet);
     } else {
+      Queue<String> hashs = new LinkedList<String>();
+      for (LatLong coordinate : coordinates) {
+        hashs.add(GeoUtil.encodeGeoHash(coordinate));
+        hashs.addAll(GeoUtil.neightbours(GeoUtil.encodeGeoHash(coordinate)));
+      }
+
       Map<GeoUtil.GeoDBObject, List<GeoUtil.GeoDBObject>> copyMap = new LinkedHashMap<GeoUtil.GeoDBObject, List<GeoUtil.GeoDBObject>>(mapValues);
       Set<String> visited = new HashSet<String>();
 
-      int sizeHash = GeoUtil.SIZE_GEOHASH - 2;
+      int sizeHash = GeoUtil.SIZE_GEOHASH - 3;
       // Do not break if limit is reached, because of neighbours.
       while (!hashs.isEmpty() && copyMap.size() != 0) {
         String hash = hashs.poll(); // get head
@@ -86,6 +86,7 @@ public class GeoIndex extends IndexAbstract<GeoUtil.GeoDBObject> {
           for (Map.Entry<GeoUtil.GeoDBObject, List<GeoUtil.GeoDBObject>> entry : copyMap.entrySet()) {
             GeoUtil.GeoDBObject geoObject = entry.getKey();
             // Hash is found
+            LOG.info("compare {} and {}", geoObject.getGeoHash(), hash);
             if (geoObject.getGeoHash().startsWith(hash)) {
               LOG.info("gotcha : {}", geoObject);
               // Can we apply other filter ?
@@ -94,8 +95,8 @@ public class GeoIndex extends IndexAbstract<GeoUtil.GeoDBObject> {
               for (LatLong coordinate : coordinates) {
                 geoNearResults(values, filterValue, coordinate, resultSet, spherical);
               }
-              copyMap.remove(entry.getKey());
-              break;
+//              copyMap.remove(entry.getKey());
+//              break;
             }
           }
           // Add more hash if limit is not reached.

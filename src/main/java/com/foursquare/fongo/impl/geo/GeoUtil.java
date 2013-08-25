@@ -8,7 +8,6 @@ import com.mongodb.BasicDBObject;
 import com.mongodb.DBObject;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 
 public final class GeoUtil {
@@ -61,7 +60,6 @@ public final class GeoUtil {
     public boolean equals(Object o) {
       if (this == o) return true;
       if (!(o instanceof GeoDBObject)) return false;
-      if (!super.equals(o)) return false;
 
       GeoDBObject that = (GeoDBObject) o;
 
@@ -76,23 +74,6 @@ public final class GeoUtil {
           "geoHash='" + getGeoHash() + '\'' +
           ", latLong=" + getLatLong() +
           '}';
-    }
-  }
-
-  public static class GeoComparator implements Comparator<DBObject> {
-    private final List<String> keyPath;
-    private final ExpressionParser expressionParser = new ExpressionParser();
-
-    public GeoComparator(String key) {
-      this.keyPath = Util.split(key);
-    }
-
-    @Override
-    public int compare(DBObject oo1, DBObject oo2) {
-      GeoDBObject o1 = (GeoDBObject) oo1;
-      GeoDBObject o2 = (GeoDBObject) oo2;
-      int ret = o1.getGeoHash().compareTo(o2.getGeoHash());
-      return ret;
     }
   }
 
