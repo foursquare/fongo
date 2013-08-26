@@ -493,7 +493,19 @@ public class FongoDBCollection extends DBCollection {
     boolean wasIdExcluded = false;
     List<Tuple2<List<String>,Boolean>> projections = new ArrayList<Tuple2<List<String>, Boolean>>();
     for (String projectionKey : projectionObject.keySet()) {
-      boolean included = ((Number) projectionObject.get(projectionKey)).intValue() > 0;
+      final Object projectionValue = projectionObject.get(projectionKey);
+      final boolean included;
+      if (projectionValue instanceof Number) {
+          included = ((Number) projectionValue).intValue() > 0;
+      } else if (projectionValue instanceof Boolean) {
+          included = ((Boolean)projectionValue).booleanValue();
+      } else {
+          final String msg = "Projection `" + projectionKey 
+             + "' has a value that Fongo doesn't know how to handle: " + projectionValue
+             + " (" + (projectionValue == null ? " " : projectionValue.getClass() + ")");
+          
+          throw new IllegalArgumentException(msg);
+      }
       List<String> projectionPath = Util.split(projectionKey);
       
       if (!ID_KEY.equals(projectionKey)) {

@@ -111,4 +111,25 @@ public class FongoDBCollectionTest {
      return list;
   }
 
+  /** Tests multiprojections that are nested with the same prefix: a.b.c and a.b.d */
+  @Test
+  public void applyProjectionsWithBooleanValues() {
+     final DBObject obj = new BasicDBObjectBuilder()
+          .add("_id", "_id")
+          .add("foo", "oof")
+          .add("bar", "rab")
+          .add("gone", "fishing")
+      .get();
+    
+    final DBObject actual = collection.applyProjections(obj, new BasicDBObject().append("foo", true)
+                                                                                 .append("bar", 1));
+    final DBObject expected =  new BasicDBObjectBuilder()
+                        .add("_id", "_id")
+                        .add("foo", "oof")
+                        .add("bar", "rab")
+                        .get();
+            
+    assertEquals("applied", expected, actual);
+  }
+
 }
