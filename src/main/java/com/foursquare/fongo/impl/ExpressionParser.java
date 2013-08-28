@@ -599,7 +599,7 @@ public class ExpressionParser {
     }
   }
 
-  public static Filter AllFilter = new Filter() {
+  public static final Filter AllFilter = new Filter() {
     @Override
     public boolean apply(DBObject o) {
       return true;
