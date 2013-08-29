@@ -149,7 +149,7 @@ public class Util {
       return clone;
     }
 
-    throw new IllegalArgumentException("Don't know how to clone: " + source);
+    throw new IllegalArgumentException("Don't know how to embedded: " + source);
   }
 
   public static Set<Map.Entry<String, Object>> entrySet(DBObject object) {
@@ -167,7 +167,7 @@ public class Util {
     if (source.containsField(FongoDBCollection.ID_KEY)) {
       newobj.put(FongoDBCollection.ID_KEY, source.get(FongoDBCollection.ID_KEY));
     }
-    // need to clone the sub obj
+    // need to embedded the sub obj
     for (Map.Entry<String, Object> entry : Util.entrySet(source)) {
       String field = entry.getKey();
       Object val = entry.getValue();
