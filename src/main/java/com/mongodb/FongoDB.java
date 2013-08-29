@@ -1,6 +1,7 @@
 package com.mongodb;
 
 import com.foursquare.fongo.impl.Aggregator;
+import com.foursquare.fongo.impl.MapReduce;
 import java.util.HashSet;
 
 import java.util.ArrayList;
@@ -58,12 +59,24 @@ public class FongoDB extends DB {
     }
   }
 
-  private List<DBObject> doAggregateCollection(String aggregate, List<DBObject> pipeline) {
-    FongoDBCollection coll = doGetCollection(aggregate);
+  private List<DBObject> doAggregateCollection(String collection, List<DBObject> pipeline) {
+    FongoDBCollection coll = doGetCollection(collection);
     Aggregator aggregator = new Aggregator(this, coll, pipeline);
 
     return aggregator.computeResult();
   }
+
+  private DBObject doMapReduce(String collection, String map, String reduce, DBObject out, DBObject query, DBObject sort, Number limit) {
+    FongoDBCollection coll = doGetCollection(collection);
+    MapReduce mapReduce = new MapReduce(this, coll, map, reduce, out, query, sort, limit);
+    return mapReduce.computeResult();
+  }
+
+  private List<DBObject> doGeoNearCollection(String collection, DBObject near, DBObject query, Number limit, Number maxDistance, boolean spherical) {
+    FongoDBCollection coll = doGetCollection(collection);
+    return coll.geoNear(near, query, limit, maxDistance, spherical);
+  }
+
 
   @Override
   public Set<String> getCollectionNames() throws MongoException {
@@ -159,17 +172,48 @@ public class FongoDB extends DB {
       list.addAll(result);
       okResult.put("result", list);
       return okResult;
-    } else if(cmd.containsField("ping")) {
+    } else if (cmd.containsField("ping")) {
       CommandResult okResult = okResult();
       return okResult;
-    } else if(cmd.containsField("validate")) {
+    } else if (cmd.containsField("validate")) {
       CommandResult okResult = okResult();
       return okResult;
-    } else if(cmd.containsField("buildInfo")) {
+    } else if (cmd.containsField("buildInfo")) {
       CommandResult okResult = okResult();
       okResult.put("version", "2.4.5");
       okResult.put("maxBsonObjectSize", 16777216);
       return okResult;
+    } else if (cmd.containsField("mapreduce")) {
+      // TODO : sort/limit
+      DBObject result = doMapReduce((String) cmd.get("mapreduce"), (String) cmd.get("map"), (String) cmd.get("reduce"), (DBObject) cmd.get("out"), (DBObject) cmd.get("query"), (DBObject) cmd.get("sort"), (Number) cmd.get("limit"));
+      if (result == null) {
+        return notOkErrorResult("can't mapReduce");
+      }
+      CommandResult okResult = okResult();
+      okResult.put("result", result);
+      return okResult;
+    } else if (cmd.containsField("geoNear")) {
+      // http://docs.mongodb.org/manual/reference/command/geoNear/
+      // TODO : handle "num" (override limit)
+      try {
+        List<DBObject> result = doGeoNearCollection((String) cmd.get("geoNear"),
+            (DBObject) cmd.get("near"),
+            (DBObject) cmd.get("query"),
+            (Number) cmd.get("limit"),
+            (Number) cmd.get("maxDistance"),
+            Boolean.TRUE.equals(cmd.get("spherical")));
+        if (result == null) {
+          return notOkErrorResult("can't geoNear");
+        }
+        CommandResult okResult = okResult();
+        BasicDBList list = new BasicDBList();
+        list.addAll(result);
+        okResult.put("results", list);
+        return okResult;
+      } catch (MongoException me) {
+        CommandResult result = errorResult(me.getCode(), me.getMessage());
+        return result;
+      }
     }
     String command = cmd.toString();
     if (!cmd.keySet().isEmpty()) {

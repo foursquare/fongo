@@ -181,7 +181,11 @@ public class Util {
       return (T) clone;
     }
 
-    throw new IllegalArgumentException("Don't know how to clone: " + source);
+    throw new IllegalArgumentException("Don't know how to embedded: " + source);
+  }
+
+  public static Set<Map.Entry<String, Object>> entrySet(DBObject object) {
+    return (Set<Map.Entry<String, Object>>) object.toMap().entrySet();
   }
 
   // When inserting, MongoDB set _id in first place.
@@ -209,7 +213,7 @@ public class Util {
     } else {
       entrySet = source.toMap().entrySet();
     }
-    // need to clone the sub obj
+    // need to embedded the sub obj
     for (Map.Entry<String, Object> entry : entrySet) {
       String field = entry.getKey();
       if (!FongoDBCollection.ID_KEY.equals(field)) {

@@ -26,6 +26,33 @@ public class FongoDBCollectionTest {
 
     assertEquals("applied", expected, actual);
   }
+  
+  /** Tests multiprojections that are nested with the same prefix: a.b.c and a.b.d */
+  @Test
+  public void applyNestedProjectionsInclusionsOnly() {
+      final DBObject obj = new BasicDBObjectBuilder()
+          .add("_id", "_id")
+          .add("foo", 123)
+          .push("a")
+              .push("b")
+                  .append("c", 50)
+                  .append("d", 1000)
+                  .append("bar", 1000)
+      .get();
+    
+    final DBObject actual = collection.applyProjections(obj, new BasicDBObject().append("a.b.c", 1)
+                                                                                 .append("a.b.d", 1));
+    final DBObject expected =  new BasicDBObjectBuilder()
+                        .add("_id", "_id")
+                        .push("a")
+                            .push("b")
+                                .append("c", 50)
+                                .append("d", 1000)
+                           .get();
+            
+    assertEquals("applied", expected, actual);
+  }
+  
 
   @Test
   public void applyProjectionsInclusionsWithoutId() {
@@ -96,4 +123,40 @@ public class FongoDBCollectionTest {
       new BasicDBObject()
     ), results);
   }
+
+  @Test
+  public void findByListInQuery(){
+    BasicDBObject existing = new BasicDBObject().append("_id", 1).append("aList", asDbList("a", "b", "c"));
+    collection.insert(existing);
+    DBObject result = collection.findOne(existing);
+    assertEquals("should have projected result", existing, result);
+  }
+
+  BasicDBList asDbList(Object ... objects) {
+     BasicDBList list = new BasicDBList();
+     list.addAll(Arrays.asList(objects));
+     return list;
+  }
+
+  /** Tests multiprojections that are nested with the same prefix: a.b.c and a.b.d */
+  @Test
+  public void applyProjectionsWithBooleanValues() {
+     final DBObject obj = new BasicDBObjectBuilder()
+          .add("_id", "_id")
+          .add("foo", "oof")
+          .add("bar", "rab")
+          .add("gone", "fishing")
+      .get();
+    
+    final DBObject actual = collection.applyProjections(obj, new BasicDBObject().append("foo", true)
+                                                                                 .append("bar", 1));
+    final DBObject expected =  new BasicDBObjectBuilder()
+                        .add("_id", "_id")
+                        .add("foo", "oof")
+                        .add("bar", "rab")
+                        .get();
+            
+    assertEquals("applied", expected, actual);
+  }
+
 }
