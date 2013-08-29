@@ -1,6 +1,8 @@
 package com.foursquare.fongo.impl;
 
 import com.foursquare.fongo.FongoException;
+import com.foursquare.fongo.impl.geo.GeoUtil;
+import com.foursquare.fongo.impl.geo.LatLong;
 import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBObject;
@@ -39,6 +41,13 @@ public class ExpressionParser {
   public final static String AND = "$and";
   public final static String REGEX = "$regex";
   public final static String REGEX_OPTIONS = "$options";
+  public final static String NEAR = "$near";
+  public final static String NEARSPHERE = "$nearSphere";
+  public final static String MAXDISTANCE = "$maxDistance";
+
+  // TODO : http://docs.mongodb.org/manual/reference/operator/query-geospatial/
+  // TODO : http://docs.mongodb.org/manual/reference/operator/geoWithin/#op._S_geoWithin
+  // TODO : http://docs.mongodb.org/manual/reference/operator/geoIntersects/
   public final static String TYPE = "$type";
 
   public class ObjectComparator implements Comparator {
@@ -175,6 +184,31 @@ public class ExpressionParser {
     }
   }
 
+  private final class NearCommandFilterFactory extends BasicCommandFilterFactory {
+
+    final boolean spherical;
+
+    public NearCommandFilterFactory(final String command, boolean spherical) {
+      super(command);
+      this.spherical = spherical;
+    }
+
+    // http://docs.mongodb.org/manual/reference/operator/near/#op._S_near
+    @Override
+    public Filter createFilter(final List<String> path, DBObject refExpression) {
+      LOG.debug("path:{}, refExp:{}", path, refExpression);
+      Number maxDistance = typecast(MAXDISTANCE, refExpression.get(MAXDISTANCE), Number.class);
+      final List<LatLong> coordinates;
+      if (refExpression.get(command) instanceof BasicDBList) {
+        coordinates = GeoUtil.latLon(Collections.singletonList(command), refExpression);// typecast(command, refExpression.get(command), List.class);
+      } else {
+        DBObject dbObject = typecast(command, refExpression.get(command), DBObject.class);
+        coordinates = GeoUtil.latLon(Arrays.asList("$geometry", "coordinates"), dbObject);
+      }
+      return createNearFilter(path, coordinates, maxDistance, spherical);
+    }
+  }
+
   public <T> T typecast(String fieldName, Object obj, Class<T> clazz) {
     try {
       return clazz.cast(obj);
@@ -216,22 +250,26 @@ public class ExpressionParser {
   List<FilterFactory> filterFactories = Arrays.<FilterFactory>asList(
       new ConditionalOperatorFilterFactory(GTE) {
         boolean singleCompare(Object queryValue, Object storedValue) {
-          return compareObjects(queryValue, storedValue) <= 0;
+          Integer result = compareObjects(queryValue, storedValue);
+          return result != null && result.intValue() <= 0;
         }
       },
       new ConditionalOperatorFilterFactory(LTE) {
         boolean singleCompare(Object queryValue, Object storedValue) {
-          return compareObjects(queryValue, storedValue) >= 0;
+          Integer result = compareObjects(queryValue, storedValue);
+          return result != null && result.intValue() >= 0;
         }
       },
       new ConditionalOperatorFilterFactory(GT) {
         boolean singleCompare(Object queryValue, Object storedValue) {
-          return compareObjects(queryValue, storedValue) < 0;
+          Integer result = compareObjects(queryValue, storedValue);
+          return result != null && result.intValue() < 0;
         }
       },
       new ConditionalOperatorFilterFactory(LT) {
         boolean singleCompare(Object queryValue, Object storedValue) {
-          return compareObjects(queryValue, storedValue) > 0;
+          Integer result = compareObjects(queryValue, storedValue);
+          return result != null && result.intValue() > 0;
         }
       },
       new BasicCommandFilterFactory(NE) {
@@ -324,6 +362,8 @@ public class ExpressionParser {
           return createPatternFilter(path, pattern);
         }
       },
+      new NearCommandFilterFactory(NEARSPHERE, true),
+      new NearCommandFilterFactory(NEAR, false),
       new BasicCommandFilterFactory(TYPE) {
         @Override
         public Filter createFilter(final List<String> path, DBObject refExpression) {
@@ -549,7 +589,7 @@ public class ExpressionParser {
 
 
   @SuppressWarnings("all")
-  public int compareObjects(Object queryValue, Object storedValue) {
+  public Integer compareObjects(Object queryValue, Object storedValue) {
     LOG.debug("comparing {} and {}", queryValue, storedValue);
 
     if (queryValue instanceof DBObject && storedValue instanceof DBObject) {
@@ -560,6 +600,9 @@ public class ExpressionParser {
       return compareLists(queryList, storedList);
     } else {
       Comparable queryComp = typecast("query value", queryValue, Comparable.class);
+      if(!(storedValue instanceof Comparable) && storedValue != null) {
+        return null;
+      }
       Comparable storedComp = typecast("stored value", storedValue, Comparable.class);
       if (storedComp == null) {
         return 1;
@@ -612,6 +655,42 @@ public class ExpressionParser {
           }
           return false;
         }
+      }
+    };
+  }
+
+  // Take care of : https://groups.google.com/forum/?fromgroups=#!topic/mongomapper/MfRDh2vtCFg
+  public Filter createNearFilter(final List<String> path, final List<LatLong> coordinates, final Number maxDistance, final boolean sphere) {
+    return new Filter() {
+      final LatLong coordinate = coordinates.get(0); // TODO(twillouer) try to get all coordinate.
+      int limit = 100;
+
+      public boolean apply(DBObject o) {
+        if (limit <= 0) {
+          return false;
+        }
+        boolean result = false;
+
+        List<LatLong> storedOption = GeoUtil.latLon(path, o);
+        if (!storedOption.isEmpty()) {
+          if (maxDistance == null) {
+            result = true;
+          } else {
+            for (LatLong point : storedOption) {
+
+              double distance = GeoUtil.distanceInRadians(point, coordinate, sphere);
+              LOG.debug("distance : {}", distance);
+              result = distance < maxDistance.doubleValue();
+              if (result) {
+                break;
+              }
+            }
+          }
+        }
+        if (result) {
+          limit--;
+        }
+        return result;
       }
     };
   }
@@ -687,7 +766,7 @@ public class ExpressionParser {
     }
   }
 
-  public static Filter AllFilter = new Filter() {
+  public static final Filter AllFilter = new Filter() {
     @Override
     public boolean apply(DBObject o) {
       return true;

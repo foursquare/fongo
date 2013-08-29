@@ -28,6 +28,12 @@ public final class ExpectedMongoException {
     return expectedExcpetion;
   }
 
+  public static ExpectedException expectCode(ExpectedException expectedExcpetion, int code, Class<? extends MongoException> exception) {
+    expectedExcpetion.expect(exception);
+    expectedExcpetion.expect(equalCode(code));
+    return expectedExcpetion;
+  }
+
   private static Matcher<Throwable> equalCode(final int code) {
     return new TypeSafeMatcher<Throwable>() {
       public void describeTo(Description description) {

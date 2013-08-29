@@ -29,7 +29,7 @@ public class FongoMapReduceTest {
 
   // see http://no-fucking-idea.com/blog/2012/04/01/using-map-reduce-with-mongodb/
   @Test
-  @Ignore("fails with: JavaScript execution failed: sun.org.mozilla.javascript.internal.EcmaError: TypeError: Cannot find function forEach. (<Unknown source>#6) in <Unknown source> at line number 6")
+//  @Ignore("fails with: JavaScript execution failed: sun.org.mozilla.javascript.internal.EcmaError: TypeError: Cannot find function forEach. (<Unknown source>#6) in <Unknown source> at line number 6")
   public void testMapReduceSimple() {
     DBCollection coll = fongoRule.newCollection();
     fongoRule.insertJSON(coll, "[{url: \"www.google.com\", date: 1, trash_data: 5 },\n" +

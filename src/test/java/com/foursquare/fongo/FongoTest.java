@@ -737,7 +737,6 @@ public class FongoTest {
     collection.insert(new BasicDBObject("_id", 1).append("n", Arrays.asList(1, 2)));
     DBObject result = collection.findOne();
     assertTrue("not a DBList", result.get("n") instanceof BasicDBList);
-
   }
 
   @Test
@@ -746,7 +745,6 @@ public class FongoTest {
     collection.insert(new BasicDBObject("_id", 1).append("n", Collections.singletonMap("a", 1)));
     DBObject result = collection.findOne();
     assertTrue("not a DBObject", result.get("n") instanceof BasicDBObject);
-
   }
 
   @Test
