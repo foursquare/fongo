@@ -16,8 +16,11 @@ import com.mongodb.BasicDBObject;
 import com.mongodb.DBCollection;
 import com.mongodb.DBObject;
 import com.mongodb.MapReduceOutput;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class FongoMapReduceTest {
+  private static final Logger LOG = LoggerFactory.getLogger(FongoMapReduceTest.class);
 
   public final FongoRule fongoRule = new FongoRule(false);
 
@@ -29,7 +32,6 @@ public class FongoMapReduceTest {
 
   // see http://no-fucking-idea.com/blog/2012/04/01/using-map-reduce-with-mongodb/
   @Test
-//  @Ignore("fails with: JavaScript execution failed: sun.org.mozilla.javascript.internal.EcmaError: TypeError: Cannot find function forEach. (<Unknown source>#6) in <Unknown source> at line number 6")
   public void testMapReduceSimple() {
     DBCollection coll = fongoRule.newCollection();
     fongoRule.insertJSON(coll, "[{url: \"www.google.com\", date: 1, trash_data: 5 },\n" +
@@ -70,7 +72,7 @@ public class FongoMapReduceTest {
         "        emit(\"phil\",1);\n" +
         "    }\n" +
         "}\n";
-    String reduce = "function(name, values) {                           return Array.sum(values);                       };";
+    String reduce = "function(name, values) { return Array.sum(values); };";
 
     MapReduceOutput output = coll.mapReduce(map, reduce, "result", new BasicDBObject("state", "MA"));
 
