@@ -1,6 +1,11 @@
 package com.mongodb;
 
 
+import com.foursquare.fongo.impl.geo.GeoUtil;
+import com.foursquare.fongo.impl.index.GeoIndex;
+import com.foursquare.fongo.impl.index.IndexAbstract;
+import com.foursquare.fongo.impl.index.IndexFactory;
+import com.foursquare.fongo.impl.geo.LatLong;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -21,7 +26,6 @@ import org.slf4j.LoggerFactory;
 import com.foursquare.fongo.FongoException;
 import com.foursquare.fongo.impl.ExpressionParser;
 import com.foursquare.fongo.impl.Filter;
-import com.foursquare.fongo.impl.Index;
 import com.foursquare.fongo.impl.Tuple2;
 import com.foursquare.fongo.impl.UpdateEngine;
 import com.foursquare.fongo.impl.Util;
@@ -42,8 +46,8 @@ public class FongoDBCollection extends DBCollection {
   private final boolean nonIdCollection;
   private final ExpressionParser.ObjectComparator objectComparator;
   // Fields/Index
-  private final List<Index> indexes = new ArrayList<Index>();
-  private final Index _idIndex;
+  private final List<IndexAbstract> indexes = new ArrayList<IndexAbstract>();
+  private final IndexAbstract _idIndex;
 
   public FongoDBCollection(FongoDB db, String name) {
     super(db, name);
@@ -52,7 +56,7 @@ public class FongoDBCollection extends DBCollection {
     this.expressionParser = new ExpressionParser();
     this.updateEngine = new UpdateEngine();
     this.objectComparator = expressionParser.buildObjectComparator(true);
-    this._idIndex = new Index("_id", new BasicDBObject("_id", 1), true, true);
+    this._idIndex = IndexFactory.create("_id", new BasicDBObject("_id", 1), true);
     this.indexes.add(_idIndex);
   }
 
@@ -325,7 +329,7 @@ public class FongoDBCollection extends DBCollection {
     rec.putAll(options);
 
     try {
-      Index index = new Index((String) rec.get("name"), keys, unique, false);
+      IndexAbstract index = IndexFactory.create((String) rec.get("name"), keys, unique);
       List<List<Object>> notUnique = index.addAll(_idIndex.values());
       if (!notUnique.isEmpty()) {
         // Duplicate key.
@@ -431,7 +435,7 @@ public class FongoDBCollection extends DBCollection {
   private Collection<DBObject> filterByIndexes(DBObject ref) {
     Collection<DBObject> dbObjectIterable = null;
     if (ref != null) {
-      Index matchingIndex = searchIndex(ref);
+      IndexAbstract matchingIndex = searchIndex(ref);
       if (matchingIndex != null) {
         dbObjectIterable = matchingIndex.retrieveObjects(ref);
         if (LOG.isDebugEnabled()) {
@@ -461,7 +465,7 @@ public class FongoDBCollection extends DBCollection {
     Object value = dbo.get(subKey);
 
     if (path.size() > startIndex + 1) {
-      if (value instanceof DBObject && !(value instanceof List)){
+      if (value instanceof DBObject && !(value instanceof List)) {
         BasicDBObject nb = new BasicDBObject();
         ret.append(subKey, nb);
         addValuesAtPath(nb, (DBObject) value, path, startIndex + 1);
@@ -489,13 +493,13 @@ public class FongoDBCollection extends DBCollection {
 
     int inclusionCount = 0;
     int exclusionCount = 0;
-    
+
     boolean wasIdExcluded = false;
-    List<Tuple2<List<String>,Boolean>> projections = new ArrayList<Tuple2<List<String>, Boolean>>();
+    List<Tuple2<List<String>, Boolean>> projections = new ArrayList<Tuple2<List<String>, Boolean>>();
     for (String projectionKey : projectionObject.keySet()) {
       boolean included = ((Number) projectionObject.get(projectionKey)).intValue() > 0;
       List<String> projectionPath = Util.split(projectionKey);
-      
+
       if (!ID_KEY.equals(projectionKey)) {
         if (included) {
           inclusionCount++;
@@ -515,7 +519,7 @@ public class FongoDBCollection extends DBCollection {
           "You cannot combine inclusion and exclusion semantics in a single projection with the exception of the _id field: "
               + projectionObject);
     }
-    
+
     BasicDBObject ret;
     if (exclusionCount > 0) {
       ret = (BasicDBObject) Util.clone(result);
@@ -525,8 +529,8 @@ public class FongoDBCollection extends DBCollection {
         ret.append(ID_KEY, result.get(ID_KEY));
       }
     }
-    
-    for (Tuple2<List<String>,Boolean> projection : projections) {
+
+    for (Tuple2<List<String>, Boolean> projection : projections) {
       if (projection._1.size() == 1 && !projection._2) {
         ret.removeField(projection._1.get(0));
       } else {
@@ -659,9 +663,9 @@ public class FongoDBCollection extends DBCollection {
   protected synchronized void _dropIndexes(String name) throws MongoException {
     DBCollection indexColl = fongoDb.getCollection("system.indexes");
     indexColl.remove(new BasicDBObject("name", name));
-    ListIterator<Index> iterator = indexes.listIterator();
+    ListIterator<IndexAbstract> iterator = indexes.listIterator();
     while (iterator.hasNext()) {
-      Index index = iterator.next();
+      IndexAbstract index = iterator.next();
       if (index.getName().equals(name)) {
         iterator.remove();
         break;
@@ -680,7 +684,7 @@ public class FongoDBCollection extends DBCollection {
   @Override
   public void drop() {
     _idIndex.clear();
-    indexes.clear();
+    _dropIndexes(); // _idIndex must stay.
     fongoDb.removeCollection(this);
   }
 
@@ -690,11 +694,11 @@ public class FongoDBCollection extends DBCollection {
    * @param query
    * @return the most restrictive index, or null.
    */
-  private synchronized Index searchIndex(DBObject query) {
-    Index result = null;
+  private synchronized IndexAbstract searchIndex(DBObject query) {
+    IndexAbstract result = null;
     int foundCommon = -1;
     Set<String> queryFields = query.keySet();
-    for (Index index : indexes) {
+    for (IndexAbstract index : indexes) {
       if (index.canHandle(queryFields)) {
         // The most restrictive first.
         if (index.getFields().size() > foundCommon || (!result.isUnique() && index.isUnique())) {
@@ -710,6 +714,30 @@ public class FongoDBCollection extends DBCollection {
   }
 
   /**
+   * Search the geo index.
+   *
+   * @return the geo index, or null.
+   */
+  private synchronized IndexAbstract searchGeoIndex(boolean unique) {
+    IndexAbstract result = null;
+    for (IndexAbstract index : indexes) {
+      if (index.isGeoIndex()) {
+        if (result != null && unique) {
+          this.fongoDb.notOkErrorResult(-5, "more than one 2d index, not sure which to run geoNear on").throwOnError();
+        }
+        result = index;
+        if (!unique) {
+          break;
+        }
+      }
+    }
+
+    LOG.debug("searchGeoIndex() found index {}", result);
+
+    return result;
+  }
+
+  /**
    * Add entry to index.
    * If necessary, remove oldObject from index.
    *
@@ -719,7 +747,7 @@ public class FongoDBCollection extends DBCollection {
   private synchronized void addToIndexes(DBObject object, DBObject oldObject, WriteConcern concern) {
     Set<String> queryFields = object.keySet();
     // First, try to see if index can add the new value.
-    for (Index index : indexes) {
+    for (IndexAbstract index : indexes) {
       List<List<Object>> error = index.checkAddOrUpdate(object, oldObject);
       if (!error.isEmpty()) {
         // TODO formatting : E11000 duplicate key error index: test.zip.$city_1_state_1_pop_1  dup key: { : "BARRE", : "MA", : 4546.0 }
@@ -732,7 +760,7 @@ public class FongoDBCollection extends DBCollection {
 
     DBObject idFirst = Util.cloneIdFirst(object);
     Set<String> oldQueryFields = oldObject == null ? Collections.<String>emptySet() : oldObject.keySet();
-    for (Index index : indexes) {
+    for (IndexAbstract index : indexes) {
       if (index.canHandle(queryFields)) {
         index.addOrUpdate(idFirst, oldObject);
       } else if (index.canHandle(oldQueryFields))
@@ -748,7 +776,7 @@ public class FongoDBCollection extends DBCollection {
    */
   private synchronized void removeFromIndexes(DBObject object) {
     Set<String> queryFields = object.keySet();
-    for (Index index : indexes) {
+    for (IndexAbstract index : indexes) {
       if (index.canHandle(queryFields)) {
         index.remove(object);
       }
@@ -756,7 +784,18 @@ public class FongoDBCollection extends DBCollection {
   }
 
   //@VisibleForTesting
-  public synchronized Collection<Index> getIndexes() {
+  public synchronized Collection<IndexAbstract> getIndexes() {
     return Collections.unmodifiableList(indexes);
+  }
+
+  public synchronized List<DBObject> geoNear(DBObject near, DBObject query, Number limit, Number maxDistance, boolean spherical) {
+    IndexAbstract matchingIndex = searchGeoIndex(true);
+    if (matchingIndex == null) {
+      fongoDb.notOkErrorResult(-5, "no geo indices for geoNear").throwOnError();
+    }
+    LOG.info("geoNear() near:{}, query:{}, limit:{}, maxDistance:{}, spherical:{}, use index:{}", near, query, limit, maxDistance, spherical, matchingIndex.getName());
+
+    List<LatLong> latLongs = GeoUtil.latLon(Collections.<String>emptyList(), near);
+    return ((GeoIndex) matchingIndex).geoNear(query == null ? new BasicDBObject() : query, latLongs, limit == null ? 100 : limit.intValue(), spherical);
   }
 }

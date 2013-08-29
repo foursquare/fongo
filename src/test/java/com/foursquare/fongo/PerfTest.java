@@ -11,24 +11,26 @@ import org.slf4j.LoggerFactory;
 public class PerfTest {
   public static void main(String[] args) {
     // Desactivate logback
-    ch.qos.logback.classic.Logger LOG = (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(FongoDBCollection.class);
-    LOG.setLevel(Level.ERROR);
-    LOG = (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(ExpressionParser.class);
-    LOG.setLevel(Level.ERROR);
+    ch.qos.logback.classic.Logger log = (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(FongoDBCollection.class);
+    log.setLevel(Level.ERROR);
+    log = (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(ExpressionParser.class);
+    log.setLevel(Level.ERROR);
 
-    // Microbenchmark
-    for (int i = 0; i < 20000; i++) {
+    System.out.println("Warming jvm");
+    // Microbenchmark warm
+    for (int i = 0; i < 10000; i++) {
       doit(100);
       doitFindN(100);
-      doitIndexes(100);
+      doitFindUniqueIndex(100);
       doitFindNWithIndex(100);
     }
+    System.out.println("Warming jvm done.");
     long startTime = System.currentTimeMillis();
-    doit(100000);
+    doit(10000);
     System.out.println("Took " + (System.currentTimeMillis() - startTime) + " ms");
 
     startTime = System.currentTimeMillis();
-    doitIndexes(100000);
+    doitFindUniqueIndex(10000);
     System.out.println("Took " + (System.currentTimeMillis() - startTime) + " ms with one useless index.");
 
     startTime = System.currentTimeMillis();
@@ -60,18 +62,18 @@ public class PerfTest {
       DBCollection collection = db.getCollection("coll");
       for (int k = 0; k < size; k++) {
         collection.insert(new BasicDBObject("_id", k).append("n", new BasicDBObject("a", k)));
-        collection.findOne(new BasicDBObject("n.a", k));
+        collection.findOne(new BasicDBObject("a", k));
       }
       db.dropDatabase();
     }
   }
 
-  public static void doitIndexes(int size) {
+  public static void doitFindUniqueIndex(int size) {
     Fongo fongo = new Fongo("fongo");
     for (int i = 0; i < 1; i++) {
       DB db = fongo.getDB("db");
       DBCollection collection = db.getCollection("coll");
-      collection.ensureIndex(new BasicDBObject("n.a", 1));
+      collection.ensureIndex(new BasicDBObject("n", 1));
       for (int k = 0; k < size; k++) {
         collection.insert(new BasicDBObject("_id", k).append("n", new BasicDBObject("a", 1)));
         collection.findOne(new BasicDBObject("_id", k));
@@ -85,10 +87,10 @@ public class PerfTest {
     for (int i = 0; i < 1; i++) {
       DB db = fongo.getDB("db");
       DBCollection collection = db.getCollection("coll");
-      collection.ensureIndex(new BasicDBObject("n.a", 1));
+      collection.ensureIndex(new BasicDBObject("n", 1));
       for (int k = 0; k < size; k++) {
-        collection.insert(new BasicDBObject("_id", k).append("n", new BasicDBObject("a", k)));
-        collection.findOne(new BasicDBObject("n.a", k));
+        collection.insert(new BasicDBObject("_id", k).append("n", k % 100));
+        collection.findOne(new BasicDBObject("n.a", k % 100));
       }
       db.dropDatabase();
     }
