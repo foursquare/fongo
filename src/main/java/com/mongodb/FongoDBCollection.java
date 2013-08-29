@@ -398,6 +398,9 @@ public class FongoDBCollection extends DBCollection {
       }
       if (orderby == null) {
         orderby = new BasicDBObject(ID_KEY, 1);
+      } else {
+        // Special case : if order by is wrong (field doesn't exist), the sort must be directed by _id.
+        objectsFromIndex = sortObjects(new BasicDBObject(ID_KEY, 1), objectsFromIndex);
       }
     }
     int seen = 0;
@@ -555,8 +558,8 @@ public class FongoDBCollection extends DBCollection {
     return ret;
   }
 
-  public Iterable<DBObject> sortObjects(final DBObject orderby, final Collection<DBObject> objects) {
-    Iterable<DBObject> objectsToSearch = objects;
+  public Collection<DBObject> sortObjects(final DBObject orderby, final Collection<DBObject> objects) {
+    Collection<DBObject> objectsToSearch = objects;
     if (orderby != null) {
       final Set<String> orderbyKeySet = orderby.keySet();
       if (!orderbyKeySet.isEmpty()) {
