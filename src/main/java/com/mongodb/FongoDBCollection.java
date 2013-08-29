@@ -465,8 +465,11 @@ public class FongoDBCollection extends DBCollection {
     Object value = dbo.get(subKey);
 
     if (path.size() > startIndex + 1) {
-      if (value instanceof DBObject && !(value instanceof List)) {
-        BasicDBObject nb = new BasicDBObject();
+      if (value instanceof DBObject && !(value instanceof List)){
+        BasicDBObject nb = (BasicDBObject) ret.get(subKey);
+        if(nb == null) {
+            nb = new BasicDBObject();
+        }
         ret.append(subKey, nb);
         addValuesAtPath(nb, (DBObject) value, path, startIndex + 1);
       } else if (value instanceof List) {

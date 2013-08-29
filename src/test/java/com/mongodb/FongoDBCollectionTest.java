@@ -26,6 +26,33 @@ public class FongoDBCollectionTest {
 
     assertEquals("applied", expected, actual);
   }
+  
+  /** Tests multiprojections that are nested with the same prefix: a.b.c and a.b.d */
+  @Test
+  public void applyNestedProjectionsInclusionsOnly() {
+      final DBObject obj = new BasicDBObjectBuilder()
+          .add("_id", "_id")
+          .add("foo", 123)
+          .push("a")
+              .push("b")
+                  .append("c", 50)
+                  .append("d", 1000)
+                  .append("bar", 1000)
+      .get();
+    
+    final DBObject actual = collection.applyProjections(obj, new BasicDBObject().append("a.b.c", 1)
+                                                                                 .append("a.b.d", 1));
+    final DBObject expected =  new BasicDBObjectBuilder()
+                        .add("_id", "_id")
+                        .push("a")
+                            .push("b")
+                                .append("c", 50)
+                                .append("d", 1000)
+                           .get();
+            
+    assertEquals("applied", expected, actual);
+  }
+  
 
   @Test
   public void applyProjectionsInclusionsWithoutId() {
