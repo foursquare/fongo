@@ -35,10 +35,14 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.LoggerFactory;
 
 public class FongoTest {
+
+  @Rule
+  public FongoRule fongoRule = new FongoRule(!true);
 
   @Test
   public void testGetDb() {
@@ -1198,6 +1202,83 @@ public class FongoTest {
       // The _id field is always the first.
       assertEquals("_id", object.toMap().keySet().iterator().next());
     }
+  }
+
+  // http://docs.mongodb.org/manual/reference/operator/type/
+  @Test
+  public void shouldFilterByType() throws Exception {
+    // Given
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("date", 1).append("_id", 1));
+    collection.insert(new BasicDBObject("date", 2D).append("_id", 2));
+    collection.insert(new BasicDBObject("date", "3").append("_id", 3));
+    ObjectId id = new ObjectId();
+    collection.insert(new BasicDBObject("date", true).append("_id", id));
+    collection.insert(new BasicDBObject("date", null).append("_id", 5));
+    collection.insert(new BasicDBObject("date", 6L).append("_id", 6));
+    collection.insert(new BasicDBObject("date", Util.list(1, 2, 3)).append("_id", 7));
+    collection.insert(new BasicDBObject("date", Util.list(1D, 2L, "3", 4)).append("_id", 8));
+    collection.insert(new BasicDBObject("date", Util.list(Util.list(1D, 2L, "3", 4))).append("_id", 9));
+    collection.insert(new BasicDBObject("date", 2F).append("_id", 10));
+    collection.insert(new BasicDBObject("date", new BasicDBObject("x", 1)).append("_id", 11));
+
+    // When
+    List<DBObject> objects = collection.find(new BasicDBObject("date", new BasicDBObject("$type", 1))).toArray();
+    assertEquals(Arrays.asList(
+        new BasicDBObject("_id", 2).append("date", 2D),
+        new BasicDBObject("date", Util.list(1D, 2L, "3", 4)).append("_id", 8),
+        new BasicDBObject("date", 2F).append("_id", 10)), objects);
+
+    // When
+    // String
+    objects = collection.find(new BasicDBObject("date", new BasicDBObject("$type", 2))).toArray();
+    assertEquals(Arrays.asList(
+        new BasicDBObject("_id", 3).append("date", "3"),
+        new BasicDBObject("date", Util.list(1D, 2L, "3", 4)).append("_id", 8)), objects);
+
+    // Integer
+    objects = collection.find(new BasicDBObject("date", new BasicDBObject("$type", 16))).toArray();
+    assertEquals(Arrays.asList(
+        new BasicDBObject("_id", 1).append("date", 1),
+        new BasicDBObject("date", Util.list(1, 2, 3)).append("_id", 7),
+        new BasicDBObject("date", Util.list(1D, 2L, "3", 4)).append("_id", 8)), objects);
+
+    // ObjectId
+    objects = collection.find(new BasicDBObject("_id", new BasicDBObject("$type", 7))).toArray();
+    assertEquals(Collections.singletonList(new BasicDBObject("_id", id).append("date", true)), objects);
+
+    // Boolean
+    objects = collection.find(new BasicDBObject("date", new BasicDBObject("$type", 8))).toArray();
+    assertEquals(Collections.singletonList(new BasicDBObject("_id", id).append("date", true)), objects);
+
+    // Long ?
+    objects = collection.find(new BasicDBObject("date", new BasicDBObject("$type", 18))).toArray();
+    assertEquals(Arrays.asList(
+        new BasicDBObject("_id", 6).append("date", 6L),
+        new BasicDBObject("date", Util.list(1D, 2L, "3", 4)).append("_id", 8)), objects);
+
+    // Array ?
+    objects = collection.find(new BasicDBObject("date", new BasicDBObject("$type", 4))).toArray();
+    assertEquals(Arrays.asList(
+        new BasicDBObject("date", Util.list(Util.list(1D, 2L, "3", 4))).append("_id", 9)), objects);
+
+    // Null ?
+    objects = collection.find(new BasicDBObject("date", new BasicDBObject("$type", 10))).toArray();
+    assertEquals(Collections.singletonList(new BasicDBObject("_id", 5).append("date", null)), objects);
+
+    // Object ?
+    objects = collection.find(new BasicDBObject("date", new BasicDBObject("$type", 3))).toArray();
+    assertEquals(Arrays.asList(
+        new BasicDBObject("_id", 1).append("date", 1),
+        new BasicDBObject("_id", 2).append("date", 2D),
+        new BasicDBObject("_id", 3).append("date", "3"),
+        new BasicDBObject("_id", id).append("date", true),
+        new BasicDBObject("_id", 6).append("date", 6L),
+        new BasicDBObject("_id", 7).append("date", Util.list(1, 2, 3)),
+        new BasicDBObject("_id", 8).append("date", Util.list(1D, 2L, "3", 4)),
+        new BasicDBObject("_id", 9).append("date", Util.list(Util.list(1D, 2L, "3", 4))),
+        new BasicDBObject("_id", 10).append("date", 2F),
+        new BasicDBObject("_id", 11).append("date", new BasicDBObject("x", 1))), objects);
   }
 
   static class Seq {
