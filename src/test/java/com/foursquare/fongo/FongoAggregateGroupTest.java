@@ -21,7 +21,7 @@ public class FongoAggregateGroupTest {
    * See http://docs.mongodb.org/manual/reference/aggregation/concat/
    */
   @Test
-  @Ignore("@twillouer")
+  @Ignore("@twillouer : lots work to do.")
   public void testConcat() {
     DBCollection coll = fongoRule.newCollection();
     fongoRule.insertJSON(coll, "[{ _id: 1, item: { sec: \"dessert\", category: \"pie\", type: \"apple\" } },\n" +
@@ -39,11 +39,13 @@ public class FongoAggregateGroupTest {
         "                             }\n" +
         "                   }");
 
+    // When
     AggregationOutput output = coll.aggregate(project);
+
+    // Then
     assertTrue(output.getCommandResult().ok());
 
     List<DBObject> result = (List<DBObject>) output.getCommandResult().get("result");
-    System.out.println(result);
     assertNotNull(result);
     assertEquals(JSON.parse("[\n" +
         "               { \"_id\" : \"main: pie\", \"count\" : 2 },\n" +

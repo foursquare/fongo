@@ -105,6 +105,9 @@ public class MapReduce {
     // TODO use Compilable ? http://www.jmdoudoux.fr/java/dej/chap-scripting.htm
     ScriptEngineManager manager = new ScriptEngineManager();
     ScriptEngine engine = manager.getEngineByName("rhino");
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("engineName:{}, engineVersion:{}, languageVersion:{}", engine.getFactory().getEngineName(), engine.getFactory().getEngineVersion(), engine.getFactory().getLanguageVersion());
+    }
     StringBuilder construct = new StringBuilder();
     Map<Object, List<Object>> mapKeyValue = new LinkedHashMap<Object, List<Object>>();
     for (DBObject object : this.fongoDBCollection.find(query).sort(sort).limit(limit)) {
