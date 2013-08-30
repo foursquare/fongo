@@ -28,6 +28,7 @@ public class MapReduce {
   private final FongoDBCollection fongoDBCollection;
   private final String map;
   private final String reduce;
+  private final String finalize;
   private final DBObject out;
   private final DBObject query;
   private final DBObject sort;
@@ -81,11 +82,12 @@ public class MapReduce {
     public abstract void newResult(DBCollection coll, DBObject result);
   }
 
-  public MapReduce(FongoDB fongoDB, FongoDBCollection coll, String map, String reduce, DBObject out, DBObject query, DBObject sort, Number limit) {
+  public MapReduce(FongoDB fongoDB, FongoDBCollection coll, String map, String reduce, String finalize, DBObject out, DBObject query, DBObject sort, Number limit) {
     this.fongoDB = fongoDB;
     this.fongoDBCollection = coll;
     this.map = map;
     this.reduce = reduce;
+    this.finalize = finalize;
     this.out = out;
     this.query = query;
     this.sort = sort;
@@ -111,31 +113,24 @@ public class MapReduce {
     }
 
     List<DBObject> objects = this.fongoDBCollection.find(query).sort(sort).limit(limit).toArray();
-    List<String> mapFunctions = constructMapFunction(objects);
-    for (String mapFunction : mapFunctions) {
+    List<String> javascriptFunctions = constructJavascriptFunction(objects);
+    for (String jsFunction : javascriptFunctions) {
       try {
-        engine.eval(mapFunction);
+        engine.eval(jsFunction);
       } catch (ScriptException e) {
-        LOG.error("Exception running script {}", mapFunction, e);
+        LOG.error("Exception running script {}", jsFunction, e);
         fongoDB.notOkErrorResult(16722, "JavaScript execution failed: " + e.getMessage()).throwOnError();
       }
     }
 
     // Get the result into an object.
-    NativeObject object1 = (NativeObject) engine.get("$$$fongoEmits$$$");
-    StringBuilder sb = new StringBuilder(80000);
-    for (Map.Entry<Object, Object> entry : object1.entrySet()) {
-      // entry.getValue() is an array. (NativeArray)
-      constructReduceFunction(sb, entry.getKey(), (List<Object>) entry.getValue());
-      try {
-        engine.eval(sb.toString());
-        String result = (String) engine.get("$$$fongoOut$$$");
-        DBObject toInsert = new BasicDBObject(FongoDBCollection.ID_KEY, entry.getKey());
-        toInsert.put("value", JSON.parse(String.valueOf(result)));
-        outmode.newResult(coll, toInsert);
-      } catch (ScriptException e) {
-        fongoDB.notOkErrorResult(16722, "JavaScript execution failed: " + e.getMessage()).throwOnError();
+    List<NativeObject> outs = (List<NativeObject>) engine.get("$$$fongoOuts$$$");
+    for (NativeObject out : outs) {
+      DBObject toInsert = new BasicDBObject();
+      for (Map.Entry<Object, Object> entry : out.entrySet()) {
+        toInsert.put(String.valueOf(entry.getKey()), entry.getValue());
       }
+      outmode.newResult(coll, toInsert);
     }
 
     DBObject result = new BasicDBObject("collection", coll.getName()).append("db", coll.getDB().getName());
@@ -144,9 +139,9 @@ public class MapReduce {
   }
 
   /**
-   * Create the map function.
+   * Create the map/reduce/finalize function.
    */
-  private List<String> constructMapFunction(List<DBObject> objects) {
+  private List<String> constructJavascriptFunction(List<DBObject> objects) {
     List<String> result = new ArrayList<String>();
     StringBuilder sb = new StringBuilder(80000);
     // Add some function to javascript engine.
@@ -176,22 +171,15 @@ public class MapReduce {
     result.add(sb.toString());
 
     // Add Reduce Function
-//    sb.setLength(0);
-//    sb.append("var reduce = ").append(reduce).append("\n");
-//    sb.append("var $$$fongoOut$$$ = null;\n");
-//    sb.append("var $$$fongoOut$$$ = \"\" + com.mongodb.util.JSON.serialize(reduce(").append(JSON.serialize(entry.getKey())).append(",").append(JSON.serialize(entry.getValue())).append(")).toString();");
+    sb.setLength(0);
+    sb.append("var reduce = ").append(reduce).append("\n");
+    sb.append("var $$$fongoOuts$$$ = Array();\n" +
+        "for(i in $$$fongoEmits$$$) {\n" +
+        "$$$fongoOuts$$$[$$$fongoOuts$$$.length] = { _id : i, value : reduce(i, $$$fongoEmits$$$[i]) };\n" +
+        "}\n");
+    result.add(sb.toString());
 
     return result;
-  }
-
-  /**
-   * Create the reduce function.
-   */
-  private void constructReduceFunction(StringBuilder construct, Object key, List<Object> values) {
-    construct.setLength(0);
-
-    construct.append("var reduce = ").append(reduce).append("\n");
-    construct.append("var $$$fongoOut$$$ = \"\" + com.mongodb.util.JSON.serialize(reduce(").append(JSON.serialize(key)).append(",").append(JSON.serialize(values)).append(")).toString();");
   }
 
   private void addMongoFunctions(StringBuilder construct) {
