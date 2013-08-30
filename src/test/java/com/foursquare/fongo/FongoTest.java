@@ -13,7 +13,6 @@ import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
 import com.mongodb.DBRef;
 import com.mongodb.FongoDBCollection;
-import com.mongodb.MongoClient;
 import com.mongodb.MongoException;
 import com.mongodb.QueryBuilder;
 import com.mongodb.WriteConcern;
@@ -950,7 +949,6 @@ public class FongoTest {
   @Test
   public void testDropCollectionsPermitReuseOfDBCollection() throws Exception {
     DB db = newFongo().getDB("db");
-//    DB db = new MongoClient().getDB("test");
     int startingCollectionSize = db.getCollectionNames().size();
     DBCollection coll1 = db.getCollection("coll1");
     DBCollection coll2 = db.getCollection("coll2");
@@ -972,12 +970,21 @@ public class FongoTest {
   }
 
   @Test
+  public void testForceError() throws Exception {
+    Fongo fongo = newFongo();
+    DB db = fongo.getDB("db");
+    CommandResult result = db.command("forceerror");
+    System.out.print(result);
+    assertEquals("ok should always be defined", 0.0, result.get("ok"));
+    assertEquals("exception: forced error", result.get("errmsg"));
+    assertEquals(10038, result.get("code"));
+  }
+
+  @Test
   public void testUndefinedCommand() throws Exception {
     Fongo fongo = newFongo();
     DB db = fongo.getDB("db");
-//    DB db = new MongoClient().getDB("test");
     CommandResult result = db.command("undefined");
-    System.out.println(result);
     assertEquals("ok should always be defined", 0.0, result.get("ok"));
     assertEquals("no such cmd: undefined", result.get("errmsg"));
   }

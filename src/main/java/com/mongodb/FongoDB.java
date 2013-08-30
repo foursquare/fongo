@@ -183,6 +183,10 @@ public class FongoDB extends DB {
       okResult.put("version", "2.4.5");
       okResult.put("maxBsonObjectSize", 16777216);
       return okResult;
+    } else if(cmd.containsField("forceerror")) {
+      // http://docs.mongodb.org/manual/reference/command/forceerror/
+      CommandResult result = notOkErrorResult(10038, null, "exception: forced error");
+      return result;
     } else if (cmd.containsField("mapreduce")) {
       // TODO : sort/limit
       DBObject result = doMapReduce((String) cmd.get("mapreduce"), (String) cmd.get("map"), (String) cmd.get("reduce"), (DBObject) cmd.get("out"), (DBObject) cmd.get("query"), (DBObject) cmd.get("sort"), (Number) cmd.get("limit"));
@@ -246,6 +250,12 @@ public class FongoDB extends DB {
 
   public CommandResult notOkErrorResult(int code, String err) {
     CommandResult result = notOkErrorResult(err);
+    result.put("code", code);
+    return result;
+  }
+
+  public CommandResult notOkErrorResult(int code, String err, String errmsg) {
+    CommandResult result = notOkErrorResult(err, errmsg);
     result.put("code", code);
     return result;
   }
