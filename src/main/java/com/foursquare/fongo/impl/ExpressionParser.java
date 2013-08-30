@@ -62,9 +62,11 @@ public class ExpressionParser {
 
   public Filter buildFilter(DBObject ref) {
     AndFilter andFilter = new AndFilter();
-    for (String key : ref.keySet()) {
-      Object expression = ref.get(key);
-      andFilter.addFilter(buildExpressionFilter(key, expression));
+    if (ref != null) {
+      for (String key : ref.keySet()) {
+        Object expression = ref.get(key);
+        andFilter.addFilter(buildExpressionFilter(key, expression));
+      }
     }
     return andFilter;
   }
