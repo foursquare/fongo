@@ -1,27 +1,22 @@
 package com.foursquare.fongo.impl;
 
-import com.mongodb.DBRef;
-
 import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
 import com.mongodb.BasicDBObjectBuilder;
 import com.mongodb.DBObject;
-import org.bson.types.MaxKey;
-import org.bson.types.MinKey;
-import org.bson.types.ObjectId;
-import static org.junit.Assert.assertThat;
-import org.junit.Test;
-
-import java.lang.reflect.Array;
+import com.mongodb.DBRef;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.regex.Pattern;
-
+import org.bson.types.MaxKey;
+import org.bson.types.MinKey;
+import org.bson.types.ObjectId;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import org.junit.Test;
 
 
 public class ExpressionParserTest {
@@ -608,9 +603,8 @@ public class ExpressionParserTest {
   @Test
   public void testCompareObjects() {
     ExpressionParser expressionParser = new ExpressionParser();
-    assertEquals(0, expressionParser.compareObjects(new BasicDBObject(), new BasicDBObject()).intValue());
+    assertEquals(0, expressionParser.compareObjects(new BasicDBObject(), new BasicDBObject()));
     assertTrue(0 < expressionParser.compareObjects(new BasicDBObject("a", 3), new BasicDBObject("a", 1)));
-//    assertTrue(0 < expressionParser.compareObjects(new BasicDBObject("a", 3), new BasicDBObject("b", 1))); (twillouer : not sure. See FongoTest#strangeSorting
     assertTrue(0 < expressionParser.compareObjects(new BasicDBObject("a", asList(2, 3)), new BasicDBObject("a", asList(1, 2))));
   }
 

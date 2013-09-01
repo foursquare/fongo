@@ -642,8 +642,16 @@ public class ExpressionParser {
     };
   }
 
-  public Integer compareObjects(Object queryValue, Object storedValue) {
-    return compareObjects(queryValue, storedValue, false);
+  /**
+   * Compare objects between {@code queryValue} and {@code storedValue}.
+   * Can return null if {@code comparableFilter} is true and {@code queryValue} and {@code storedValue} can't be compared.
+   *
+   * @param queryValue
+   * @param storedValue
+   * @return
+   */
+  public int compareObjects(Object queryValue, Object storedValue) {
+    return compareObjects(queryValue, storedValue, false).intValue();
   }
 
   /**
@@ -656,7 +664,7 @@ public class ExpressionParser {
    * @return
    */
   @SuppressWarnings("all")
-  public Integer compareObjects(Object queryValue, Object storedValue, boolean comparableFilter) {
+  private Integer compareObjects(Object queryValue, Object storedValue, boolean comparableFilter) {
     LOG.debug("comparing {} and {}", queryValue, storedValue);
 
     if (queryValue instanceof DBObject && storedValue instanceof DBObject) {
@@ -691,7 +699,7 @@ public class ExpressionParser {
           checkTypes = false;
         }
       }
-      if(checkTypes) {
+      if (checkTypes) {
         Integer type1 = CLASS_TO_WEIGHT.get(clazz1);
         Integer type2 = CLASS_TO_WEIGHT.get(clazz2);
         if (type1 != null && type2 != null) {
