@@ -4,12 +4,17 @@ import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBObject;
 import com.mongodb.FongoDBCollection;
+import com.mongodb.gridfs.GridFSFile;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.bson.LazyBSONObject;
+import org.bson.LazyDBList;
 
 public class Util {
 
@@ -149,6 +154,33 @@ public class Util {
       return clone;
     }
 
+    if (source instanceof LazyDBList) {
+      BasicDBList clone = new BasicDBList();
+      Iterator it = ((LazyDBList) source).iterator();
+      while (it.hasNext()) {
+        Object o = it.next();
+        if (o instanceof DBObject) {
+          clone.add(Util.clone((DBObject) o));
+        } else {
+          clone.add(o);
+        }
+      }
+      return (T) clone;
+    }
+
+    if (source instanceof LazyBSONObject) {
+      @SuppressWarnings("unchecked")
+      BasicDBObject clone = new BasicDBObject();
+      for (Map.Entry<String, Object> entry : ((LazyBSONObject) source).entrySet()) {
+        if (entry.getValue() instanceof DBObject) {
+          clone.put(entry.getKey(), Util.clone((DBObject) entry.getValue()));
+        } else {
+          clone.put(entry.getKey(), entry.getValue());
+        }
+      }
+      return (T) clone;
+    }
+
     throw new IllegalArgumentException("Don't know how to embedded: " + source);
   }
 
@@ -167,16 +199,30 @@ public class Util {
     if (source.containsField(FongoDBCollection.ID_KEY)) {
       newobj.put(FongoDBCollection.ID_KEY, source.get(FongoDBCollection.ID_KEY));
     }
+
+    Set<Map.Entry<String, Object>> entrySet;
+    if (source instanceof LazyBSONObject) {
+      entrySet = ((LazyBSONObject) source).entrySet();
+    } else if (source instanceof GridFSFile) {
+      // GridFSFile.toMap doen't work.
+      Map<String, Object> copyMap = new HashMap<String, Object>();
+      for (String field : source.keySet()) {
+        copyMap.put(field, source.get(field));
+      }
+      entrySet = copyMap.entrySet();
+    } else {
+      entrySet = source.toMap().entrySet();
+    }
     // need to embedded the sub obj
-    for (Map.Entry<String, Object> entry : Util.entrySet(source)) {
+    for (Map.Entry<String, Object> entry : entrySet) {
       String field = entry.getKey();
-      Object val = entry.getValue();
-      if (val instanceof BasicDBObject) {
-        newobj.put(field, ((BasicDBObject) val).copy());
-      } else if (val instanceof BasicDBList) {
-        newobj.put(field, ((BasicDBList) val).copy());
-      } else {
-        newobj.put(field, val);
+      if (!FongoDBCollection.ID_KEY.equals(field)) {
+        Object val = entry.getValue();
+        if (val instanceof DBObject) {
+          newobj.put(field, Util.clone((DBObject) val));
+        } else {
+          newobj.put(field, val);
+        }
       }
     }
     return newobj;

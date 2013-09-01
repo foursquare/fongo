@@ -56,8 +56,6 @@ public class ExpressionParser {
   // TODO : http://docs.mongodb.org/manual/reference/operator/geoWithin/#op._S_geoWithin
   // TODO : http://docs.mongodb.org/manual/reference/operator/geoIntersects/
 
-
-
   private static class Null {
   }
 
@@ -121,9 +119,11 @@ public class ExpressionParser {
 
   public Filter buildFilter(DBObject ref) {
     AndFilter andFilter = new AndFilter();
-    for (String key : ref.keySet()) {
-      Object expression = ref.get(key);
-      andFilter.addFilter(buildExpressionFilter(key, expression));
+    if (ref != null) {
+      for (String key : ref.keySet()) {
+        Object expression = ref.get(key);
+        andFilter.addFilter(buildExpressionFilter(key, expression));
+      }
     }
     return andFilter;
   }
@@ -418,6 +418,8 @@ public class ExpressionParser {
           return createPatternFilter(path, pattern);
         }
       },
+      new NearCommandFilterFactory(NEARSPHERE, true),
+      new NearCommandFilterFactory(NEAR, false),
       new BasicCommandFilterFactory(TYPE) {
         @Override
         public Filter createFilter(final List<String> path, DBObject refExpression) {
@@ -425,9 +427,7 @@ public class ExpressionParser {
 
           return createTypeFilter(path, type.intValue());
         }
-      },
-      new NearCommandFilterFactory(NEARSPHERE, true),
-      new NearCommandFilterFactory(NEAR, false)
+      }
   );
 
   boolean objectMatchesPattern(Object obj, Pattern pattern) {
@@ -479,7 +479,7 @@ public class ExpressionParser {
       case 2:
         return obj instanceof CharSequence;
       case 3:
-        return obj instanceof Object; // TODO verify
+        return obj instanceof Object;
       case 4:
         return obj instanceof List;
       case 7:
@@ -868,7 +868,7 @@ public class ExpressionParser {
     }
   }
 
-  public static Filter AllFilter = new Filter() {
+  public static final Filter AllFilter = new Filter() {
     @Override
     public boolean apply(DBObject o) {
       return true;
