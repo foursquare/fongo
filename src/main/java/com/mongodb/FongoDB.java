@@ -31,6 +31,8 @@ public class FongoDB extends DB {
   public FongoDB(Fongo fongo, String name) {
     super(fongo.getMongo(), name);
     this.fongo = fongo;
+    doGetCollection("system.users");
+    doGetCollection("system.indexes");
   }
 
   @Override
@@ -148,7 +150,7 @@ public class FongoDB extends DB {
           limit == null ? 0L : limit.longValue(),
           skip == null ? 0L : skip.longValue());
       CommandResult okResult = okResult();
-      okResult.append("n", result);
+      okResult.append("n", (double) result);
       return okResult;
     } else if (cmd.containsField("deleteIndexes")) {
       String collectionName = (String) cmd.get("deleteIndexes");
@@ -170,6 +172,21 @@ public class FongoDB extends DB {
       list.addAll(result);
       okResult.put("result", list);
       return okResult;
+    } else if (cmd.containsField("ping")) {
+      CommandResult okResult = okResult();
+      return okResult;
+    } else if (cmd.containsField("validate")) {
+      CommandResult okResult = okResult();
+      return okResult;
+    } else if (cmd.containsField("buildInfo")) {
+      CommandResult okResult = okResult();
+      okResult.put("version", "2.4.5");
+      okResult.put("maxBsonObjectSize", 16777216);
+      return okResult;
+    } else if(cmd.containsField("forceerror")) {
+      // http://docs.mongodb.org/manual/reference/command/forceerror/
+      CommandResult result = notOkErrorResult(10038, null, "exception: forced error");
+      return result;
     } else if (cmd.containsField("mapreduce")) {
       DBObject result = doMapReduce(
           (String) cmd.get("mapreduce"),
@@ -209,24 +226,43 @@ public class FongoDB extends DB {
         return result;
       }
     }
-    return notOkErrorResult("undefined command: " + cmd);
+    String command = cmd.toString();
+    if (!cmd.keySet().isEmpty()) {
+      command = cmd.keySet().iterator().next();
+    }
+    return notOkErrorResult(null, "no such cmd: " + command);
   }
 
   public CommandResult okResult() {
     CommandResult result = new CommandResult(fongo.getServerAddress());
-    result.put("ok", true);
+    result.put("ok", 1.0);
     return result;
   }
 
   public CommandResult notOkErrorResult(String err) {
+    return notOkErrorResult(err, null);
+  }
+
+  public CommandResult notOkErrorResult(String err, String errmsg) {
     CommandResult result = new CommandResult(fongo.getServerAddress());
-    result.put("ok", false);
-    result.put("err", err);
+    result.put("ok", 0.0);
+    if (err != null) {
+      result.put("err", err);
+    }
+    if (errmsg != null) {
+      result.put("errmsg", errmsg);
+    }
     return result;
   }
 
   public CommandResult notOkErrorResult(int code, String err) {
     CommandResult result = notOkErrorResult(err);
+    result.put("code", code);
+    return result;
+  }
+
+  public CommandResult notOkErrorResult(int code, String err, String errmsg) {
+    CommandResult result = notOkErrorResult(err, errmsg);
     result.put("code", code);
     return result;
   }
@@ -245,5 +281,9 @@ public class FongoDB extends DB {
 
   public void removeCollection(FongoDBCollection collection) {
     collMap.remove(collection.getName());
+  }
+
+  public void addCollection(FongoDBCollection collection) {
+    collMap.put(collection.getName(), collection);
   }
 }

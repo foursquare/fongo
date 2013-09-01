@@ -605,7 +605,7 @@ public class ExpressionParserTest {
   @Test
   public void testCompareObjects() {
     ExpressionParser expressionParser = new ExpressionParser();
-    assertEquals(0, (int) expressionParser.compareObjects(new BasicDBObject(), new BasicDBObject()));
+    assertEquals(0, expressionParser.compareObjects(new BasicDBObject(), new BasicDBObject()).intValue());
     assertTrue(0 < expressionParser.compareObjects(new BasicDBObject("a", 3), new BasicDBObject("a", 1)));
     assertTrue(0 < expressionParser.compareObjects(new BasicDBObject("a", 3), new BasicDBObject("b", 1)));
     assertTrue(0 < expressionParser.compareObjects(new BasicDBObject("a", asList(2,3)), new BasicDBObject("a", asList(1,2))));

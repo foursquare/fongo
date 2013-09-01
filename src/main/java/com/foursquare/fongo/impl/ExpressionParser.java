@@ -12,11 +12,13 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
+import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,6 +48,7 @@ public class ExpressionParser {
   // TODO : http://docs.mongodb.org/manual/reference/operator/query-geospatial/
   // TODO : http://docs.mongodb.org/manual/reference/operator/geoWithin/#op._S_geoWithin
   // TODO : http://docs.mongodb.org/manual/reference/operator/geoIntersects/
+  public final static String TYPE = "$type";
 
   public class ObjectComparator implements Comparator {
     private final int asc;
@@ -62,9 +65,11 @@ public class ExpressionParser {
 
   public Filter buildFilter(DBObject ref) {
     AndFilter andFilter = new AndFilter();
-    for (String key : ref.keySet()) {
-      Object expression = ref.get(key);
-      andFilter.addFilter(buildExpressionFilter(key, expression));
+    if (ref != null) {
+      for (String key : ref.keySet()) {
+        Object expression = ref.get(key);
+        andFilter.addFilter(buildExpressionFilter(key, expression));
+      }
     }
     return andFilter;
   }
@@ -247,22 +252,26 @@ public class ExpressionParser {
   List<FilterFactory> filterFactories = Arrays.<FilterFactory>asList(
       new ConditionalOperatorFilterFactory(GTE) {
         boolean singleCompare(Object queryValue, Object storedValue) {
-          return compareObjects(queryValue, storedValue) <= 0;
+          Integer result = compareObjects(queryValue, storedValue);
+          return result != null && result.intValue() <= 0;
         }
       },
       new ConditionalOperatorFilterFactory(LTE) {
         boolean singleCompare(Object queryValue, Object storedValue) {
-          return compareObjects(queryValue, storedValue) >= 0;
+          Integer result = compareObjects(queryValue, storedValue);
+          return result != null && result.intValue() >= 0;
         }
       },
       new ConditionalOperatorFilterFactory(GT) {
         boolean singleCompare(Object queryValue, Object storedValue) {
-          return compareObjects(queryValue, storedValue) < 0;
+          Integer result = compareObjects(queryValue, storedValue);
+          return result != null && result.intValue() < 0;
         }
       },
       new ConditionalOperatorFilterFactory(LT) {
         boolean singleCompare(Object queryValue, Object storedValue) {
-          return compareObjects(queryValue, storedValue) > 0;
+          Integer result = compareObjects(queryValue, storedValue);
+          return result != null && result.intValue() > 0;
         }
       },
       new BasicCommandFilterFactory(NE) {
@@ -356,7 +365,15 @@ public class ExpressionParser {
         }
       },
       new NearCommandFilterFactory(NEARSPHERE, true),
-      new NearCommandFilterFactory(NEAR, false)
+      new NearCommandFilterFactory(NEAR, false),
+      new BasicCommandFilterFactory(TYPE) {
+        @Override
+        public Filter createFilter(final List<String> path, DBObject refExpression) {
+          Number type = typecast(TYPE, refExpression.get(TYPE), Number.class);
+
+          return createTypeFilter(path, type.intValue());
+        }
+      }
   );
 
   boolean objectMatchesPattern(Object obj, Pattern pattern) {
@@ -373,6 +390,59 @@ public class ExpressionParser {
       if (objectMatchesPattern(obj, pattern)) {
         return true;
       }
+    }
+    return false;
+  }
+
+
+  /**
+   * http://docs.mongodb.org/manual/reference/operator/type
+   * <p/>
+   * Type	Number
+   * Double	1
+   * String	2
+   * Object	3
+   * Array	4
+   * Binary data	5
+   * Undefined (deprecated)	6
+   * Object id	7
+   * Boolean	8
+   * Date	9
+   * Null	10
+   * Regular Expression	11
+   * JavaScript	13
+   * Symbol	14
+   * JavaScript (with scope)	15
+   * 32-bit integer	16
+   * Timestamp	17
+   * 64-bit integer	18
+   * Min key	255
+   * Max key	127
+   */
+  boolean objectMatchesType(Object obj, int type) {
+    switch (type) {
+      case 1:
+        return obj instanceof Double || obj instanceof Float;
+      case 2:
+        return obj instanceof CharSequence;
+      case 3:
+        return obj instanceof Object;
+      case 4:
+        return obj instanceof List;
+      case 7:
+        return obj instanceof ObjectId;
+      case 8:
+        return obj instanceof Boolean;
+      case 9:
+        return obj instanceof Date;
+      case 10:
+        return obj == null;
+      case 11:
+        return obj instanceof Pattern;
+      case 16:
+        return obj instanceof Integer;
+      case 18:
+        return obj instanceof Long;
     }
     return false;
   }
@@ -521,7 +591,7 @@ public class ExpressionParser {
 
 
   @SuppressWarnings("all")
-  public int compareObjects(Object queryValue, Object storedValue) {
+  public Integer compareObjects(Object queryValue, Object storedValue) {
     LOG.debug("comparing {} and {}", queryValue, storedValue);
 
     if (queryValue instanceof DBObject && storedValue instanceof DBObject) {
@@ -532,6 +602,9 @@ public class ExpressionParser {
       return compareLists(queryList, storedList);
     } else {
       Comparable queryComp = typecast("query value", queryValue, Comparable.class);
+      if(!(storedValue instanceof Comparable) && storedValue != null) {
+        return null;
+      }
       Comparable storedComp = typecast("stored value", storedValue, Comparable.class);
       if (storedComp == null) {
         return 1;
@@ -624,6 +697,30 @@ public class ExpressionParser {
     };
   }
 
+  public Filter createTypeFilter(final List<String> path, final int type) {
+    return new Filter() {
+      public boolean apply(DBObject o) {
+        List<Object> storedOption = getEmbeddedValues(path, o);
+        if (storedOption.isEmpty()) {
+          return false;
+        } else {
+          for (Object storedValue : storedOption) {
+            if (storedValue instanceof Collection) {
+              for (Object object : (Collection) storedValue) {
+                if (objectMatchesType(object, type)) {
+                  return true;
+                }
+              }
+            } else if (objectMatchesType(storedValue, type)) {
+              return true;
+            }
+          }
+          return false;
+        }
+      }
+    };
+  }
+
   static class NotFilter implements Filter {
     private final Filter filter;
 
@@ -671,7 +768,7 @@ public class ExpressionParser {
     }
   }
 
-  public static Filter AllFilter = new Filter() {
+  public static final Filter AllFilter = new Filter() {
     @Override
     public boolean apply(DBObject o) {
       return true;

@@ -81,13 +81,17 @@ public class FongoDBCollection extends DBCollection {
   @Override
   public synchronized WriteResult insert(List<DBObject> toInsert, WriteConcern concern, DBEncoder encoder) {
     for (DBObject obj : toInsert) {
-      filterLists(obj);
+      DBObject cloned = Util.cloneIdFirst(obj);
+      filterLists(cloned);
       if (LOG.isDebugEnabled()) {
-        LOG.debug("insert: " + obj);
+        LOG.debug("insert: " + cloned);
       }
-      putIdIfNotPresent(obj);
+      ObjectId id = putIdIfNotPresent(cloned);
+      if(!(obj instanceof LazyDBObject) && obj.get(ID_KEY) == null) {
+        obj.put(ID_KEY, id);
+      }
 
-      putSizeCheck(obj, concern);
+      putSizeCheck(cloned, concern);
     }
     return new WriteResult(insertResult(toInsert.size()), concern);
   }
@@ -97,12 +101,20 @@ public class FongoDBCollection extends DBCollection {
     return writeConcern._w instanceof Number && ((Number) writeConcern._w).intValue() > 0;
   }
 
-  public void putIdIfNotPresent(DBObject obj) {
-    if (obj.get(ID_KEY) == null) {
+  public ObjectId putIdIfNotPresent(DBObject obj) {
+    Object object = obj.get(ID_KEY);
+    if (object == null) {
       ObjectId id = new ObjectId();
       id.notNew();
       obj.put(ID_KEY, id);
+      return id;
+    } else if (object instanceof  ObjectId) {
+      ObjectId id = (ObjectId) object;
+      id.notNew();
+      return id;
     }
+
+    return null;
   }
 
   public void putSizeCheck(DBObject obj, WriteConcern concern) {
@@ -398,6 +410,9 @@ public class FongoDBCollection extends DBCollection {
       }
       if (orderby == null) {
         orderby = new BasicDBObject(ID_KEY, 1);
+      } else {
+        // Special case : if order by is wrong (field doesn't exist), the sort must be directed by _id.
+        objectsFromIndex = sortObjects(new BasicDBObject(ID_KEY, 1), objectsFromIndex);
       }
     }
     int seen = 0;
@@ -555,8 +570,8 @@ public class FongoDBCollection extends DBCollection {
     return ret;
   }
 
-  public Iterable<DBObject> sortObjects(final DBObject orderby, final Collection<DBObject> objects) {
-    Iterable<DBObject> objectsToSearch = objects;
+  public Collection<DBObject> sortObjects(final DBObject orderby, final Collection<DBObject> objects) {
+    Collection<DBObject> objectsToSearch = objects;
     if (orderby != null) {
       final Set<String> orderbyKeySet = orderby.keySet();
       if (!orderbyKeySet.isEmpty()) {
@@ -633,6 +648,7 @@ public class FongoDBCollection extends DBCollection {
           afterObject = Util.clone(beforeObject);
           updateEngine.doUpdate(afterObject, update, query);
           addToIndexes(afterObject, beforeObject, getWriteConcern());
+          break;
         } else {
           remove(dbo);
           return dbo;
@@ -760,6 +776,8 @@ public class FongoDBCollection extends DBCollection {
    * @param oldObject null if insert, old object if update.
    */
   private synchronized void addToIndexes(DBObject object, DBObject oldObject, WriteConcern concern) {
+    // Ensure "insert/update" create collection into "fongoDB"
+    this.fongoDb.addCollection(this);
     Set<String> queryFields = object.keySet();
     // First, try to see if index can add the new value.
     for (IndexAbstract index : indexes) {
