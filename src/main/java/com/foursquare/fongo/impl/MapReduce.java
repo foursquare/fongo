@@ -8,13 +8,13 @@ import com.mongodb.FongoDBCollection;
 import com.mongodb.util.JSON;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
-import javax.script.ScriptException;
+import org.mozilla.javascript.Context;
+import org.mozilla.javascript.NativeArray;
+import org.mozilla.javascript.NativeObject;
+import org.mozilla.javascript.RhinoException;
+import org.mozilla.javascript.Scriptable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import sun.org.mozilla.javascript.NativeObject;
 
 /**
  * http://docs.mongodb.org/manual/reference/method/db.collection.mapReduce/
@@ -105,37 +105,49 @@ public class MapReduce {
     outmode.initCollection(coll);
 
     // TODO use Compilable ? http://www.jmdoudoux.fr/java/dej/chap-scripting.htm
-    ScriptEngineManager scriptManager = new ScriptEngineManager();
-    ScriptEngine engine = scriptManager.getEngineByName("rhino");
+    Context cx = Context.enter();
+    try {
+      Scriptable scope = cx.initStandardObjects();
+      List<DBObject> objects = this.fongoDBCollection.find(query).sort(sort).limit(limit).toArray();
+      List<String> javascriptFunctions = constructJavascriptFunction(objects);
+      for (String jsFunction : javascriptFunctions) {
+        try {
+          cx.evaluateString(scope, jsFunction, "<map-reduce>", 0, null);
+        } catch (RhinoException e) {
+          LOG.error("Exception running script {}", jsFunction, e);
+          fongoDB.notOkErrorResult(16722, "JavaScript execution failed: " + e.getMessage()).throwOnError();
+        }
+      }
 
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("engineName:{}, engineVersion:{}, languageVersion:{}", engine.getFactory().getEngineName(), engine.getFactory().getEngineVersion(), engine.getFactory().getLanguageVersion());
+
+      // Get the result into an object.
+      NativeArray outs = (NativeArray) scope.get("$$$fongoOuts$$$", scope);
+      for (int i = 0; i < outs.getLength(); i++) {
+        NativeObject out = (NativeObject) outs.get(i, outs);
+        outmode.newResult(coll, getObject(out));
+      }
+
+      DBObject result = new BasicDBObject("collection", coll.getName()).append("db", coll.getDB().getName());
+      LOG.debug("computeResult() : {}", result);
+      return result;
+    } finally {
+      cx.exit();
     }
+  }
 
-    List<DBObject> objects = this.fongoDBCollection.find(query).sort(sort).limit(limit).toArray();
-    List<String> javascriptFunctions = constructJavascriptFunction(objects);
-    for (String jsFunction : javascriptFunctions) {
-      try {
-        engine.eval(jsFunction);
-      } catch (ScriptException e) {
-        LOG.error("Exception running script {}", jsFunction, e);
-        fongoDB.notOkErrorResult(16722, "JavaScript execution failed: " + e.getMessage()).throwOnError();
+  DBObject getObject(NativeObject no) {
+    DBObject ret = new BasicDBObject();
+    Object[] propIds = no.getIds();
+    for (Object propId : propIds) {
+      String key = Context.toString(propId);
+      Object value = NativeObject.getProperty(no, key);
+      if (value instanceof NativeObject) {
+        ret.put(key, getObject((NativeObject) value));
+      } else {
+        ret.put(key, value);
       }
     }
-
-    // Get the result into an object.
-    List<NativeObject> outs = (List<NativeObject>) engine.get("$$$fongoOuts$$$");
-    for (NativeObject out : outs) {
-      DBObject toInsert = new BasicDBObject();
-      for (Map.Entry<Object, Object> entry : out.entrySet()) {
-        toInsert.put(String.valueOf(entry.getKey()), entry.getValue());
-      }
-      outmode.newResult(coll, toInsert);
-    }
-
-    DBObject result = new BasicDBObject("collection", coll.getName()).append("db", coll.getDB().getName());
-    LOG.debug("computeResult() : {}", result);
-    return result;
+    return ret;
   }
 
   /**
