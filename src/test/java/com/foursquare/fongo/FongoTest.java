@@ -40,8 +40,6 @@ import org.slf4j.LoggerFactory;
 
 public class FongoTest {
 
-  @Rule
-  public FongoRule fongoRule = new FongoRule(!true);
 
   @Test
   public void testGetDb() {
@@ -862,6 +860,19 @@ public class FongoTest {
             new BasicDBObject("_id", 2).append("a", new BasicDBObject("b", 2)),
             new BasicDBObject("_id", 1).append("a", new BasicDBObject("b", 1))
         ), results);
+  }
+  
+  @Test
+  public void testCommandQuery() {
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1).append("a", 3));
+    collection.insert(new BasicDBObject("_id", 2).append("a", 2));
+    collection.insert(new BasicDBObject("_id", 3).append("a", 1));
+    
+    assertEquals(
+      new BasicDBObject("_id", 3).append("a", 1),
+      collection.findOne(new BasicDBObject(), null, new BasicDBObject("a", 1))
+    );
   }
 
   @Test

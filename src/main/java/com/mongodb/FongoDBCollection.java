@@ -360,8 +360,9 @@ public class FongoDBCollection extends DBCollection {
   }
 
   @Override
-  public DBObject findOne(DBObject ref, DBObject fields, DBObject orderBy, ReadPreference readPref) {
-    Iterator<DBObject> resultIterator = __find(ref, fields, 0, 1, -1, 0, readPref, null);
+  public DBObject findOne(DBObject query, DBObject fields, DBObject orderBy, ReadPreference readPref) {
+    QueryOpBuilder queryOpBuilder = new QueryOpBuilder().addQuery(query).addOrderBy(orderBy);
+    Iterator<DBObject> resultIterator = __find(queryOpBuilder.get(), fields, 0, 1, -1, 0, readPref, null);
     return resultIterator.hasNext() ? resultIterator.next() : null;
   }
 
