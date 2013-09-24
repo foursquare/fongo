@@ -19,13 +19,17 @@ import com.mongodb.WriteConcern;
 import com.mongodb.WriteResult;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 import org.bson.BSON;
 import org.bson.Transformer;
+import org.bson.types.MaxKey;
+import org.bson.types.MinKey;
 import org.bson.types.ObjectId;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -1375,6 +1379,255 @@ public class FongoTest {
         new BasicDBObject("_id", 9).append("date", Util.list(Util.list(1D, 2L, "3", 4))),
         new BasicDBObject("_id", 10).append("date", 2F),
         new BasicDBObject("_id", 11).append("date", new BasicDBObject("x", 1))), objects);
+  }
+
+  // sorting like : http://docs.mongodb.org/manual/reference/operator/type/
+  @Test
+  public void testSorting() throws Exception {
+    // Given
+    DBCollection collection = newCollection();
+
+    Date date = new Date();
+    collection.insert(new BasicDBObject("_id", 1).append("x", 3));
+    collection.insert(new BasicDBObject("_id", 2).append("x", 2.9D));
+    collection.insert(new BasicDBObject("_id", 3).append("x", date));
+    collection.insert(new BasicDBObject("_id", 4).append("x", true));
+    collection.insert(new BasicDBObject("_id", 5).append("x", new MaxKey()));
+    collection.insert(new BasicDBObject("_id", 6).append("x", new MinKey()));
+    collection.insert(new BasicDBObject("_id", 7).append("x", false));
+    collection.insert(new BasicDBObject("_id", 8).append("x", 2));
+    collection.insert(new BasicDBObject("_id", 9).append("x", date.getTime() + 100));
+    collection.insert(new BasicDBObject("_id", 10));
+
+    // When
+    List<DBObject> objects = collection.find().sort(new BasicDBObject("x", 1)).toArray();
+
+    // Then
+    assertEquals(Arrays.asList(
+        new BasicDBObject("_id", 6).append("x", new MinKey()),
+        new BasicDBObject("_id", 10),
+        new BasicDBObject("_id", 8).append("x", 2),
+        new BasicDBObject("_id", 2).append("x", 2.9D),
+        new BasicDBObject("_id", 1).append("x", 3),
+        new BasicDBObject("_id", 9).append("x", date.getTime() + 100),
+        new BasicDBObject("_id", 7).append("x", false),
+        new BasicDBObject("_id", 4).append("x", true),
+        new BasicDBObject("_id", 3).append("x", date),
+        new BasicDBObject("_id", 5).append("x", new MaxKey())
+    ), objects);
+  }
+
+  @Test
+  public void testSortingNull() throws Exception {
+    // Given
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1).append("x", new MinKey()));
+    collection.insert(new BasicDBObject("_id", 2).append("x", new MaxKey()));
+    collection.insert(new BasicDBObject("_id", 3).append("x", 3));
+    collection.insert(new BasicDBObject("_id", 4).append("x", null));
+    collection.insert(new BasicDBObject("_id", 5));
+
+    // When
+    List<DBObject> objects = collection.find().sort(new BasicDBObject("x", 1)).toArray();
+
+    // Then
+    assertEquals(Arrays.asList(
+        new BasicDBObject("_id", 1).append("x", new MinKey()),
+        new BasicDBObject("_id", 5),
+        new BasicDBObject("_id", 4).append("x", null),
+        new BasicDBObject("_id", 3).append("x", 3),
+        new BasicDBObject("_id", 2).append("x", new MaxKey())
+    ), objects);
+  }
+
+  // Pattern is last.
+  @Test
+  public void testSortingPattern() throws Exception {
+    // Given
+    DBCollection collection = newCollection();
+//    DBCollection collection = new MongoClient().getDB("test").getCollection("sorting");
+//    collection.drop();
+    ObjectId id = ObjectId.get();
+    Date date = new Date();
+    collection.insert(new BasicDBObject("_id", 1).append("x", Pattern.compile("a*")));
+    collection.insert(new BasicDBObject("_id", 2).append("x", 2));
+    collection.insert(new BasicDBObject("_id", 3).append("x", "3"));
+    collection.insert(new BasicDBObject("_id", 4).append("x", id));
+    collection.insert(new BasicDBObject("_id", 5).append("x", new BasicDBObject("a", 3)));
+    collection.insert(new BasicDBObject("_id", 6).append("x", date));
+//    collection.insert(new BasicDBObject("_id", 7).append("x", "3".getBytes())); // later
+
+    // When
+    List<DBObject> objects = collection.find().sort(new BasicDBObject("x", 1)).toArray();
+
+    // Then
+    assertEquals(Arrays.asList(
+        new BasicDBObject("_id", 2).append("x", 2),
+        new BasicDBObject("_id", 3).append("x", "3"),
+        new BasicDBObject("_id", 5).append("x", new BasicDBObject("a", 3)),
+//        new BasicDBObject("_id", 7).append("x", "3".getBytes()), // later.
+        new BasicDBObject("_id", 4).append("x", id),
+        new BasicDBObject("_id", 6).append("x", date),
+        new BasicDBObject("_id", 1).append("x", Pattern.compile("a*"))
+    ), objects);
+  }
+
+  @Test
+  public void testSortingDBObject() throws Exception {
+    // Given
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1).append("x", new BasicDBObject("a", 3)));
+    ObjectId val = ObjectId.get();
+    collection.insert(new BasicDBObject("_id", 2).append("x", val));
+    collection.insert(new BasicDBObject("_id", 3).append("x", "3"));
+    collection.insert(new BasicDBObject("_id", 4).append("x", 3));
+
+    // When
+    List<DBObject> objects = collection.find().sort(new BasicDBObject("x", 1)).toArray();
+
+    // Then
+    assertEquals(Arrays.asList(
+        new BasicDBObject("_id", 4).append("x", 3),
+        new BasicDBObject("_id", 3).append("x", "3"),
+        new BasicDBObject("_id", 1).append("x", new BasicDBObject("a", 3)),
+        new BasicDBObject("_id", 2).append("x", val)
+    ), objects);
+  }
+
+  @Test
+  public void testSortingNullVsMinKey() throws Exception {
+    // Given
+    DBCollection collection = newCollection();
+
+    collection.insert(new BasicDBObject("_id", 1));
+    collection.insert(new BasicDBObject("_id", 2).append("x", new MinKey()));
+
+    // When
+    List<DBObject> objects = collection.find().sort(new BasicDBObject("x", 1)).toArray();
+
+    // Then
+    assertEquals(Arrays.asList(
+        new BasicDBObject("_id", 2).append("x", new MinKey()),
+        new BasicDBObject("_id", 1)
+    ), objects);
+  }
+
+  // Previously on {@link ExpressionParserTest.
+  @Test
+  public void testStrangeSorting() throws Exception {
+    // Given
+    DBCollection collection = newCollection();
+
+    collection.insert(new BasicDBObject("_id", 2).append("b", 1));
+    collection.insert(new BasicDBObject("_id", 1).append("a", 3));
+
+    // When
+    List<DBObject> objects = collection.find().sort(new BasicDBObject("a", 1)).toArray();
+
+    // Then
+    assertEquals(Arrays.asList(
+        new BasicDBObject("_id", 2).append("b", 1),
+        new BasicDBObject("_id", 1).append("a", 3)
+    ), objects);
+  }
+
+  @Test
+  public void shouldSearchGteInArray() throws Exception {
+    // Given
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1).append("a", Util.list(1, 2, 3)));
+    collection.insert(new BasicDBObject("_id", 2).append("a", 2));
+
+    // When
+    List<DBObject> objects = collection.find(new BasicDBObject("a", new BasicDBObject("$gte", 2))).toArray();
+
+    // Then
+    assertEquals(Arrays.asList(
+        new BasicDBObject("_id", 1).append("a", Util.list(1, 2, 3)),
+        new BasicDBObject("_id", 2).append("a", 2)), objects);
+  }
+
+  // issue #78 $gte throws Exception on non-Comparable
+  @Test
+  public void shouldNotThrowsExceptionOnNonComparableGte() throws Exception {
+    // Given
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1).append("a", new BasicDBObject("b", 1).append("c", 1)));
+    collection.insert(new BasicDBObject("_id", 2).append("a", 2));
+
+    // When
+    List<DBObject> objects = collection.find(new BasicDBObject("a", new BasicDBObject("$gte", 2))).toArray();
+
+    // Then
+    assertEquals(Arrays.asList(
+        new BasicDBObject("_id", 2).append("a", 2)), objects);
+  }
+
+  // issue #78 $gte throws Exception on non-Comparable
+  @Test
+  public void shouldNotThrowsExceptionOnNonComparableLte() throws Exception {
+    // Given
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1).append("a", new BasicDBObject("b", 1).append("c", 1)));
+    collection.insert(new BasicDBObject("_id", 2).append("a", 2));
+
+    // When
+    List<DBObject> objects = collection.find(new BasicDBObject("a", new BasicDBObject("$lte", 2))).toArray();
+
+    // Then
+    assertEquals(Arrays.asList(
+        new BasicDBObject("_id", 2).append("a", 2)), objects);
+  }
+
+  // issue #78 $gte throws Exception on non-Comparable
+  @Test
+  public void shouldNotThrowsExceptionOnNonComparableGt() throws Exception {
+    // Given
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1).append("a", new BasicDBObject("b", 1).append("c", 1)));
+    collection.insert(new BasicDBObject("_id", 2).append("a", 2));
+
+    // When
+    List<DBObject> objects = collection.find(new BasicDBObject("a", new BasicDBObject("$gt", 1))).toArray();
+
+    // Then
+    assertEquals(Arrays.asList(
+        new BasicDBObject("_id", 2).append("a", 2)), objects);
+  }
+
+  // issue #78 $gte throws Exception on non-Comparable
+  @Test
+  public void shouldNotThrowsExceptionOnNonComparableLt() throws Exception {
+    // Given
+    DBCollection collection = newCollection();
+    collection.insert(new BasicDBObject("_id", 1).append("a", new BasicDBObject("b", 1).append("c", 1)));
+    collection.insert(new BasicDBObject("_id", 2).append("a", 2));
+
+    // When
+    List<DBObject> objects = collection.find(new BasicDBObject("a", new BasicDBObject("$lt", 3))).toArray();
+
+    // Then
+    assertEquals(Arrays.asList(
+        new BasicDBObject("_id", 2).append("a", 2)), objects);
+  }
+
+  @Test
+  public void shouldCompareObjectId() throws Exception {
+    // Given
+    DBCollection collection = newCollection();
+    ObjectId id1 = ObjectId.get();
+    ObjectId id2 = ObjectId.get();
+    collection.insert(new BasicDBObject("_id", id1));
+    collection.insert(new BasicDBObject("_id", id2));
+
+    // When
+    List<DBObject> objects = collection.find(new BasicDBObject("_id", new BasicDBObject("$gte", id1))).toArray();
+
+    // Then
+    assertEquals(Arrays.asList(
+        new BasicDBObject("_id", id1),
+        new BasicDBObject("_id", id2)
+    ), objects);
   }
 
   static class Seq {
