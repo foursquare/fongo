@@ -5,7 +5,6 @@ import static org.junit.Assert.assertEquals;
 import java.io.IOException;
 import java.util.List;
 
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -15,6 +14,7 @@ import org.junit.rules.TestRule;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBCollection;
 import com.mongodb.DBObject;
+import com.mongodb.MapReduceCommand;
 import com.mongodb.MapReduceOutput;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -74,11 +74,33 @@ public class FongoMapReduceTest {
         "}\n";
     String reduce = "function(name, values) { return Array.sum(values); };";
 
-    MapReduceOutput output = coll.mapReduce(map, reduce, "result", new BasicDBObject("state", "MA"));
+    MapReduceOutput output = coll.mapReduce(map, reduce, "resultF", new BasicDBObject("state", "MA"));
 
-    List<DBObject> results = fongoRule.newCollection("result").find().toArray();
+    List<DBObject> results = output.getOutputCollection().find().toArray();
 
     assertEquals(fongoRule.parse("[{ \"_id\" : \"phil\" , \"value\" : 474.0}]"), results);
+  }
+
+  /**
+   * Inline output = in memory.
+   */
+  @Test
+  public void testMapReduceInline() {
+    // Given
+    DBCollection coll = fongoRule.newCollection();
+    fongoRule.insertJSON(coll, "[{url: \"www.google.com\", date: 1, trash_data: 5 },\n" +
+        " {url: \"www.no-fucking-idea.com\", date: 1, trash_data: 13 },\n" +
+        " {url: \"www.google.com\", date: 1, trash_data: 1 },\n" +
+        " {url: \"www.no-fucking-idea.com\", date: 2, trash_data: 69 },\n" +
+        " {url: \"www.no-fucking-idea.com\", date: 2, trash_data: 256 }]");
+
+    // When
+    String map = "function(){    emit(this.url, 1);  };";
+    String reduce = "function(key, values){    var res = 0;    values.forEach(function(v){ res += 1});    return {count: res};  };";
+    MapReduceOutput output = coll.mapReduce(map, reduce, null, MapReduceCommand.OutputType.INLINE, new BasicDBObject());
+
+    // Then
+    assertEquals(fongoRule.parse("[{ \"_id\" : \"www.google.com\" , \"value\" : { \"count\" : 2.0}}, { \"_id\" : \"www.no-fucking-idea.com\" , \"value\" : { \"count\" : 3.0}}]"), output.results());
   }
 
   @Test

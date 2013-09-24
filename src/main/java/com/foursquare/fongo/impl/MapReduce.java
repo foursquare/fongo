@@ -1,11 +1,17 @@
 package com.foursquare.fongo.impl;
 
+import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBCollection;
 import com.mongodb.DBObject;
 import com.mongodb.FongoDB;
 import com.mongodb.FongoDBCollection;
 import com.mongodb.util.JSON;
+
+import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.List;
 import org.mozilla.javascript.Context;
@@ -25,13 +31,21 @@ public class MapReduce {
   private static final Logger LOG = LoggerFactory.getLogger(MapReduce.class);
 
   private final FongoDB fongoDB;
+
   private final FongoDBCollection fongoDBCollection;
+
   private final String map;
+
   private final String reduce;
+  
   private final String finalize;
+
   private final DBObject out;
+
   private final DBObject query;
+
   private final DBObject sort;
+
   private final int limit;
 
   // http://docs.mongodb.org/manual/reference/method/db.collection.mapReduce/
@@ -52,13 +66,40 @@ public class MapReduce {
       @Override
       public void newResult(DBCollection coll, DBObject result) {
         // Upsert == insert the result if not exist.
-        coll.update(new BasicDBObject(FongoDBCollection.ID_KEY, result.get(FongoDBCollection.ID_KEY)), result, true, false);
+        coll.update(new BasicDBObject(FongoDBCollection.ID_KEY, result.get(FongoDBCollection.ID_KEY)), result, true,
+            false);
       }
     },
     REDUCE {
       @Override
       public void newResult(DBCollection coll, DBObject result) {
         throw new IllegalStateException(); // Todo : recall "reduce function on two values..."
+      }
+    },
+    INLINE {
+      @Override
+      public void initCollection(DBCollection coll) {
+        // Must replace all.
+        coll.remove(new BasicDBObject());
+      }
+
+      @Override
+      public void newResult(DBCollection coll, DBObject result) {
+        coll.insert(result);
+      }
+
+      @Override
+      public String collectionName(DBObject object) {
+        // Random uuid for extract result after.
+        return UUID.randomUUID().toString();
+      }
+
+      // Return a list of all results.
+      @Override
+      public DBObject createResult(DBCollection coll) {
+        BasicDBList list = new BasicDBList();
+        list.addAll(coll.find().toArray());
+        return list;
       }
     };
 
@@ -80,6 +121,11 @@ public class MapReduce {
     }
 
     public abstract void newResult(DBCollection coll, DBObject result);
+
+    public DBObject createResult(DBCollection coll) {
+      DBObject result = new BasicDBObject("collection", coll.getName()).append("db", coll.getDB().getName());
+      return result;
+    }
   }
 
   public MapReduce(FongoDB fongoDB, FongoDBCollection coll, String map, String reduce, String finalize, DBObject out, DBObject query, DBObject sort, Number limit) {
@@ -127,7 +173,7 @@ public class MapReduce {
         outmode.newResult(coll, getObject(out));
       }
 
-      DBObject result = new BasicDBObject("collection", coll.getName()).append("db", coll.getDB().getName());
+      DBObject result = outmode.createResult(coll);
       LOG.debug("computeResult() : {}", result);
       return result;
     } finally {
