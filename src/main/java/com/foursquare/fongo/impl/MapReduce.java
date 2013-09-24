@@ -1,20 +1,25 @@
 package com.foursquare.fongo.impl;
 
+import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBCollection;
 import com.mongodb.DBObject;
 import com.mongodb.FongoDB;
 import com.mongodb.FongoDBCollection;
 import com.mongodb.util.JSON;
+
+import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * http://docs.mongodb.org/manual/reference/method/db.collection.mapReduce/
@@ -25,12 +30,19 @@ public class MapReduce {
   private static final Logger LOG = LoggerFactory.getLogger(MapReduce.class);
 
   private final FongoDB fongoDB;
+
   private final FongoDBCollection fongoDBCollection;
+
   private final String map;
+
   private final String reduce;
+
   private final DBObject out;
+
   private final DBObject query;
+
   private final DBObject sort;
+
   private final int limit;
 
   // http://docs.mongodb.org/manual/reference/method/db.collection.mapReduce/
@@ -51,13 +63,40 @@ public class MapReduce {
       @Override
       public void newResult(DBCollection coll, DBObject result) {
         // Upsert == insert the result if not exist.
-        coll.update(new BasicDBObject(FongoDBCollection.ID_KEY, result.get(FongoDBCollection.ID_KEY)), result, true, false);
+        coll.update(new BasicDBObject(FongoDBCollection.ID_KEY, result.get(FongoDBCollection.ID_KEY)), result, true,
+            false);
       }
     },
     REDUCE {
       @Override
       public void newResult(DBCollection coll, DBObject result) {
         throw new IllegalStateException(); // Todo : recall "reduce function on two values..."
+      }
+    },
+    INLINE {
+      @Override
+      public void initCollection(DBCollection coll) {
+        // Must replace all.
+        coll.remove(new BasicDBObject());
+      }
+
+      @Override
+      public void newResult(DBCollection coll, DBObject result) {
+        coll.insert(result);
+      }
+
+      @Override
+      public String collectionName(DBObject object) {
+        // Random uuid for extract result after.
+        return UUID.randomUUID().toString();
+      }
+
+      // Return a list of all results.
+      @Override
+      public DBObject createResult(DBCollection coll) {
+        BasicDBList list = new BasicDBList();
+        list.addAll(coll.find().toArray());
+        return list;
       }
     };
 
@@ -79,9 +118,15 @@ public class MapReduce {
     }
 
     public abstract void newResult(DBCollection coll, DBObject result);
+
+    public DBObject createResult(DBCollection coll) {
+      DBObject result = new BasicDBObject("collection", coll.getName()).append("db", coll.getDB().getName());
+      return result;
+    }
   }
 
-  public MapReduce(FongoDB fongoDB, FongoDBCollection coll, String map, String reduce, DBObject out, DBObject query, DBObject sort, Number limit) {
+  public MapReduce(FongoDB fongoDB, FongoDBCollection coll, String map, String reduce, DBObject out, DBObject query,
+                   DBObject sort, Number limit) {
     this.fongoDB = fongoDB;
     this.fongoDBCollection = coll;
     this.map = map;
@@ -106,7 +151,8 @@ public class MapReduce {
     ScriptEngineManager manager = new ScriptEngineManager();
     ScriptEngine engine = manager.getEngineByName("rhino");
     if (LOG.isDebugEnabled()) {
-      LOG.debug("engineName:{}, engineVersion:{}, languageVersion:{}", engine.getFactory().getEngineName(), engine.getFactory().getEngineVersion(), engine.getFactory().getLanguageVersion());
+      LOG.debug("engineName:{}, engineVersion:{}, languageVersion:{}", engine.getFactory().getEngineName(),
+          engine.getFactory().getEngineVersion(), engine.getFactory().getLanguageVersion());
     }
     StringBuilder construct = new StringBuilder();
     Map<Object, List<Object>> mapKeyValue = new LinkedHashMap<Object, List<Object>>();
@@ -146,7 +192,7 @@ public class MapReduce {
       }
     }
 
-    DBObject result = new BasicDBObject("collection", coll.getName()).append("db", coll.getDB().getName());
+    DBObject result = outmode.createResult(coll);
     LOG.debug("computeResult() : {}", result);
     return result;
   }
@@ -174,17 +220,17 @@ public class MapReduce {
     addMongoFunctions(construct);
 
     construct.append("var reduce = ").append(reduce).append("\n");
-    construct.append("var $$$fongoOut$$$ = \"\" + com.mongodb.util.JSON.serialize(reduce(").append(JSON.serialize(entry.getKey())).append(",").append(JSON.serialize(entry.getValue())).append(")).toString();");
+    construct.append("var $$$fongoOut$$$ = \"\" + com.mongodb.util.JSON.serialize(reduce(")
+        .append(JSON.serialize(entry.getKey()))
+        .append(",")
+        .append(JSON.serialize(entry.getValue()))
+        .append(")).toString();");
   }
 
   private void addMongoFunctions(StringBuilder construct) {
     // Add some function to javascript engine.
-    construct.append("Array.sum = function(array) {\n" +
-        "    var a = 0;\n" +
-        "    for (var i = 0; i < array.length; i++) {\n" +
-        "        a = a + array[i];\n" +
-        "    }\n" +
-        "    return a;" +
-        "};");
+    construct.append("Array.sum = function(array) {\n" + "    var a = 0;\n"
+        + "    for (var i = 0; i < array.length; i++) {\n" + "        a = a + array[i];\n" + "    }\n" + "    return a;"
+        + "};");
   }
 }

@@ -194,7 +194,12 @@ public class FongoDB extends DB {
         return notOkErrorResult("can't mapReduce");
       }
       CommandResult okResult = okResult();
-      okResult.put("result", result);
+      if(result instanceof List) {
+        // INLINE case.
+        okResult.put("results", result);
+      } else {
+        okResult.put("result", result);
+      }
       return okResult;
     } else if (cmd.containsField("geoNear")) {
       // http://docs.mongodb.org/manual/reference/command/geoNear/
