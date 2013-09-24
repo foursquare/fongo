@@ -431,6 +431,26 @@ public class FongoTest {
   }
 
   @Test
+  public void testCommandFindAndModify() {
+    // Given
+    DBCollection collection = newCollection();
+    DB db = collection.getDB();
+    collection.insert(new BasicDBObject("a", 1).append("_id", 1));
+    collection.insert(new BasicDBObject("a", 2).append("_id", 5));
+    collection.insert(new BasicDBObject("a", 1).append("_id", 2));
+    collection.insert(new BasicDBObject("a", 2).append("_id", 4));
+    collection.insert(new BasicDBObject("a", 1).append("_id", 3));
+
+    // When
+    CommandResult result = db.command(new BasicDBObject("findAndModify", collection.getName()).append("sort", new BasicDBObject("a", 1).append("_id", -1)).append("update", new BasicDBObject("date", 1)));
+
+    // Then
+    assertTrue(result.ok());
+    assertEquals(
+        new BasicDBObject("_id", 3).append("a", 1), result.get("value"));
+  }
+
+  @Test
   public void testEmbeddedSort() {
     DBCollection collection = newCollection();
     collection.insert(new BasicDBObject("_id", 1));

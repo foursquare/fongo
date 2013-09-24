@@ -59,6 +59,13 @@ public class FongoDB extends DB {
     }
   }
 
+
+  private DBObject findAndModify(String collection, DBObject query, DBObject sort, boolean remove, DBObject update, boolean returnNew, DBObject fields, boolean upsert) {
+    FongoDBCollection coll = doGetCollection(collection);
+
+    return coll.findAndModify(query, fields, sort, remove, update, returnNew, upsert);
+  }
+
   private List<DBObject> doAggregateCollection(String collection, List<DBObject> pipeline) {
     FongoDBCollection coll = doGetCollection(collection);
     Aggregator aggregator = new Aggregator(this, coll, pipeline);
@@ -171,6 +178,12 @@ public class FongoDB extends DB {
       BasicDBList list = new BasicDBList();
       list.addAll(result);
       okResult.put("result", list);
+      return okResult;
+    } else if (cmd.containsField("findAndModify")) {
+      DBObject result = findAndModify((String) cmd.get("findAndModify"), (DBObject) cmd.get("query"), (DBObject) cmd.get("sort"), Boolean.TRUE.equals(cmd.get("remove")),
+          (DBObject) cmd.get("update"), Boolean.TRUE.equals(cmd.get("new")), (DBObject) cmd.get("fields"), Boolean.TRUE.equals(cmd.get("upsert")));
+      CommandResult okResult = okResult();
+      okResult.put("value", result);
       return okResult;
     } else if (cmd.containsField("ping")) {
       CommandResult okResult = okResult();
