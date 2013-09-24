@@ -577,7 +577,7 @@ public class ExpressionParser {
               if (expression == null) {
                 return (storedValue == null);
               }
-              if (expression.equals(storedValue)) {
+              if (compareObjects(expression, storedValue) == 0L) {
                 return true;
               }
             }
