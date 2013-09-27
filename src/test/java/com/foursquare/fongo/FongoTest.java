@@ -24,6 +24,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+
+import com.mongodb.util.JSON;
 import org.bson.BSON;
 import org.bson.Transformer;
 import org.bson.types.ObjectId;
@@ -257,6 +259,18 @@ public class FongoTest {
 
     DBCursor cursor4 = collection.find(new BasicDBObject("other", new BasicDBObject("$exists", false)));
     assertEquals("should return all documents", 5, cursor4.toArray().size());
+  }
+
+  // See http://docs.mongodb.org/manual/reference/operator/elemMatch/
+  @Test
+  public void testFindElemMatch() {
+    DBCollection collection = newCollection();
+    collection.insert((DBObject) JSON.parse("{ _id:1, array: [ { value1:1, value2:0 }, { value1:2, value2:2 } ] }"));
+    collection.insert((DBObject) JSON.parse("{ _id:2, array: [ { value1:1, value2:0 }, { value1:1, value2:2 } ] }"));
+
+    DBCursor cursor = collection.find((DBObject) JSON.parse("{ array: { $elemMatch: { value1: 1, value2: { $gt: 1 } } } }"));
+    assertEquals(Arrays.asList((DBObject) JSON.parse("{ _id:2, array: [ { value1:1, value2:0 }, { value1:1, value2:2 } ] }")
+      ), cursor.toArray());
   }
 
   @Test
