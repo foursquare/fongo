@@ -12,7 +12,7 @@ Add dependency to your project:
 <dependency>
   <groupId>com.foursquare</groupId>
   <artifactId>fongo</artifactId>
-  <version>1.1.2</version>
+  <version>1.3.0</version>
 </dependency>
 ```
 
@@ -43,7 +43,7 @@ Fongo uses a LinkedHashMap internally with the \_id as the key.
 
 ## Implementation Details
 
-Fongo depends on [Objenesis](http://objenesis.org/) to hijack the `com.mongodb.MongoClient` class.  It has a "provided" dependency on the mongo-java-driver and was tested with 2.11.2.
+Fongo depends on [Objenesis](http://objenesis.org/) to hijack the `com.mongodb.MongoClient` class.  It has a "provided" dependency on the mongo-java-driver and was tested with 2.11.3.
 It also has a "provided" dependency on sl4j-api for logging.  If you don't already have sl4j in your project, you can add a maven dependency to the logback implementation like this:
 
 ```
@@ -93,7 +93,6 @@ If you use Spring, you can configure fongo in your XML configuration context:
 ## Todo
 
 * more testing
-* the DBObject comparison code isn't quite right, so sorting is slightly incorrect
 
 ## Reporting Bugs and submitting patches
 
@@ -104,7 +103,7 @@ You can fork the project and add a new failing test case.
 It's even better if you can both add the test case and fix the bug. I will merge pull requests with test cases and add 
 your name to the patch contributers below. Please maintain the same code formatting and style as the rest of the project.
 
-## Author
+## Original Author
 * [Jon Hoffman](https://github.com/hoffrocket)
 
 ## Patch Contributers
@@ -121,4 +120,5 @@ your name to the patch contributers below. Please maintain the same code formatt
 * [Philipp Jardas](https://github.com/phjardas)
 * [Sergey Passichenko](https://github.com/serj-de-sudden)
 * [William Delanoue](https://github.com/twillouer)
+* [Juan F. Codagnone](https://github.com/jcodagnone)
 * Anton Bobukh
