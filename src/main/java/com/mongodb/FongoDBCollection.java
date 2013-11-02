@@ -6,6 +6,7 @@ import com.foursquare.fongo.impl.index.GeoIndex;
 import com.foursquare.fongo.impl.index.IndexAbstract;
 import com.foursquare.fongo.impl.index.IndexFactory;
 import com.foursquare.fongo.impl.geo.LatLong;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -81,13 +82,12 @@ public class FongoDBCollection extends DBCollection {
   @Override
   public synchronized WriteResult insert(List<DBObject> toInsert, WriteConcern concern, DBEncoder encoder) {
     for (DBObject obj : toInsert) {
-      DBObject cloned = Util.cloneIdFirst(obj);
-      filterLists(cloned);
+      DBObject cloned = filterLists(Util.cloneIdFirst(obj));
       if (LOG.isDebugEnabled()) {
         LOG.debug("insert: " + cloned);
       }
       ObjectId id = putIdIfNotPresent(cloned);
-      if(!(obj instanceof LazyDBObject) && obj.get(ID_KEY) == null) {
+      if (!(obj instanceof LazyDBObject) && obj.get(ID_KEY) == null) {
         obj.put(ID_KEY, id);
       }
 
@@ -108,7 +108,7 @@ public class FongoDBCollection extends DBCollection {
       id.notNew();
       obj.put(ID_KEY, id);
       return id;
-    } else if (object instanceof  ObjectId) {
+    } else if (object instanceof ObjectId) {
       ObjectId id = (ObjectId) object;
       id.notNew();
       return id;
@@ -129,10 +129,10 @@ public class FongoDBCollection extends DBCollection {
     if (dbo == null) {
       return null;
     }
-    for (String key : dbo.keySet()) {
-      Object value = dbo.get(key);
-      Object replacementValue = replaceListAndMap(value);
-      dbo.put(key, replacementValue);
+    dbo = Util.clone(dbo);
+    for (Map.Entry<String, Object> entry : Util.entrySet(dbo)) {
+      Object replacementValue = replaceListAndMap(entry.getValue());
+      dbo.put(entry.getKey(), replacementValue);
     }
     return dbo;
   }
@@ -174,8 +174,8 @@ public class FongoDBCollection extends DBCollection {
   public synchronized WriteResult update(DBObject q, DBObject o, boolean upsert, boolean multi, WriteConcern concern,
                                          DBEncoder encoder) throws MongoException {
 
-    filterLists(q);
-    filterLists(o);
+    q = filterLists(q);
+    o = filterLists(o);
 
     if (LOG.isDebugEnabled()) {
       LOG.debug("update(" + q + ", " + o + ", " + upsert + ", " + multi + ")");
@@ -284,7 +284,7 @@ public class FongoDBCollection extends DBCollection {
 
   @Override
   public synchronized WriteResult remove(DBObject o, WriteConcern concern, DBEncoder encoder) throws MongoException {
-    filterLists(o);
+    o = filterLists(o);
     if (LOG.isDebugEnabled()) {
       LOG.debug("remove: " + o);
     }
@@ -381,7 +381,7 @@ public class FongoDBCollection extends DBCollection {
   @Override
   synchronized Iterator<DBObject> __find(DBObject ref, DBObject fields, int numToSkip, int batchSize, int limit, int options,
                                          ReadPreference readPref, DBDecoder decoder) throws MongoException {
-    filterLists(ref);
+    ref = filterLists(ref);
     if (LOG.isDebugEnabled()) {
       LOG.debug("find({}, {}).skip({}).limit({})", new Object[]{ref, fields, numToSkip, limit,});
       LOG.debug("the db looks like {}", _idIndex.values());
@@ -481,10 +481,10 @@ public class FongoDBCollection extends DBCollection {
     Object value = dbo.get(subKey);
 
     if (path.size() > startIndex + 1) {
-      if (value instanceof DBObject && !(value instanceof List)){
+      if (value instanceof DBObject && !(value instanceof List)) {
         BasicDBObject nb = (BasicDBObject) ret.get(subKey);
-        if(nb == null) {
-            nb = new BasicDBObject();
+        if (nb == null) {
+          nb = new BasicDBObject();
         }
         ret.append(subKey, nb);
         addValuesAtPath(nb, (DBObject) value, path, startIndex + 1);
@@ -519,15 +519,15 @@ public class FongoDBCollection extends DBCollection {
       final Object projectionValue = projectionObject.get(projectionKey);
       final boolean included;
       if (projectionValue instanceof Number) {
-          included = ((Number) projectionValue).intValue() > 0;
+        included = ((Number) projectionValue).intValue() > 0;
       } else if (projectionValue instanceof Boolean) {
-          included = ((Boolean)projectionValue).booleanValue();
+        included = ((Boolean) projectionValue).booleanValue();
       } else {
-          final String msg = "Projection `" + projectionKey 
-             + "' has a value that Fongo doesn't know how to handle: " + projectionValue
-             + " (" + (projectionValue == null ? " " : projectionValue.getClass() + ")");
-          
-          throw new IllegalArgumentException(msg);
+        final String msg = "Projection `" + projectionKey
+            + "' has a value that Fongo doesn't know how to handle: " + projectionValue
+            + " (" + (projectionValue == null ? " " : projectionValue.getClass() + ")");
+
+        throw new IllegalArgumentException(msg);
       }
       List<String> projectionPath = Util.split(projectionKey);
 
@@ -608,7 +608,7 @@ public class FongoDBCollection extends DBCollection {
 
   @Override
   public synchronized long getCount(DBObject query, DBObject fields, long limit, long skip) {
-    filterLists(query);
+    query = filterLists(query);
     Filter filter = query == null ? ExpressionParser.AllFilter : expressionParser.buildFilter(query);
     long count = 0;
     long upperLimit = Long.MAX_VALUE;
@@ -635,8 +635,8 @@ public class FongoDBCollection extends DBCollection {
 
   @Override
   public synchronized DBObject findAndModify(DBObject query, DBObject fields, DBObject sort, boolean remove, DBObject update, boolean returnNew, boolean upsert) {
-    filterLists(query);
-    filterLists(update);
+    query = filterLists(query);
+    update = filterLists(update);
     Filter filter = expressionParser.buildFilter(query);
 
     Iterable<DBObject> objectsToSearch = sortObjects(sort, filterByIndexes(query));
@@ -673,7 +673,7 @@ public class FongoDBCollection extends DBCollection {
 
   @Override
   public synchronized List distinct(String key, DBObject query) {
-    filterLists(query);
+    query = filterLists(query);
     Set<Object> results = new LinkedHashSet<Object>();
     Filter filter = expressionParser.buildFilter(query);
     for (Iterator<DBObject> iter = filterByIndexes(query).iterator(); iter.hasNext(); ) {

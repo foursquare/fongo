@@ -1,10 +1,13 @@
 package com.mongodb;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
+import org.bson.BSONObject;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -26,7 +29,7 @@ public class FongoDBCollectionTest {
 
     assertEquals("applied", expected, actual);
   }
-  
+
   /** Tests multiprojections that are nested with the same prefix: a.b.c and a.b.d */
   @Test
   public void applyNestedProjectionsInclusionsOnly() {
@@ -39,7 +42,7 @@ public class FongoDBCollectionTest {
                   .append("d", 1000)
                   .append("bar", 1000)
       .get();
-    
+
     final DBObject actual = collection.applyProjections(obj, new BasicDBObject().append("a.b.c", 1)
                                                                                  .append("a.b.d", 1));
     final DBObject expected =  new BasicDBObjectBuilder()
@@ -49,10 +52,10 @@ public class FongoDBCollectionTest {
                                 .append("c", 50)
                                 .append("d", 1000)
                            .get();
-            
+
     assertEquals("applied", expected, actual);
   }
-  
+
 
   @Test
   public void applyProjectionsInclusionsWithoutId() {
@@ -94,27 +97,27 @@ public class FongoDBCollectionTest {
       .append("seq", Arrays.asList(new BasicDBObject("a", "b"), new BasicDBObject("c", "b")));
     collection.insert(obj);
 
-    List<DBObject> results = collection.find(new BasicDBObject("_id", 1), 
+    List<DBObject> results = collection.find(new BasicDBObject("_id", 1),
         new BasicDBObject("_id", -1).append("seq.a", 1)).toArray();
 
-    BasicDBObject expectedResult = new BasicDBObject("seq", 
+    BasicDBObject expectedResult = new BasicDBObject("seq",
       Arrays.asList(new BasicDBObject("a", "b"), new BasicDBObject()));
 
     assertEquals("should have projected result", Arrays.asList(expectedResult), results);
   }
-  
+
   @Test
   public void applyNestedFieldProjection() {
-    
+
     collection.insert(new BasicDBObject("_id", 1)
       .append("a",new BasicDBObject("b", new BasicDBObject("c", 1))));
-    
+
     collection.insert(new BasicDBObject("_id", 2)
       .append("a",new BasicDBObject("b", 1)));
-    
+
     collection.insert(new BasicDBObject("_id", 3));
 
-    List<DBObject> results = collection.find(new BasicDBObject(), 
+    List<DBObject> results = collection.find(new BasicDBObject(),
         new BasicDBObject("_id", -1).append("a.b.c", 1)).toArray();
 
     assertEquals("should have projected result", Arrays.asList(
@@ -147,7 +150,7 @@ public class FongoDBCollectionTest {
           .add("bar", "rab")
           .add("gone", "fishing")
       .get();
-    
+
     final DBObject actual = collection.applyProjections(obj, new BasicDBObject().append("foo", true)
                                                                                  .append("bar", 1));
     final DBObject expected =  new BasicDBObjectBuilder()
@@ -155,8 +158,37 @@ public class FongoDBCollectionTest {
                         .add("foo", "oof")
                         .add("bar", "rab")
                         .get();
-            
+
     assertEquals("applied", expected, actual);
+  }
+
+
+  @Test
+  public void filterListDoentModifyEntry() {
+    DBObject object = new BasicDBObject() {
+        @Override
+        public Object put(String key, Object val) {
+            throw new IllegalStateException();
+        }
+
+        @Override
+        public void putAll(Map m) {
+            throw new IllegalStateException();
+        }
+
+        @Override
+        public void putAll(BSONObject o) {
+            throw new IllegalStateException();
+        }
+
+        @Override
+        public BasicDBObject append(String key, Object val) {
+            throw new IllegalStateException();
+        }
+    };
+
+    DBObject r = collection.filterLists(object);
+    assertTrue(r != object);
   }
 
 }
