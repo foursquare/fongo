@@ -1,23 +1,6 @@
 package com.mongodb;
 
-
-import com.foursquare.fongo.impl.geo.GeoUtil;
-import com.foursquare.fongo.impl.index.GeoIndex;
-import com.foursquare.fongo.impl.index.IndexAbstract;
-import com.foursquare.fongo.impl.index.IndexFactory;
-import com.foursquare.fongo.impl.geo.LatLong;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.ListIterator;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import org.bson.BSON;
 import org.bson.types.ObjectId;
@@ -25,11 +8,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.foursquare.fongo.FongoException;
-import com.foursquare.fongo.impl.ExpressionParser;
-import com.foursquare.fongo.impl.Filter;
-import com.foursquare.fongo.impl.Tuple2;
-import com.foursquare.fongo.impl.UpdateEngine;
-import com.foursquare.fongo.impl.Util;
+import com.foursquare.fongo.impl.*;
+import com.foursquare.fongo.impl.geo.GeoUtil;
+import com.foursquare.fongo.impl.geo.LatLong;
+import com.foursquare.fongo.impl.index.GeoIndex;
+import com.foursquare.fongo.impl.index.IndexAbstract;
+import com.foursquare.fongo.impl.index.IndexFactory;
 
 /**
  * fongo override of com.mongodb.DBCollection
@@ -228,7 +212,7 @@ public class FongoDBCollection extends DBCollection {
       return Collections.emptyList();
     } else if (idValue instanceof DBObject) {
       DBObject idDbObject = (DBObject) idValue;
-      Collection inList = (Collection) idDbObject.get(ExpressionParser.IN);
+      Collection inList = (Collection) idDbObject.get(QueryOperators.IN);
 
       // I think sorting the inputed keys is a rough
       // approximation of how mongo creates the bounds for walking

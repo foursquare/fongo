@@ -3,12 +3,8 @@ package com.foursquare.fongo.impl;
 import com.foursquare.fongo.FongoException;
 import com.foursquare.fongo.impl.geo.GeoUtil;
 import com.foursquare.fongo.impl.geo.LatLong;
-import com.mongodb.BasicDBList;
-import com.mongodb.BasicDBObject;
-import com.mongodb.DBObject;
-import com.mongodb.DBRefBase;
-import com.mongodb.LazyDBObject;
 import java.math.BigDecimal;
+import com.mongodb.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -49,8 +45,9 @@ public class ExpressionParser {
   public final static String REGEX_OPTIONS = "$options";
   public final static String TYPE = "$type";
   public final static String NEAR = "$near";
-  public final static String NEARSPHERE = "$nearSphere";
-  public final static String MAXDISTANCE = "$maxDistance";
+  public final static String NEAR_SPHERE = "$nearSphere";
+  public final static String MAX_DISTANCE = "$maxDistance";
+  public final static String ELEM_MATCH = QueryOperators.ELEM_MATCH;
 
   // TODO : http://docs.mongodb.org/manual/reference/operator/query-geospatial/
   // TODO : http://docs.mongodb.org/manual/reference/operator/geoWithin/#op._S_geoWithin
@@ -253,7 +250,7 @@ public class ExpressionParser {
     @Override
     public Filter createFilter(final List<String> path, DBObject refExpression) {
       LOG.debug("path:{}, refExp:{}", path, refExpression);
-      Number maxDistance = typecast(MAXDISTANCE, refExpression.get(MAXDISTANCE), Number.class);
+      Number maxDistance = typecast(MAX_DISTANCE, refExpression.get(MAX_DISTANCE), Number.class);
       final List<LatLong> coordinates;
       if (refExpression.get(command) instanceof BasicDBList) {
         coordinates = GeoUtil.latLon(Collections.singletonList(command), refExpression);// typecast(command, refExpression.get(command), List.class);
@@ -379,6 +376,24 @@ public class ExpressionParser {
           return true;
         }
       },
+      new BasicFilterFactory(ELEM_MATCH) {
+        boolean compare(Object queryValue, Object storedValue) {
+          DBObject query = typecast(command + " clause", queryValue, DBObject.class);
+          List storedList = typecast("value", storedValue, List.class);
+          if (storedList == null) {
+            return false;
+          }
+
+          Filter filter = buildFilter(query);
+          for(Object object : storedList) {
+              if(filter.apply((DBObject) object)) {
+                  return true;
+              }
+          }
+
+          return false;
+        }
+      },
       new BasicCommandFilterFactory(EXISTS) {
         public Filter createFilter(final List<String> path, final DBObject refExpression) {
           return new Filter() {
@@ -418,7 +433,7 @@ public class ExpressionParser {
           return createPatternFilter(path, pattern);
         }
       },
-      new NearCommandFilterFactory(NEARSPHERE, true),
+      new NearCommandFilterFactory(NEAR_SPHERE, true),
       new NearCommandFilterFactory(NEAR, false),
       new BasicCommandFilterFactory(TYPE) {
         @Override
