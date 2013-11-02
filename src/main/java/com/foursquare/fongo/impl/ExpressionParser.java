@@ -7,17 +7,23 @@ import com.mongodb.BasicDBList;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBObject;
 import com.mongodb.DBRefBase;
+import com.mongodb.LazyDBObject;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
+import org.bson.LazyBSONList;
+import org.bson.types.MaxKey;
+import org.bson.types.MinKey;
 import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,6 +47,7 @@ public class ExpressionParser {
   public final static String AND = "$and";
   public final static String REGEX = "$regex";
   public final static String REGEX_OPTIONS = "$options";
+  public final static String TYPE = "$type";
   public final static String NEAR = "$near";
   public final static String NEARSPHERE = "$nearSphere";
   public final static String MAXDISTANCE = "$maxDistance";
@@ -48,7 +55,54 @@ public class ExpressionParser {
   // TODO : http://docs.mongodb.org/manual/reference/operator/query-geospatial/
   // TODO : http://docs.mongodb.org/manual/reference/operator/geoWithin/#op._S_geoWithin
   // TODO : http://docs.mongodb.org/manual/reference/operator/geoIntersects/
-  public final static String TYPE = "$type";
+
+  private static class Null {
+  }
+
+  private static final Map<Class, Integer> CLASS_TO_WEIGHT;
+
+  static {
+    // http://docs.mongodb.org/manual/reference/operator/type
+    Map<Class, Integer> map = new HashMap<Class, Integer>();
+//    map.put(Double.class, 1);
+//    map.put(Float.class, 1);
+//    map.put(String.class, 2);
+//    map.put(Object.class, 3);
+//    map.put(BasicDBList.class, 4);
+//    map.put(LazyBSONList.class, 4);
+//    map.put(ObjectId.class, 6);
+//    map.put(Boolean.class, 7);
+//    map.put(Date.class, 9);
+//    map.put(Null.class, 10);
+//    map.put(Pattern.class, 11);
+//    map.put(Integer.class, 16);
+////    map.put(Timestamp.class, 17);
+//    map.put(Long.class, 18);
+//    map.put(MinKey.class, -1); // 255
+//    map.put(MaxKey.class, 127);
+    map.put(MinKey.class, Integer.MIN_VALUE);
+    map.put(Null.class, 0);
+    map.put(Double.class, 1);
+    map.put(Float.class, 1);
+    map.put(Integer.class, 1);
+    map.put(Long.class, 1);
+    map.put(Short.class, 1);
+    map.put(String.class, 2);
+    map.put(Object.class, 3);
+    map.put(BasicDBList.class, 4);
+    map.put(LazyBSONList.class, 4);
+    map.put(BasicDBObject.class, 4);
+    map.put(LazyDBObject.class, 4);
+    map.put(byte[].class, 5);
+    map.put(ObjectId.class, 6);
+    map.put(Boolean.class, 7);
+    map.put(Date.class, 8);
+    map.put(Pattern.class, 9);
+//    map.put(Timestamp.class, 17);
+    map.put(MaxKey.class, Integer.MAX_VALUE);
+
+    CLASS_TO_WEIGHT = Collections.unmodifiableMap(map);
+  }
 
   public class ObjectComparator implements Comparator {
     private final int asc;
@@ -252,25 +306,25 @@ public class ExpressionParser {
   List<FilterFactory> filterFactories = Arrays.<FilterFactory>asList(
       new ConditionalOperatorFilterFactory(GTE) {
         boolean singleCompare(Object queryValue, Object storedValue) {
-          Integer result = compareObjects(queryValue, storedValue);
+          Integer result = compareObjects(queryValue, storedValue, true);
           return result != null && result.intValue() <= 0;
         }
       },
       new ConditionalOperatorFilterFactory(LTE) {
         boolean singleCompare(Object queryValue, Object storedValue) {
-          Integer result = compareObjects(queryValue, storedValue);
+          Integer result = compareObjects(queryValue, storedValue, true);
           return result != null && result.intValue() >= 0;
         }
       },
       new ConditionalOperatorFilterFactory(GT) {
         boolean singleCompare(Object queryValue, Object storedValue) {
-          Integer result = compareObjects(queryValue, storedValue);
+          Integer result = compareObjects(queryValue, storedValue, true);
           return result != null && result.intValue() < 0;
         }
       },
       new ConditionalOperatorFilterFactory(LT) {
         boolean singleCompare(Object queryValue, Object storedValue) {
-          Integer result = compareObjects(queryValue, storedValue);
+          Integer result = compareObjects(queryValue, storedValue, true);
           return result != null && result.intValue() > 0;
         }
       },
@@ -393,7 +447,6 @@ public class ExpressionParser {
     }
     return false;
   }
-
 
   /**
    * http://docs.mongodb.org/manual/reference/operator/type
@@ -565,8 +618,8 @@ public class ExpressionParser {
         } else {
           for (Object storedValue : storedOption) {
             if (storedValue instanceof List) {
-              if(expression instanceof List){
-                if(storedValue.equals(expression)){
+              if (expression instanceof List) {
+                if (storedValue.equals(expression)) {
                   return true;
                 }
               }
@@ -589,9 +642,29 @@ public class ExpressionParser {
     };
   }
 
+  /**
+   * Compare objects between {@code queryValue} and {@code storedValue}.
+   * Can return null if {@code comparableFilter} is true and {@code queryValue} and {@code storedValue} can't be compared.
+   *
+   * @param queryValue
+   * @param storedValue
+   * @return
+   */
+  public int compareObjects(Object queryValue, Object storedValue) {
+    return compareObjects(queryValue, storedValue, false).intValue();
+  }
 
+  /**
+   * Compare objects between {@code queryValue} and {@code storedValue}.
+   * Can return null if {@code comparableFilter} is true and {@code queryValue} and {@code storedValue} can't be compared.
+   *
+   * @param queryValue
+   * @param storedValue
+   * @param comparableFilter if true, return null if {@code queryValue} and {@code storedValue} can't be compared..
+   * @return
+   */
   @SuppressWarnings("all")
-  public Integer compareObjects(Object queryValue, Object storedValue) {
+  private Integer compareObjects(Object queryValue, Object storedValue, boolean comparableFilter) {
     LOG.debug("comparing {} and {}", queryValue, storedValue);
 
     if (queryValue instanceof DBObject && storedValue instanceof DBObject) {
@@ -601,26 +674,61 @@ public class ExpressionParser {
       List storedList = (List) storedValue;
       return compareLists(queryList, storedList);
     } else {
-      Comparable queryComp = typecast("query value", queryValue, Comparable.class);
-      if(!(storedValue instanceof Comparable) && storedValue != null) {
+      Object queryComp = typecast("query value", queryValue, Object.class);
+      if (comparableFilter && !(storedValue instanceof Comparable)) {
         return null;
       }
-      Comparable storedComp = typecast("stored value", storedValue, Comparable.class);
-      if (storedComp == null) {
-        return 1;
-      }
-      return queryComp.compareTo(storedComp);
+      Object storedComp = typecast("stored value", storedValue, Object.class);
+      return compareTo(queryComp, storedComp);
     }
+  }
+
+  //@VisibleForTesting
+  protected int compareTo(Object c1, Object c2) { // Object to handle MinKey/MaxKey
+    Object cc1 = c1;
+    Object cc2 = c2;
+    Class<?> clazz1 = c1 == null ? Null.class : c1.getClass();
+    Class<?> clazz2 = c2 == null ? Null.class : c2.getClass();
+    // Not comparable for MinKey/MaxKey
+    if (!clazz1.equals(clazz2) || !(cc1 instanceof Comparable)) {
+      boolean checkTypes = true;
+      if (cc1 instanceof Number) {
+        if (cc2 instanceof Number) {
+          cc1 = new BigDecimal(cc1.toString());
+          cc2 = new BigDecimal(cc2.toString());
+          checkTypes = false;
+        }
+      }
+      if (checkTypes) {
+        Integer type1 = CLASS_TO_WEIGHT.get(clazz1);
+        Integer type2 = CLASS_TO_WEIGHT.get(clazz2);
+        if (type1 != null && type2 != null) {
+          cc1 = type1;
+          cc2 = type2;
+        } else {
+          throw new FongoException("Don't know how to compare " + cc1.getClass() + " and " + cc2.getClass() + " values are : " + c1 + " vs " + c2);
+        }
+      }
+    }
+
+//    LOG.info("\tcompareTo() cc1:{}, cc2:{} => {}", cc1, cc2, ((Comparable) cc1).compareTo(cc2));
+    return ((Comparable) cc1).compareTo(cc2);
   }
 
   public int compareLists(List queryList, List storedList) {
     int sizeDiff = queryList.size() - storedList.size();
     if (sizeDiff != 0) {
+      if (sizeDiff > 0 && queryList.get(storedList.size()) instanceof MinKey) {
+        return -1; // Minkey is ALWAYS first, even if other is null
+      }
+      if (sizeDiff < 0 && storedList.get(queryList.size()) instanceof MinKey) {
+        return 1; // Minkey is ALWAYS first, even if other is null
+      }
       return sizeDiff;
     }
     for (int i = 0; i < queryList.size(); i++) {
-      int compareValue = compareObjects(queryList.get(i), storedList.get(i));
-      if (compareValue != 0) {
+      Integer compareValue = compareObjects(queryList.get(i), storedList.get(i));
+      if (compareValue != null && compareValue != 0) {
         return compareValue;
       }
     }
@@ -661,6 +769,30 @@ public class ExpressionParser {
     };
   }
 
+  public Filter createTypeFilter(final List<String> path, final int type) {
+    return new Filter() {
+      public boolean apply(DBObject o) {
+        List<Object> storedOption = getEmbeddedValues(path, o);
+        if (storedOption.isEmpty()) {
+          return false;
+        } else {
+          for (Object storedValue : storedOption) {
+            if (storedValue instanceof Collection) {
+              for (Object object : (Collection) storedValue) {
+                if (objectMatchesType(object, type)) {
+                  return true;
+                }
+              }
+            } else if (objectMatchesType(storedValue, type)) {
+              return true;
+            }
+          }
+          return false;
+        }
+      }
+    };
+  }
+
   // Take care of : https://groups.google.com/forum/?fromgroups=#!topic/mongomapper/MfRDh2vtCFg
   public Filter createNearFilter(final List<String> path, final List<LatLong> coordinates, final Number maxDistance, final boolean sphere) {
     return new Filter() {
@@ -693,30 +825,6 @@ public class ExpressionParser {
           limit--;
         }
         return result;
-      }
-    };
-  }
-
-  public Filter createTypeFilter(final List<String> path, final int type) {
-    return new Filter() {
-      public boolean apply(DBObject o) {
-        List<Object> storedOption = getEmbeddedValues(path, o);
-        if (storedOption.isEmpty()) {
-          return false;
-        } else {
-          for (Object storedValue : storedOption) {
-            if (storedValue instanceof Collection) {
-              for (Object object : (Collection) storedValue) {
-                if (objectMatchesType(object, type)) {
-                  return true;
-                }
-              }
-            } else if (objectMatchesType(storedValue, type)) {
-              return true;
-            }
-          }
-          return false;
-        }
       }
     };
   }
