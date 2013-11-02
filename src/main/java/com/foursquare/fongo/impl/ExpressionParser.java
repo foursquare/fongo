@@ -29,7 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ExpressionParser {
-  final static Logger LOG = LoggerFactory.getLogger(ExpressionParser.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ExpressionParser.class);
 
   public final static String LT = "$lt";
   public final static String LTE = "$lte";
