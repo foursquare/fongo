@@ -44,7 +44,6 @@ import org.slf4j.LoggerFactory;
 
 public class FongoTest {
 
-
   @Test
   public void testGetDb() {
     Fongo fongo = newFongo();
