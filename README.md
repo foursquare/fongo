@@ -1,1 +1,1 @@
-# Fongo has been permanently moved to [https://github.com/fakemongo/fongo](https://github.com/fakemongo/fongo)
+## Fongo has been permanently moved to [fakemongo/fongo](https://github.com/fakemongo/fongo)
